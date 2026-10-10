@@ -120,6 +120,19 @@ def save_toss_result(
     return record
 
 
+def delete_toss_result(match_id: str) -> bool:
+    """Delete a recorded toss result (e.g. if accidentally marked or wrong match)."""
+    results = load_toss_results()
+    initial_len = len(results)
+    results = [r for r in results if str(r.get("match_id")) != str(match_id)]
+    if len(results) < initial_len:
+        os.makedirs(os.path.dirname(RESULTS_FILE), exist_ok=True)
+        with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2)
+        return True
+    return False
+
+
 def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
     """
     Automatically pull completed/closed matches from GamingHelper.

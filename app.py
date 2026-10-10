@@ -25,6 +25,7 @@ from core.providers.gaming_helper_provider import (
 from core.engine.toss_results_manager import (
     load_toss_results,
     save_toss_result,
+    delete_toss_result,
     get_toss_accuracy_kpis,
     sync_completed_tosses_from_gaming_helper
 )
@@ -594,26 +595,54 @@ with vip_tabs[0]:
                 </div>
                 """, unsafe_allow_html=True)
 
+                # Check if this match was already marked done
+                all_done_list = load_toss_results()
+                done_map = {str(r.get("match_id")): r for r in all_done_list}
+                is_already_done = str(mid) in done_map
+                prev_r = done_map.get(str(mid), {})
+
+                if is_already_done:
+                    prev_win = prev_r.get("actual_winner", t_a)
+                    prev_dec = prev_r.get("toss_decision", "Bowl")
+                    exp_title = f"✏️ रिजल्ट बदलें / सुधारें: {t_a} vs {t_b} (वर्तमान: 🏆 {prev_win})"
+                    btn_text = "🔄 रिजल्ट अपडेट करें (Update Result)"
+                else:
+                    prev_win = t_a
+                    prev_dec = "Bowl"
+                    exp_title = f"🪙 Mark Toss Done: {t_a} vs {t_b}"
+                    btn_text = "💾 Save Toss Done"
+
                 # --- INTERACTIVE 1-CLICK TOSS DONE ACTION EXPANDER ---
-                with st.expander(f"🪙 Mark Toss Done: {t_a} vs {t_b}", expanded=False):
-                    st.caption("Jaise hi toss ho jaye, yahan winner select karke save karein. Yeh data future pass/fail analysis ke liye automatically record ho jayega.")
-                    col_m1, col_m2, col_m3 = st.columns([2, 2, 1.5])
+                with st.expander(exp_title, expanded=False):
+                    if is_already_done:
+                        st.info(f"ℹ️ **वर्तमान रिज़ल्ट:** 🏆 विनर: **{prev_win}** ({prev_dec}) · नतीजा: **{prev_r.get('outcome_label')}**\nअगर मार्क करते समय कोई ग़लती हो गई हो, तो यहाँ से तुरंत दूसरा विनर चुनकर अपडेट करें:")
+                    else:
+                        st.caption("Jaise hi toss ho jaye, yahan winner select karke save karein. Yeh data future pass/fail analysis ke liye automatically record ho jayega.")
+
+                    if is_already_done:
+                        col_m1, col_m2, col_m3, col_m4 = st.columns([2, 2, 1.4, 1.4])
+                    else:
+                        col_m1, col_m2, col_m3 = st.columns([2, 2, 1.5])
+                        col_m4 = None
+
                     with col_m1:
                         actual_winner = st.selectbox(
                             "🏆 Toss Winner (Kaun Jeeta?)",
                             [t_a, t_b],
+                            index=0 if prev_win == t_a else 1,
                             key=f"win_select_{mid}"
                         )
                     with col_m2:
                         toss_dec = st.selectbox(
                             "Toss Decision (Pehle kya liya?)",
                             ["Bowl (Bowling Pehle)", "Bat (Batting Pehle)"],
+                            index=0 if "bowl" in prev_dec.lower() else 1,
                             key=f"dec_select_{mid}"
                         )
                     with col_m3:
                         st.write("")
                         st.write("")
-                        if st.button("💾 Save Toss Done", key=f"btn_save_done_{mid}", type="primary", use_container_width=True):
+                        if st.button(btn_text, key=f"btn_save_done_{mid}", type="primary", use_container_width=True):
                             dec_str = "Bowl" if "Bowl" in toss_dec else "Bat"
                             saved_rec = save_toss_result(
                                 match_id=mid,
@@ -629,8 +658,16 @@ with vip_tabs[0]:
                                 toss_decision=dec_str,
                                 is_manual=True
                             )
-                            st.success(f"✅ Toss Done Saved! Outcome: {saved_rec['outcome_label']}")
+                            st.success(f"✅ Toss Result Updated! Outcome: {saved_rec['outcome_label']}")
                             st.rerun()
+                    if col_m4 is not None:
+                        with col_m4:
+                            st.write("")
+                            st.write("")
+                            if st.button("🗑️ रिज़ल्ट हटाएँ (Delete)", key=f"btn_tab1_del_{mid}", use_container_width=True):
+                                delete_toss_result(mid)
+                                st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
+                                st.rerun()
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -775,6 +812,62 @@ with vip_tabs[1]:
             t_pct = (t_pass / t_played * 100) if t_played > 0 else 0
             st.info(f"🏏 **टूर्नामेंट: {selected_done_tour}** — कुल मैचेस: **{t_total}** | ✅ Pass: **{t_pass}** | ❌ Fail: **{t_fail}** | 🟡 Skipped: **{t_skip}** | Pass Accuracy: **{t_pct:.1f}%**")
 
+        # Quick Global Result Editor & Fixer Expander
+        with st.expander("✏️ किसी भी टॉस का रिज़ल्ट बदलें या सुधारें (Quick Result Fixer / Editor)", expanded=False):
+            st.markdown("💡 **अगर टॉस मार्क करते वक्त कोई ग़लती हो गई हो**, तो यहाँ से मैच चुनकर तुरंत असली विनर अपडेट करें या रिज़ल्ट हटाएँ:")
+            match_titles = [
+                f"{r.get('match_name')} ({r.get('match_date')} {r.get('toss_time_ist')}) · Current: 🏆 {r.get('actual_winner')} [{r.get('outcome_label')}]"
+                for r in completed_results
+            ]
+            if match_titles:
+                selected_fix_str = st.selectbox("मैच चुनें जिसका रिज़ल्ट बदलना है:", match_titles, key="select_global_fix_match")
+                sel_fix_idx = match_titles.index(selected_fix_str)
+                target_r = completed_results[sel_fix_idx]
+
+                col_u1, col_u2, col_u3, col_u4 = st.columns([2, 2, 1.4, 1.4])
+                with col_u1:
+                    new_fix_winner = st.selectbox(
+                        "🏆 असली टॉस विनर चुनें",
+                        [target_r.get("team_a"), target_r.get("team_b")],
+                        index=0 if target_r.get("actual_winner") == target_r.get("team_a") else 1,
+                        key="global_fix_winner"
+                    )
+                with col_u2:
+                    new_fix_dec = st.selectbox(
+                        "पहले क्या चुना?",
+                        ["Bowl (Bowling Pehle)", "Bat (Batting Pehle)"],
+                        index=0 if "bowl" in str(target_r.get("toss_decision", "")).lower() else 1,
+                        key="global_fix_dec"
+                    )
+                with col_u3:
+                    st.write("")
+                    st.write("")
+                    if st.button("💾 अपडेट करें (Save)", key="btn_global_save_fix", type="primary", use_container_width=True):
+                        dec_str = "Bowl" if "Bowl" in new_fix_dec else "Bat"
+                        saved_fixed = save_toss_result(
+                            match_id=target_r.get("match_id"),
+                            match_name=target_r.get("match_name"),
+                            tournament=target_r.get("tournament"),
+                            toss_time_ist=target_r.get("toss_time_ist"),
+                            match_date=target_r.get("match_date"),
+                            team_a=target_r.get("team_a"),
+                            team_b=target_r.get("team_b"),
+                            recommended_team=target_r.get("recommended_team"),
+                            stake_rating=target_r.get("stake_rating", "NORMAL"),
+                            actual_winner=new_fix_winner,
+                            toss_decision=dec_str,
+                            is_manual=True
+                        )
+                        st.success(f"✅ रिज़ल्ट सफलतापूर्वक अपडेट हो गया! विनर: {new_fix_winner} -> {saved_fixed['outcome_label']}")
+                        st.rerun()
+                with col_u4:
+                    st.write("")
+                    st.write("")
+                    if st.button("🗑️ रिज़ल्ट हटाएँ (Delete)", key="btn_global_del_fix", use_container_width=True):
+                        delete_toss_result(target_r.get("match_id"))
+                        st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
+                        st.rerun()
+
         # Completed Summary Table
         if filtered_done:
             table_rows = []
@@ -874,8 +967,8 @@ with vip_tabs[1]:
                             st.rerun()
 
                 # 1-Click interactive editor to change/correct actual toss winner
-                with st.expander(f"✏️ Correct / Change Winner: {r.get('team_a')} vs {r.get('team_b')}", expanded=False):
-                    c_edit1, c_edit2, c_edit3 = st.columns([2, 2, 1.5])
+                with st.expander(f"✏️ रिजल्ट बदलें / सुधारें: {r.get('team_a')} vs {r.get('team_b')}", expanded=False):
+                    c_edit1, c_edit2, c_edit3, c_edit4 = st.columns([2, 2, 1.4, 1.4])
                     with c_edit1:
                         new_winner = st.selectbox(
                             "🏆 Real Toss Winner (Asli Winner)",
@@ -887,13 +980,13 @@ with vip_tabs[1]:
                         new_dec = st.selectbox(
                             "Elected to",
                             ["Bowl (Bowling Pehle)", "Bat (Batting Pehle)"],
-                            index=0 if "bowl" in r.get("toss_decision", "").lower() else 1,
+                            index=0 if "bowl" in str(r.get("toss_decision", "")).lower() else 1,
                             key=f"edit_dec_{r.get('match_id')}"
                         )
                     with c_edit3:
                         st.write("")
                         st.write("")
-                        if st.button("💾 Save Outcome", key=f"btn_update_{r.get('match_id')}", type="primary", use_container_width=True):
+                        if st.button("💾 अपडेट करें (Save)", key=f"btn_update_{r.get('match_id')}", type="primary", use_container_width=True):
                             dec_str = "Bowl" if "Bowl" in new_dec else "Bat"
                             save_toss_result(
                                 match_id=r.get("match_id"),
@@ -910,6 +1003,13 @@ with vip_tabs[1]:
                                 is_manual=True
                             )
                             st.success(f"✅ Updated! Winner: {new_winner}")
+                            st.rerun()
+                    with c_edit4:
+                        st.write("")
+                        st.write("")
+                        if st.button("🗑️ हटाएँ (Delete)", key=f"btn_card_del_{r.get('match_id')}", use_container_width=True):
+                            delete_toss_result(r.get("match_id"))
+                            st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
                             st.rerun()
         else:
             st.info("No completed tosses match the selected filter. As matches finish, all toss results and pass/fail audit will appear here.")
