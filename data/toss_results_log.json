@@ -1,8 +1,76 @@
 [
   {
+    "match_id": "39251",
+    "match_name": "The Hunters vs RAKA Mathura",
+    "tournament": "Alwar T-20 Premier League",
+    "toss_time_ist": "06:55 PM IST",
+    "match_date": "2026-10-10",
+    "team_a": "The Hunters",
+    "team_b": "RAKA Mathura",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "RAKA Mathura",
+    "toss_decision": "Bowl",
+    "outcome": "SKIPPED",
+    "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
+    "is_manual": false,
+    "recorded_at": "2026-10-10 07:43 PM IST"
+  },
+  {
+    "match_id": "39245",
+    "match_name": "Abu Dhabi vs Emirates Blues",
+    "tournament": "Emirates D10",
+    "toss_time_ist": "06:35 PM IST",
+    "match_date": "2026-10-10",
+    "team_a": "Abu Dhabi",
+    "team_b": "Emirates Blues",
+    "recommended_team": "Emirates Blues",
+    "stake_rating": "\ud83d\udfe2 CONFIRMED PLAY",
+    "actual_winner": "Abu Dhabi",
+    "toss_decision": "Bowl",
+    "outcome": "FAIL",
+    "outcome_label": "\u274c FAIL (MISSED)",
+    "is_manual": true,
+    "recorded_at": "2026-10-10 06:45 PM IST"
+  },
+  {
+    "match_id": "39241",
+    "match_name": "AMZ Properties vs Dairy Boys",
+    "tournament": "ICCA i10x Summer Cup",
+    "toss_time_ist": "06:25 PM IST",
+    "match_date": "2026-10-10",
+    "team_a": "AMZ Properties",
+    "team_b": "Dairy Boys",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "AMZ Properties",
+    "toss_decision": "Bowl",
+    "outcome": "SKIPPED",
+    "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
+    "is_manual": false,
+    "recorded_at": "2026-10-10 07:43 PM IST"
+  },
+  {
+    "match_id": "39239",
+    "match_name": "Cricket Niedersachsen vs Baden Wurttembergischer",
+    "tournament": "Deutsche Cricket Talent Series T20",
+    "toss_time_ist": "06:10 PM IST",
+    "match_date": "2026-10-10",
+    "team_a": "Cricket Niedersachsen",
+    "team_b": "Baden Wurttembergischer",
+    "recommended_team": "Baden Wurttembergischer",
+    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
+    "actual_winner": "Cricket Niedersachsen",
+    "toss_decision": "Bowl",
+    "outcome": "FAIL",
+    "outcome_label": "\u274c FAIL (MISSED)",
+    "is_manual": true,
+    "recorded_at": "2026-10-10 06:37 PM IST"
+  },
+  {
     "match_id": "39248",
     "match_name": "Takashinga 1 vs Queen",
-    "tournament": "Zimbabwe. National Premier League",
+    "tournament": "Zimbabwe National Premier League",
     "toss_time_ist": "04:55 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Takashinga 1",
@@ -14,7 +82,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39244",
@@ -31,41 +99,41 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39238",
     "match_name": "Dubai Royals vs AMZ Properties",
-    "tournament": "ICCA i10x Summer Cup Match 20 from ICC Academy",
+    "tournament": "ICCA i10x Summer Cup",
     "toss_time_ist": "04:05 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Dubai Royals",
     "team_b": "AMZ Properties",
-    "recommended_team": "AMZ Properties",
-    "stake_rating": "\ud83d\udfe2 CONFIRMED PLAY",
-    "actual_winner": "Dubai Royals",
-    "toss_decision": "Bat",
-    "outcome": "FAIL",
-    "outcome_label": "\u274c FAIL (MISSED)",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "AMZ Properties",
+    "toss_decision": "Bowl",
+    "outcome": "SKIPPED",
+    "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39237",
     "match_name": "LISBON SPARTANS vs BD CC LISBON",
-    "tournament": "Portugal Liga Grizzly Div 2 Match 45 from Santarem Cricket Ground",
+    "tournament": "Portugal Liga Grizzly T10",
     "toss_time_ist": "03:55 PM IST",
     "match_date": "2026-10-10",
     "team_a": "LISBON SPARTANS",
     "team_b": "BD CC LISBON",
     "recommended_team": "BD CC LISBON",
-    "stake_rating": "\ud83d\udfe2 CONFIRMED PLAY",
+    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
     "actual_winner": "LISBON SPARTANS",
     "toss_decision": "Bat",
     "outcome": "FAIL",
     "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39234",
@@ -82,7 +150,7 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39250",
@@ -99,63 +167,63 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39247",
     "match_name": "Mbizo Cricket Club vs Gladiators Harare",
-    "tournament": "Zimbabwe. National Premier League",
+    "tournament": "Zimbabwe National Premier League",
     "toss_time_ist": "02:55 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Mbizo Cricket Club",
     "team_b": "Gladiators Harare",
-    "recommended_team": null,
-    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
-    "actual_winner": "Mbizo Cricket Club",
+    "recommended_team": "Gladiators Harare",
+    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
+    "actual_winner": "Gladiators Harare",
     "toss_decision": "Bowl",
-    "outcome": "SKIPPED",
-    "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
+    "outcome": "PASS",
+    "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39236",
     "match_name": "Baden Wurttembergischer vs Cricket Hamburg",
-    "tournament": "Deutsche Cricket Talent Series T20 Match 4",
+    "tournament": "Deutsche Cricket Talent Series T20",
     "toss_time_ist": "02:55 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Baden Wurttembergischer",
     "team_b": "Cricket Hamburg",
     "recommended_team": "Cricket Hamburg",
-    "stake_rating": "\ud83d\udfe2 CONFIRMED PLAY",
+    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
     "actual_winner": "Cricket Hamburg",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39174",
     "match_name": "Titans Women vs Lions Women",
-    "tournament": "2026 CSA Women Pro50 Series 1:30 PM  Not covered live",
+    "tournament": "CSA Pro20 Cup",
     "toss_time_ist": "12:55 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Titans Women",
     "team_b": "Lions Women",
-    "recommended_team": "Titans Women",
+    "recommended_team": "Lions Women",
     "stake_rating": "\ud83d\udfe2 CONFIRMED PLAY",
-    "actual_winner": "Lions Women",
+    "actual_winner": "Titans Women",
     "toss_decision": "Bat",
     "outcome": "FAIL",
     "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39233",
     "match_name": "Uttar Pradesh Under-19s Women vs Punjab Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "12:50 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Uttar Pradesh Under-19s Women",
@@ -167,12 +235,12 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39232",
     "match_name": "Mizoram Under-19s Women vs Chhattisgarh Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "12:50 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Mizoram Under-19s Women",
@@ -184,12 +252,12 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39231",
     "match_name": "Jharkhand Under-19s Women vs Odisha Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "12:50 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Jharkhand Under-19s Women",
@@ -201,12 +269,12 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39230",
     "match_name": "Hyderabad Under-19s Women vs Maharashtra Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "12:50 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Hyderabad Under-19s Women",
@@ -218,12 +286,12 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39229",
     "match_name": "Haryana Under-19s Women vs Saurashtra Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "12:50 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Haryana Under-19s Women",
@@ -235,58 +303,58 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39182",
     "match_name": "SORWATHE WOMENS vs MUHANGA ZEBRA",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "Rwanda T20 Cup",
     "toss_time_ist": "12:40 PM IST",
     "match_date": "2026-10-10",
     "team_a": "SORWATHE WOMENS",
     "team_b": "MUHANGA ZEBRA",
-    "recommended_team": null,
-    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
-    "actual_winner": "SORWATHE WOMENS",
-    "toss_decision": "Bowl",
-    "outcome": "SKIPPED",
-    "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
-    "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
-  },
-  {
-    "match_id": "39181",
-    "match_name": "GAHANGA QUEENS CC vs Indatwa Maidens CC",
-    "tournament": "T20 / T10 Cricket League",
-    "toss_time_ist": "12:25 PM IST",
-    "match_date": "2026-10-10",
-    "team_a": "GAHANGA QUEENS CC",
-    "team_b": "Indatwa Maidens CC",
-    "recommended_team": "Indatwa Maidens CC",
+    "recommended_team": "MUHANGA ZEBRA",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Indatwa Maidens CC",
+    "actual_winner": "MUHANGA ZEBRA",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
+  },
+  {
+    "match_id": "39181",
+    "match_name": "GAHANGA QUEENS CC vs Indatwa Maidens CC",
+    "tournament": "Rwanda T20 Cup",
+    "toss_time_ist": "12:25 PM IST",
+    "match_date": "2026-10-10",
+    "team_a": "GAHANGA QUEENS CC",
+    "team_b": "Indatwa Maidens CC",
+    "recommended_team": "GAHANGA QUEENS CC",
+    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
+    "actual_winner": "GAHANGA QUEENS CC",
+    "toss_decision": "Bowl",
+    "outcome": "PASS",
+    "outcome_label": "\u2705 PASS (WON)",
+    "is_manual": false,
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39180",
     "match_name": "Gahanga Hill Side vs Too Jazzy Cc",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "Rwanda T20 Cup",
     "toss_time_ist": "12:25 PM IST",
     "match_date": "2026-10-10",
     "team_a": "Gahanga Hill Side",
     "team_b": "Too Jazzy Cc",
     "recommended_team": "Too Jazzy Cc",
-    "stake_rating": "\ud83d\udfe2 CONFIRMED PLAY",
+    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
     "actual_winner": "Gahanga Hill Side",
     "toss_decision": "Bat",
     "outcome": "FAIL",
     "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39176",
@@ -303,7 +371,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39172",
@@ -320,12 +388,12 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39192",
     "match_name": "Cricket Niedersachsen vs Cricket Hamburg",
-    "tournament": "Deutsche Cricket Talent Series T20 Match 3",
+    "tournament": "Deutsche Cricket Talent Series T20",
     "toss_time_ist": "11:25 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Cricket Niedersachsen",
@@ -337,7 +405,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39177",
@@ -354,7 +422,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39173",
@@ -371,7 +439,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39171",
@@ -388,7 +456,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39187",
@@ -405,7 +473,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39186",
@@ -422,7 +490,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39185",
@@ -439,7 +507,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39184",
@@ -456,41 +524,41 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39191",
     "match_name": "Vipers vs Gorillas",
-    "tournament": "Japan Futures League T20 Match 4",
+    "tournament": "Japan Futures League T20",
     "toss_time_ist": "09:10 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Vipers",
     "team_b": "Gorillas",
-    "recommended_team": "Vipers",
-    "stake_rating": "\ud83d\udfe2 CONFIRMED PLAY",
-    "actual_winner": "Vipers",
+    "recommended_team": "Gorillas",
+    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
+    "actual_winner": "Gorillas",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39190",
     "match_name": "Turtles vs Dragons",
-    "tournament": "Japan Futures League T20 Match 3",
+    "tournament": "Japan Futures League T20",
     "toss_time_ist": "09:10 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Turtles",
     "team_b": "Dragons",
-    "recommended_team": "Turtles",
+    "recommended_team": "Dragons",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Turtles",
+    "actual_winner": "Dragons",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39183",
@@ -507,7 +575,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39175",
@@ -524,7 +592,7 @@
     "outcome": "FAIL",
     "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39169",
@@ -541,7 +609,7 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39168",
@@ -558,7 +626,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39167",
@@ -575,7 +643,7 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39166",
@@ -592,29 +660,29 @@
     "outcome": "FAIL",
     "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39227",
     "match_name": "Vidarbha Under-19s Women vs Madhya Pradesh Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Vidarbha Under-19s Women",
     "team_b": "Madhya Pradesh Under-19s Women",
-    "recommended_team": "Vidarbha Under-19s Women",
+    "recommended_team": "Madhya Pradesh Under-19s Women",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Madhya Pradesh Under-19s Women",
+    "actual_winner": "Vidarbha Under-19s Women",
     "toss_decision": "Bat",
     "outcome": "FAIL",
     "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39226",
     "match_name": "Tripura Under-19s vs Mizoram Under-19s",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Tripura Under-19s",
@@ -626,12 +694,12 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39225",
     "match_name": "Tamil Nadu Under-19s Women vs Goa Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Tamil Nadu Under-19s Women",
@@ -643,46 +711,46 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39224",
     "match_name": "Tamil Nadu vs Pondicherry",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Tamil Nadu",
     "team_b": "Pondicherry",
-    "recommended_team": "Tamil Nadu",
+    "recommended_team": "Pondicherry",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Tamil Nadu",
+    "actual_winner": "Pondicherry",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39223",
     "match_name": "Sikkim vs Meghalaya Under-19s",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Sikkim",
     "team_b": "Meghalaya Under-19s",
-    "recommended_team": "Sikkim",
-    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Meghalaya Under-19s",
+    "recommended_team": "Meghalaya Under-19s",
+    "stake_rating": "\ud83d\udfe2 CONFIRMED PLAY",
+    "actual_winner": "Sikkim",
     "toss_decision": "Bat",
     "outcome": "FAIL",
     "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39222",
     "match_name": "Saurashtra vs Kerala",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Saurashtra",
@@ -694,46 +762,46 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39221",
     "match_name": "Rajasthan Under-19s Women vs Mumbai Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Rajasthan Under-19s Women",
     "team_b": "Mumbai Women",
-    "recommended_team": "Mumbai Women",
+    "recommended_team": "Rajasthan Under-19s Women",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Mumbai Women",
+    "actual_winner": "Rajasthan Under-19s Women",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39220",
     "match_name": "Rajasthan vs Manipur",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Rajasthan",
     "team_b": "Manipur",
-    "recommended_team": "Rajasthan",
+    "recommended_team": "Manipur",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Rajasthan",
+    "actual_winner": "Manipur",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39219",
     "match_name": "Punjab vs Haryana",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Punjab",
@@ -745,46 +813,46 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39218",
     "match_name": "Odisha vs Uttar Pradesh",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Odisha",
     "team_b": "Uttar Pradesh",
-    "recommended_team": "Odisha",
+    "recommended_team": "Uttar Pradesh",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Odisha",
+    "actual_winner": "Uttar Pradesh",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39217",
     "match_name": "Madhya Pradesh vs Maharashtra",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Madhya Pradesh",
     "team_b": "Maharashtra",
-    "recommended_team": "Madhya Pradesh",
+    "recommended_team": "Maharashtra",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Madhya Pradesh",
+    "actual_winner": "Maharashtra",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39216",
     "match_name": "Karnataka Under-19s Women vs Kerala Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Karnataka Under-19s Women",
@@ -796,12 +864,12 @@
     "outcome": "FAIL",
     "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39215",
     "match_name": "Karnataka vs Chandigarh",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Karnataka",
@@ -813,12 +881,12 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39214",
     "match_name": "Jharkhand vs Gujarat",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Jharkhand",
@@ -830,46 +898,46 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39213",
     "match_name": "Hyderabad vs Baroda",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Hyderabad",
     "team_b": "Baroda",
-    "recommended_team": "Hyderabad",
+    "recommended_team": "Baroda",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Hyderabad",
+    "actual_winner": "Baroda",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39212",
     "match_name": "Himachal Pradesh Under-19s Women vs Baroda Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Himachal Pradesh Under-19s Women",
     "team_b": "Baroda Under-19s Women",
-    "recommended_team": "Baroda Under-19s Women",
+    "recommended_team": "Himachal Pradesh Under-19s Women",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Baroda Under-19s Women",
+    "actual_winner": "Himachal Pradesh Under-19s Women",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39211",
     "match_name": "Goa vs Jammu and Kashmir",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Goa",
@@ -881,12 +949,12 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39210",
     "match_name": "Delhi Under-19s Women vs Jammu and Kashmir Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Delhi Under-19s Women",
@@ -898,29 +966,29 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39209",
     "match_name": "Delhi vs Himachal Pradesh",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Delhi",
     "team_b": "Himachal Pradesh",
-    "recommended_team": "Himachal Pradesh",
+    "recommended_team": "Delhi",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Himachal Pradesh",
+    "actual_winner": "Delhi",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39208",
     "match_name": "Chandigarh Under-19s Women vs Andhra Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Chandigarh Under-19s Women",
@@ -932,12 +1000,12 @@
     "outcome": "FAIL",
     "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39207",
     "match_name": "Bihar Under-19s Women vs Uttarakhand Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Bihar Under-19s Women",
@@ -949,12 +1017,12 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39206",
     "match_name": "Bihar vs Chhattisgarh",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Bihar",
@@ -966,12 +1034,12 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39205",
     "match_name": "Bengal Under-19s Women vs Pondicherry Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Bengal Under-19s Women",
@@ -983,29 +1051,29 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39204",
     "match_name": "Bengal vs Vidarbha",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Bengal",
     "team_b": "Vidarbha",
-    "recommended_team": "Bengal",
+    "recommended_team": "Vidarbha",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Bengal",
+    "actual_winner": "Vidarbha",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39203",
     "match_name": "Assam Under-19s Women vs Gujarat",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Assam Under-19s Women",
@@ -1017,29 +1085,29 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39202",
     "match_name": "Assam vs Uttarakhand",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Assam",
     "team_b": "Uttarakhand",
-    "recommended_team": "Uttarakhand",
-    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Uttarakhand",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "Assam",
     "toss_decision": "Bowl",
-    "outcome": "PASS",
-    "outcome_label": "\u2705 PASS (WON)",
+    "outcome": "SKIPPED",
+    "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39201",
     "match_name": "Andhra vs Mumbai",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "08:20 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Andhra",
@@ -1051,12 +1119,12 @@
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39200",
     "match_name": "Meghalaya Under-19s Women vs Sikkim Under-19s Women",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "BCCI Under-19s Trophy",
     "toss_time_ist": "07:50 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Meghalaya Under-19s Women",
@@ -1068,7 +1136,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39165",
@@ -1085,29 +1153,29 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39189",
     "match_name": "Turtles vs Gorillas",
-    "tournament": "Japan Futures League T20 Match 2 from Sano International Cricket Ground",
+    "tournament": "Japan Futures League T20",
     "toss_time_ist": "05:10 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Turtles",
     "team_b": "Gorillas",
-    "recommended_team": "Gorillas",
+    "recommended_team": "Turtles",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Gorillas",
+    "actual_winner": "Turtles",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39188",
     "match_name": "Dragons vs Vipers",
-    "tournament": "Japan Futures League T20 Match 1 from Sano International Cricket Ground 2",
+    "tournament": "Japan Futures League T20",
     "toss_time_ist": "05:10 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Dragons",
@@ -1119,7 +1187,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39199",
@@ -1136,7 +1204,7 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39198",
@@ -1153,29 +1221,29 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39195",
     "match_name": "Riccarton Premier Men vs St Albans Premier Men",
-    "tournament": "ICCA i10x Summer Cup",
+    "tournament": "New Zealand Club Cricket",
     "toss_time_ist": "02:10 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Riccarton Premier Men",
     "team_b": "St Albans Premier Men",
-    "recommended_team": "Riccarton Premier Men",
-    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Riccarton Premier Men",
+    "recommended_team": "St Albans Premier Men",
+    "stake_rating": "\ud83d\udfe2 CONFIRMED PLAY",
+    "actual_winner": "St Albans Premier Men",
     "toss_decision": "Bowl",
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   },
   {
     "match_id": "39194",
     "match_name": "Burnside Premier Men vs Old Boys Collegians Premier Men",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "New Zealand Club Cricket",
     "toss_time_ist": "02:10 AM IST",
     "match_date": "2026-10-10",
     "team_a": "Burnside Premier Men",
@@ -1187,6 +1255,6 @@
     "outcome": "PASS",
     "outcome_label": "\u2705 PASS (WON)",
     "is_manual": false,
-    "recorded_at": "2026-10-10 05:49 PM IST"
+    "recorded_at": "2026-10-10 07:43 PM IST"
   }
 ]

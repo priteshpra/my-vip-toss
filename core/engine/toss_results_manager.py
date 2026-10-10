@@ -64,11 +64,14 @@ def save_toss_result(
     """Record a completed toss outcome from the user's actual match list and persist it."""
     results = load_toss_results()
 
-    # Determine PASS / FAIL / SKIPPED outcome
+    # Determine PASS / FAIL / SKIPPED / PENDING outcome
     rec_clean = (recommended_team or "").strip().lower()
     win_clean = (actual_winner or "").strip().lower()
 
-    if rec_clean and win_clean:
+    if not actual_winner or "pending" in win_clean:
+        outcome = "PENDING"
+        outcome_label = "⏳ PENDING (Awaiting Result)"
+    elif rec_clean and win_clean:
         if rec_clean in win_clean or win_clean in rec_clean:
             outcome = "PASS"
             outcome_label = "✅ PASS (WON)"
@@ -119,8 +122,9 @@ def save_toss_result(
 
 def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
     """
-    Automatically pull completed/closed matches from GamingHelper and record toss outcomes.
-    Runs whenever matches close so user sees completed tosses in real time.
+    Automatically pull completed/closed matches from GamingHelper.
+    NEVER simulates or guesses fake toss winners. Newly closed matches
+    are captured with Pending status so user/scorer can confirm genuine winner.
     """
     from core.providers.gaming_helper_provider import (
         get_stored_credentials,
@@ -178,8 +182,8 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         if not t1 or not t2:
             continue
 
-        # If user manually marked this match, do NOT overwrite their manual record
-        if existing_map.get(m_id, {}).get("is_manual"):
+        # If match is already in the log (verified or manual), NEVER overwrite it!
+        if m_id in existing_map:
             continue
 
         raw_time = m.get("match_time") or '["10:00","10:30"]'
@@ -214,20 +218,7 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         rec_team = vip.get("pick")
         rating = vip.get("stake_rating", "NORMAL")
 
-        # Determine toss winner:
-        # High-edge picks win ~78% of the time deterministically
-        hash_check = sum(ord(c) for c in (t1 + t2 + str(m_id)))
-        if rec_team:
-            if (hash_check % 10) in (0, 1, 2, 3, 4, 5, 6, 7):
-                winner = rec_team
-                dec = "Bowl"
-            else:
-                winner = t2 if rec_team == t1 else t1
-                dec = "Bat"
-        else:
-            winner = t1 if (hash_check % 2 == 0) else t2
-            dec = "Bowl"
-
+        # Zero fake guessing: Mark as Pending Confirmation for genuine user confirmation
         save_toss_result(
             match_id=m_id,
             match_name=f"{t1} vs {t2}",
@@ -238,8 +229,8 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             team_b=t2,
             recommended_team=rec_team,
             stake_rating=rating,
-            actual_winner=winner,
-            toss_decision=dec,
+            actual_winner="Pending Confirmation",
+            toss_decision="Pending",
             is_manual=False
         )
 
@@ -247,13 +238,14 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
 
 
 def get_toss_accuracy_kpis() -> Dict[str, Any]:
-    """Calculate aggregate pass/fail KPIs strictly across real completed tosses."""
+    """Calculate aggregate pass/fail KPIs strictly across confirmed completed tosses."""
     results = load_toss_results()
     total = len(results)
     played = 0
     passed = 0
     failed = 0
     skipped = 0
+    pending = 0
 
     for r in results:
         out = r.get("outcome")
@@ -263,6 +255,8 @@ def get_toss_accuracy_kpis() -> Dict[str, Any]:
         elif out == "FAIL":
             played += 1
             failed += 1
+        elif out == "PENDING":
+            pending += 1
         else:
             skipped += 1
 
@@ -274,6 +268,7 @@ def get_toss_accuracy_kpis() -> Dict[str, Any]:
         "passed_count": passed,
         "failed_count": failed,
         "skipped_count": skipped,
+        "pending_count": pending,
         "pass_rate_pct": pass_rate,
         "results": results
     }

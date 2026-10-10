@@ -735,7 +735,7 @@ with vip_tabs[1]:
 
         done_filter = st.pills(
             "Filter by Toss Outcome",
-            options=["🌟 Sabhi Completed", "✅ Sirf Pass (Wins)", "❌ Sirf Fail (Losses)", "🟡 Sirf Skipped"],
+            options=["🌟 Sabhi Completed", "✅ Sirf Pass (Wins)", "❌ Sirf Fail (Losses)", "⏳ Pending Result", "🟡 Sirf Skipped"],
             default="🌟 Sabhi Completed",
             key="pills_done_filter"
         )
@@ -752,6 +752,8 @@ with vip_tabs[1]:
             filtered_done = [r for r in filtered_done if r.get("outcome") == "PASS"]
         elif done_filter == "❌ Sirf Fail (Losses)":
             filtered_done = [r for r in filtered_done if r.get("outcome") == "FAIL"]
+        elif done_filter == "⏳ Pending Result":
+            filtered_done = [r for r in filtered_done if r.get("outcome") == "PENDING"]
         elif done_filter == "🟡 Sirf Skipped":
             filtered_done = [r for r in filtered_done if r.get("outcome") == "SKIPPED"]
 
@@ -796,10 +798,28 @@ with vip_tabs[1]:
                 out = r.get("outcome")
                 is_pass = (out == "PASS")
                 is_fail = (out == "FAIL")
-                card_border = "#10b981" if is_pass else ("#ef4444" if is_fail else "#f59e0b")
-                card_badge = "✅ PASS (PROFIT / WON)" if is_pass else ("❌ FAIL (MISSED)" if is_fail else "🟡 SKIPPED (50-50 PASS)")
-                badge_bg = "#064e3b" if is_pass else ("#450a0a" if is_fail else "#451a03")
-                badge_color = "#34d399" if is_pass else ("#f87171" if is_fail else "#fbbf24")
+                is_pending = (out == "PENDING")
+
+                if is_pass:
+                    card_border = "#10b981"
+                    card_badge = "✅ PASS (PROFIT / WON)"
+                    badge_bg = "#064e3b"
+                    badge_color = "#34d399"
+                elif is_fail:
+                    card_border = "#ef4444"
+                    card_badge = "❌ FAIL (MISSED)"
+                    badge_bg = "#450a0a"
+                    badge_color = "#f87171"
+                elif is_pending:
+                    card_border = "#f59e0b"
+                    card_badge = "⏳ PENDING (Awaiting Result)"
+                    badge_bg = "#451a03"
+                    badge_color = "#fbbf24"
+                else:
+                    card_border = "#f59e0b"
+                    card_badge = "🟡 SKIPPED (50-50 PASS)"
+                    badge_bg = "#451a03"
+                    badge_color = "#fbbf24"
 
                 rec_display = f"🟢 PLAY: {r.get('recommended_team')}" if r.get('recommended_team') else "🟡 SKIP (50-50 NEUTRAL)"
 
@@ -830,5 +850,66 @@ with vip_tabs[1]:
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+
+                if is_pending:
+                    st.caption("⚡ **टॉस हो गया है — असली विनर कौन बना? बस 1 क्लिक करें:**")
+                    q_c1, q_c2 = st.columns(2)
+                    with q_c1:
+                        if st.button(f"🏆 {r.get('team_a')} Jeeta", key=f"btn_p_a_{r.get('match_id')}", type="primary", use_container_width=True):
+                            save_toss_result(
+                                r.get("match_id"), r.get("match_name"), r.get("tournament"),
+                                r.get("toss_time_ist"), r.get("match_date"), r.get("team_a"),
+                                r.get("team_b"), r.get("recommended_team"), r.get("stake_rating", "NORMAL"),
+                                r.get("team_a"), "Bowl", is_manual=True
+                            )
+                            st.rerun()
+                    with q_c2:
+                        if st.button(f"🏆 {r.get('team_b')} Jeeta", key=f"btn_p_b_{r.get('match_id')}", type="primary", use_container_width=True):
+                            save_toss_result(
+                                r.get("match_id"), r.get("match_name"), r.get("tournament"),
+                                r.get("toss_time_ist"), r.get("match_date"), r.get("team_a"),
+                                r.get("team_b"), r.get("recommended_team"), r.get("stake_rating", "NORMAL"),
+                                r.get("team_b"), "Bowl", is_manual=True
+                            )
+                            st.rerun()
+
+                # 1-Click interactive editor to change/correct actual toss winner
+                with st.expander(f"✏️ Correct / Change Winner: {r.get('team_a')} vs {r.get('team_b')}", expanded=False):
+                    c_edit1, c_edit2, c_edit3 = st.columns([2, 2, 1.5])
+                    with c_edit1:
+                        new_winner = st.selectbox(
+                            "🏆 Real Toss Winner (Asli Winner)",
+                            [r.get("team_a"), r.get("team_b")],
+                            index=0 if r.get("actual_winner") == r.get("team_a") else 1,
+                            key=f"edit_win_{r.get('match_id')}"
+                        )
+                    with c_edit2:
+                        new_dec = st.selectbox(
+                            "Elected to",
+                            ["Bowl (Bowling Pehle)", "Bat (Batting Pehle)"],
+                            index=0 if "bowl" in r.get("toss_decision", "").lower() else 1,
+                            key=f"edit_dec_{r.get('match_id')}"
+                        )
+                    with c_edit3:
+                        st.write("")
+                        st.write("")
+                        if st.button("💾 Save Outcome", key=f"btn_update_{r.get('match_id')}", type="primary", use_container_width=True):
+                            dec_str = "Bowl" if "Bowl" in new_dec else "Bat"
+                            save_toss_result(
+                                match_id=r.get("match_id"),
+                                match_name=r.get("match_name"),
+                                tournament=r.get("tournament"),
+                                toss_time_ist=r.get("toss_time_ist"),
+                                match_date=r.get("match_date"),
+                                team_a=r.get("team_a"),
+                                team_b=r.get("team_b"),
+                                recommended_team=r.get("recommended_team"),
+                                stake_rating=r.get("stake_rating", "NORMAL"),
+                                actual_winner=new_winner,
+                                toss_decision=dec_str,
+                                is_manual=True
+                            )
+                            st.success(f"✅ Updated! Winner: {new_winner}")
+                            st.rerun()
         else:
             st.info("No completed tosses match the selected filter. As matches finish, all toss results and pass/fail audit will appear here.")
