@@ -1,0 +1,338 @@
+[
+  {
+    "id": "match_20261009_eng_pak_test",
+    "external_provider_id": "cric_104",
+    "tournament": {
+      "id": "test_trophy_2026",
+      "name": "Pakistan tour of England 2026",
+      "category": "INTERNATIONAL",
+      "format": "TEST"
+    },
+    "team_a": {
+      "id": "team_eng",
+      "name": "England",
+      "short_code": "ENG",
+      "aliases": ["England", "ENG"]
+    },
+    "team_b": {
+      "id": "team_pak",
+      "name": "Pakistan",
+      "short_code": "PAK",
+      "aliases": ["Pakistan", "PAK"]
+    },
+    "venue": {
+      "id": "venue_lords",
+      "name": "Lord's Cricket Ground",
+      "city": "London",
+      "country": "United Kingdom"
+    },
+    "match_format": "TEST",
+    "scheduled_start_ist": "2026-10-09T15:30:00+05:30",
+    "expected_toss_ist": "2026-10-09T15:00:00+05:30",
+    "status": "TOSS_COMPLETED",
+    "data_source_id": "cricket_data_org",
+    "toss_result": {
+      "toss_winner_id": "team_eng",
+      "toss_decision": "bowl",
+      "official_source_url": "https://cricketdata.org/match/104/scorecard",
+      "verified_at_ist": "2026-10-09T15:05:00+05:30"
+    }
+  },
+  {
+    "id": "match_20261010_rcb_kkr",
+    "external_provider_id": "cric_102",
+    "tournament": {
+      "id": "ipl_2026",
+      "name": "Indian Premier League 2026",
+      "category": "T20_LEAGUE",
+      "format": "T20"
+    },
+    "team_a": {
+      "id": "team_rcb",
+      "name": "Royal Challengers Bengaluru",
+      "short_code": "RCB",
+      "aliases": ["RCB", "Bangalore", "Bengaluru"]
+    },
+    "team_b": {
+      "id": "team_kkr",
+      "name": "Kolkata Knight Riders",
+      "short_code": "KKR",
+      "aliases": ["KKR", "Kolkata", "Knight Riders"]
+    },
+    "venue": {
+      "id": "venue_chinnaswamy",
+      "name": "M. Chinnaswamy Stadium",
+      "city": "Bengaluru",
+      "country": "India"
+    },
+    "match_format": "T20",
+    "scheduled_start_ist": "2026-10-10T15:30:00+05:30",
+    "expected_toss_ist": "2026-10-10T15:00:00+05:30",
+    "status": "UPCOMING",
+    "data_source_id": "cricket_data_org"
+  },
+  {
+    "id": "match_20261010_csk_mi",
+    "external_provider_id": "cric_101",
+    "tournament": {
+      "id": "ipl_2026",
+      "name": "Indian Premier League 2026",
+      "category": "T20_LEAGUE",
+      "format": "T20"
+    },
+    "team_a": {
+      "id": "team_csk",
+      "name": "Chennai Super Kings",
+      "short_code": "CSK",
+      "aliases": ["CSK", "Chennai", "Whistle Podu"]
+    },
+    "team_b": {
+      "id": "team_mi",
+      "name": "Mumbai Indians",
+      "short_code": "MI",
+      "aliases": ["MI", "Mumbai", "Paltan"]
+    },
+    "venue": {
+      "id": "venue_chepauk",
+      "name": "MA Chidambaram Stadium",
+      "city": "Chennai",
+      "country": "India"
+    },
+    "match_format": "T20",
+    "scheduled_start_ist": "2026-10-10T19:30:00+05:30",
+    "expected_toss_ist": "2026-10-10T19:00:00+05:30",
+    "status": "UPCOMING",
+    "data_source_id": "cricket_data_org"
+  },
+  {
+    "id": "match_20261011_ind_aus_w",
+    "external_provider_id": "cric_103",
+    "tournament": {
+      "id": "wodi_series_2026",
+      "name": "ICC Women's T20 World Cup 2026",
+      "category": "WOMEN",
+      "format": "T20"
+    },
+    "team_a": {
+      "id": "team_ind_w",
+      "name": "India Women",
+      "short_code": "IND-W",
+      "aliases": ["India W", "IND Women"]
+    },
+    "team_b": {
+      "id": "team_aus_w",
+      "name": "Australia Women",
+      "short_code": "AUS-W",
+      "aliases": ["Australia W", "AUS Women"]
+    },
+    "venue": {
+      "id": "venue_wankhede",
+      "name": "Wankhede Stadium",
+      "city": "Mumbai",
+      "country": "India"
+    },
+    "match_format": "T20",
+    "scheduled_start_ist": "2026-10-11T13:30:00+05:30",
+    "expected_toss_ist": "2026-10-11T13:00:00+05:30",
+    "status": "UPCOMING",
+    "data_source_id": "cricket_data_org"
+  },
+  {
+    "id": "match_20261011_gt_rr",
+    "external_provider_id": "cric_105",
+    "tournament": {
+      "id": "ipl_2026",
+      "name": "Indian Premier League 2026",
+      "category": "T20_LEAGUE",
+      "format": "T20"
+    },
+    "team_a": {
+      "id": "team_gt",
+      "name": "Gujarat Titans",
+      "short_code": "GT",
+      "aliases": ["GT", "Gujarat", "Titans"]
+    },
+    "team_b": {
+      "id": "team_rr",
+      "name": "Rajasthan Royals",
+      "short_code": "RR",
+      "aliases": ["RR", "Rajasthan", "Royals"]
+    },
+    "venue": {
+      "id": "venue_motera",
+      "name": "Narendra Modi Stadium",
+      "city": "Ahmedabad",
+      "country": "India"
+    },
+    "match_format": "T20",
+    "scheduled_start_ist": "2026-10-11T19:30:00+05:30",
+    "expected_toss_ist": "2026-10-11T19:00:00+05:30",
+    "status": "UPCOMING",
+    "data_source_id": "cricket_data_org"
+  },
+  {
+    "id": "match_20261012_ind_aus",
+    "external_provider_id": "cric_106",
+    "tournament": {
+      "id": "ind_aus_odi_2026",
+      "name": "Australia tour of India 2026",
+      "category": "INTERNATIONAL",
+      "format": "ODI"
+    },
+    "team_a": {
+      "id": "team_ind",
+      "name": "India",
+      "short_code": "IND",
+      "aliases": ["India", "IND", "Team India", "Men in Blue"]
+    },
+    "team_b": {
+      "id": "team_aus",
+      "name": "Australia",
+      "short_code": "AUS",
+      "aliases": ["Australia", "AUS", "Aussies"]
+    },
+    "venue": {
+      "id": "venue_wankhede",
+      "name": "Wankhede Stadium",
+      "city": "Mumbai",
+      "country": "India"
+    },
+    "match_format": "ODI",
+    "scheduled_start_ist": "2026-10-12T13:30:00+05:30",
+    "expected_toss_ist": "2026-10-12T13:00:00+05:30",
+    "status": "UPCOMING",
+    "data_source_id": "cricket_data_org"
+  },
+  {
+    "id": "match_20261012_srh_dc",
+    "external_provider_id": "cric_107",
+    "tournament": {
+      "id": "ipl_2026",
+      "name": "Indian Premier League 2026",
+      "category": "T20_LEAGUE",
+      "format": "T20"
+    },
+    "team_a": {
+      "id": "team_srh",
+      "name": "Sunrisers Hyderabad",
+      "short_code": "SRH",
+      "aliases": ["SRH", "Hyderabad", "Sunrisers"]
+    },
+    "team_b": {
+      "id": "team_dc",
+      "name": "Delhi Capitals",
+      "short_code": "DC",
+      "aliases": ["DC", "Delhi", "Capitals"]
+    },
+    "venue": {
+      "id": "venue_uppal",
+      "name": "Rajiv Gandhi International Cricket Stadium",
+      "city": "Hyderabad",
+      "country": "India"
+    },
+    "match_format": "T20",
+    "scheduled_start_ist": "2026-10-12T19:30:00+05:30",
+    "expected_toss_ist": "2026-10-12T19:00:00+05:30",
+    "status": "UPCOMING",
+    "data_source_id": "cricket_data_org"
+  },
+  {
+    "id": "match_20261013_sa_nz",
+    "external_provider_id": "cric_108",
+    "tournament": {
+      "id": "sa_nz_t20_2026",
+      "name": "New Zealand tour of South Africa 2026",
+      "category": "INTERNATIONAL",
+      "format": "T20"
+    },
+    "team_a": {
+      "id": "team_sa",
+      "name": "South Africa",
+      "short_code": "SA",
+      "aliases": ["South Africa", "SA", "Proteas"]
+    },
+    "team_b": {
+      "id": "team_nz",
+      "name": "New Zealand",
+      "short_code": "NZ",
+      "aliases": ["New Zealand", "NZ", "Black Caps"]
+    },
+    "venue": {
+      "id": "venue_kingsmead",
+      "name": "Kingsmead",
+      "city": "Durban",
+      "country": "South Africa"
+    },
+    "match_format": "T20",
+    "scheduled_start_ist": "2026-10-13T19:00:00+05:30",
+    "expected_toss_ist": "2026-10-13T18:30:00+05:30",
+    "status": "UPCOMING",
+    "data_source_id": "cricket_data_org"
+  },
+  {
+    "id": "match_20261013_lsg_pbks",
+    "external_provider_id": "cric_109",
+    "tournament": {
+      "id": "ipl_2026",
+      "name": "Indian Premier League 2026",
+      "category": "T20_LEAGUE",
+      "format": "T20"
+    },
+    "team_a": {
+      "id": "team_lsg",
+      "name": "Lucknow Super Giants",
+      "short_code": "LSG",
+      "aliases": ["LSG", "Lucknow", "Super Giants"]
+    },
+    "team_b": {
+      "id": "team_pbks",
+      "name": "Punjab Kings",
+      "short_code": "PBKS",
+      "aliases": ["PBKS", "Punjab", "Kings"]
+    },
+    "venue": {
+      "id": "venue_ekana",
+      "name": "BRSABV Ekana Cricket Stadium",
+      "city": "Lucknow",
+      "country": "India"
+    },
+    "match_format": "T20",
+    "scheduled_start_ist": "2026-10-13T19:30:00+05:30",
+    "expected_toss_ist": "2026-10-13T19:00:00+05:30",
+    "status": "UPCOMING",
+    "data_source_id": "cricket_data_org"
+  },
+  {
+    "id": "match_20261014_csk_rcb",
+    "external_provider_id": "cric_110",
+    "tournament": {
+      "id": "ipl_2026",
+      "name": "Indian Premier League 2026",
+      "category": "T20_LEAGUE",
+      "format": "T20"
+    },
+    "team_a": {
+      "id": "team_csk",
+      "name": "Chennai Super Kings",
+      "short_code": "CSK",
+      "aliases": ["CSK", "Chennai", "Whistle Podu"]
+    },
+    "team_b": {
+      "id": "team_rcb",
+      "name": "Royal Challengers Bengaluru",
+      "short_code": "RCB",
+      "aliases": ["RCB", "Bangalore", "Bengaluru"]
+    },
+    "venue": {
+      "id": "venue_chepauk",
+      "name": "MA Chidambaram Stadium",
+      "city": "Chennai",
+      "country": "India"
+    },
+    "match_format": "T20",
+    "scheduled_start_ist": "2026-10-14T19:30:00+05:30",
+    "expected_toss_ist": "2026-10-14T19:00:00+05:30",
+    "status": "UPCOMING",
+    "data_source_id": "cricket_data_org"
+  }
+]

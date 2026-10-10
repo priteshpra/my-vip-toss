@@ -1,0 +1,44 @@
+[
+  {
+    "match_id": "match_20261010_csk_mi",
+    "provider_id": "the_odds_api",
+    "bookmaker": "Betfair Exchange",
+    "market_type": "TOSS_WINNER",
+    "team_a_odds": 1.95,
+    "team_b_odds": 1.95,
+    "team_a_implied_prob": 0.50,
+    "team_b_implied_prob": 0.50,
+    "margin_percentage": 2.56,
+    "snapshot_timestamp_ist": "2026-10-10T14:00:00+05:30",
+    "is_pre_toss": true,
+    "is_stale": false
+  },
+  {
+    "match_id": "match_20261010_csk_mi",
+    "provider_id": "the_odds_api",
+    "bookmaker": "Pinnacle",
+    "market_type": "TOSS_WINNER",
+    "team_a_odds": 1.92,
+    "team_b_odds": 1.92,
+    "team_a_implied_prob": 0.50,
+    "team_b_implied_prob": 0.50,
+    "margin_percentage": 4.17,
+    "snapshot_timestamp_ist": "2026-10-10T17:30:00+05:30",
+    "is_pre_toss": true,
+    "is_stale": false
+  },
+  {
+    "match_id": "match_20261010_rcb_kkr",
+    "provider_id": "the_odds_api",
+    "bookmaker": "Bet365",
+    "market_type": "TOSS_WINNER",
+    "team_a_odds": 1.90,
+    "team_b_odds": 1.90,
+    "team_a_implied_prob": 0.50,
+    "team_b_implied_prob": 0.50,
+    "margin_percentage": 5.26,
+    "snapshot_timestamp_ist": "2026-10-10T12:00:00+05:30",
+    "is_pre_toss": true,
+    "is_stale": false
+  }
+]

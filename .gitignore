@@ -1,0 +1,23 @@
+# Environment & Credentials
+.env
+*.session
+*.session-journal
+
+# Database & Local Storage
+*.db
+*.db-wal
+*.db-shm
+data/toss_iq.db
+data/backups/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

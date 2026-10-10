@@ -1,0 +1,809 @@
+"""TossIQ VIP - Elite Cricket Toss Intelligence & Actionable Platform.
+
+Built for serious punters: zero clutter, zero academic formulas, 100% actionable paid-style toss verdicts:
+- 🟢 PLAY: [TEAM NAME] with calculated edge & stake advice (Jackpot / Confirmed).
+- 🟡 SKIP / PASS: 50-50 coin flip traps to save your bankroll.
+- 🪙 TOSS TIME: Exact timing in Asia/Kolkata (IST).
+- 🔐 Synchronized with GamingHelper (gaminghelperonline.com/live-bets).
+- 📜 Toss Done & Pass/Fail Accuracy Tracker with persistent history.
+"""
+
+import os
+import json
+import pandas as pd
+import streamlit as st
+from datetime import datetime, timedelta
+
+from core.timezone import now_ist, format_ist
+from core.providers.gaming_helper_provider import (
+    get_stored_credentials,
+    save_credentials,
+    login_gaming_helper,
+    fetch_gaming_helper_live_bets,
+    get_active_punter_matches
+)
+from core.engine.toss_results_manager import (
+    load_toss_results,
+    save_toss_result,
+    get_toss_accuracy_kpis,
+    sync_completed_tosses_from_gaming_helper
+)
+
+# --- Page Configuration ---
+st.set_page_config(
+    page_title="TossIQ VIP — Paid Punter Toss Intelligence",
+    page_icon="🪙",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# Current IST Time
+cur_ist = now_ist()
+ist_time_display = format_ist(cur_ist, "%I:%M:%S %p IST")
+ist_date_display = format_ist(cur_ist, "%A, %d %B %Y")
+today_iso = format_ist(cur_ist, "%Y-%m-%d")
+
+# --- Elite VIP Sportsbook Theme CSS ---
+st.markdown("""
+<style>
+    /* Dark VIP terminal theme */
+    .stApp {
+        background-color: #070a13;
+        color: #f3f4f6;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    
+    /* VIP Top Header */
+    .vip-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        border: 1px solid #312e81;
+        padding: 16px 24px;
+        border-radius: 16px;
+        margin-bottom: 20px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    }
+    .vip-title {
+        font-size: 28px;
+        font-weight: 900;
+        color: #ffffff !important;
+        margin: 0;
+        letter-spacing: -0.5px;
+    }
+    .vip-title span {
+        color: #f59e0b !important;
+    }
+    .vip-tag {
+        background: #f59e0b;
+        color: #000000;
+        font-size: 11px;
+        font-weight: 900;
+        padding: 3px 8px;
+        border-radius: 6px;
+        margin-left: 8px;
+        text-transform: uppercase;
+    }
+    .vip-sub {
+        color: #94a3b8 !important;
+        font-size: 13px;
+        margin: 4px 0 0 0;
+    }
+    .clock-badge {
+        background: #090d16;
+        border: 1px solid #334155;
+        padding: 8px 18px;
+        border-radius: 30px;
+        text-align: right;
+    }
+
+    /* KPI Ticker Row */
+    .kpi-card {
+        background: #0f172a;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 14px 18px;
+        text-align: center;
+    }
+    .kpi-val {
+        font-size: 26px;
+        font-weight: 900;
+        margin-bottom: 2px;
+    }
+    .kpi-lbl {
+        font-size: 12px;
+        color: #94a3b8;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Match Card */
+    .vip-match-card {
+        background: #0d1322;
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        padding: 12px 18px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+        transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .vip-match-card:hover {
+        border-color: #3b82f6;
+    }
+    .card-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+    .tour-pill {
+        background: #1e293b;
+        color: #38bdf8;
+        border: 1px solid #334155;
+        padding: 3px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 800;
+    }
+    .toss-time-pill {
+        background: #f59e0b;
+        color: #000000;
+        font-weight: 900;
+        font-size: 13px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .match-time-pill {
+        background: #1e1b4b;
+        color: #c7d2fe;
+        border: 1px solid #4338ca;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    /* Teams Head-to-Head Banner */
+    .teams-arena {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 14px;
+        background: #090d16;
+        border-radius: 8px;
+        border: 1px solid #1e293b;
+        margin-bottom: 8px;
+    }
+    .team-title {
+        font-size: 17px;
+        font-weight: 900;
+        color: #ffffff;
+    }
+    .vs-emblem {
+        background: #1e293b;
+        color: #f59e0b;
+        border: 1px solid #d97706;
+        font-size: 11px;
+        font-weight: 900;
+        padding: 2px 10px;
+        border-radius: 20px;
+    }
+
+    /* Punter Action Verdict Boxes - Compact & Short Height */
+    .verdict-play {
+        background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+        border: 1.5px solid #10b981;
+        border-radius: 10px;
+        padding: 8px 14px;
+        box-shadow: 0 2px 10px rgba(16, 185, 129, 0.25);
+    }
+    .verdict-skip {
+        background: linear-gradient(135deg, #451a03 0%, #78350f 100%);
+        border: 1.5px solid #f59e0b;
+        border-radius: 10px;
+        padding: 8px 14px;
+    }
+    .verdict-pass {
+        background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
+        border: 1.5px solid #10b981;
+        border-radius: 10px;
+        padding: 8px 14px;
+    }
+    .verdict-fail {
+        background: linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%);
+        border: 1.5px solid #ef4444;
+        border-radius: 10px;
+        padding: 8px 14px;
+    }
+    
+    .verdict-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 3px;
+    }
+    .verdict-team-name {
+        font-size: 18px;
+        font-weight: 900;
+        color: #ffffff;
+        letter-spacing: -0.3px;
+    }
+    .verdict-badge {
+        padding: 3px 10px;
+        border-radius: 16px;
+        font-weight: 800;
+        font-size: 11.5px;
+        letter-spacing: 0.3px;
+    }
+    .verdict-reason {
+        color: #e2e8f0;
+        font-size: 12.5px;
+        line-height: 1.4;
+        margin: 3px 0 0 0;
+    }
+
+    /* Punter Indicators Strip */
+    .indicator-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 6px;
+        margin-top: 8px;
+    }
+    .indicator-item {
+        background: #090d16;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 6px 10px;
+    }
+    .indicator-label {
+        font-size: 10px;
+        color: #94a3b8;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .indicator-val {
+        font-size: 13px;
+        font-weight: 800;
+        color: #ffffff;
+        margin-top: 2px;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# --- Top Header ---
+st.markdown(f"""
+<div class="vip-header">
+    <div>
+        <div style="display: flex; align-items: center;">
+            <h1 class="vip-title">🪙 Toss<span>IQ</span> VIP</h1>
+            <span class="vip-tag">Punter Edition</span>
+        </div>
+        <p class="vip-sub">Live Bets Synchronized with GamingHelper (gaminghelperonline.com) · Asia/Kolkata (IST)</p>
+    </div>
+    <div class="clock-badge">
+        <div style="font-size: 16px; font-weight: 900; color: #10b981;">⏰ {ist_time_display}</div>
+        <div style="color: #94a3b8; font-size: 12px; margin-top: 2px;">{ist_date_display}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Fetch Live Matches from GamingHelper Online
+punter_data = get_active_punter_matches(force_refresh=False)
+all_matches = punter_data.get("matches", [])
+is_gh_connected = punter_data.get("connected", False)
+creds = get_stored_credentials()
+
+# Automatically sync completed/closed matches from GamingHelper so Tab 2 is always up-to-date
+if is_gh_connected:
+    sync_completed_tosses_from_gaming_helper()
+
+# Account Status Bar
+col_st1, col_st2 = st.columns([3, 1])
+with col_st1:
+    if is_gh_connected:
+        st.success(f"🟢 **GamingHelper Online Connected:** Demo Account `{creds.get('phone', '7028163937')}` active · **{len(all_matches)} Live Bets Active**")
+    else:
+        st.warning("🟡 **GamingHelper Online:** Demo Account connection in progress...")
+
+with col_st2:
+    if st.button("🔄 Sync Live Bets & Results", type="primary", use_container_width=True, key="btn_sync_gh_now"):
+        with st.spinner("Syncing latest live matches & completed tosses from GamingHelper..."):
+            punter_data = get_active_punter_matches(force_refresh=True)
+            all_matches = punter_data.get("matches", [])
+            sync_completed_tosses_from_gaming_helper()
+            st.success("Synced live bets & completed tosses successfully!")
+            st.rerun()
+
+# --- 2 Clear Simple Tabs ---
+vip_tabs = st.tabs([
+    "🎯 लाइव टॉस बेट्स (GamingHelper Live Bets)",
+    "📜 टॉस रिज़ल्ट्स & पास/फ़ेल ट्रैकर (Toss Done & Accuracy Audit)"
+])
+
+
+# ==============================================================================
+# TAB 1: LIVE BETS & ACTIONABLE VERDICTS
+# ==============================================================================
+with vip_tabs[0]:
+    # Extract unique tournaments from live matches
+    all_live_tournaments = []
+    for m in all_matches:
+        t = m.get("tournament_name")
+        if t and t not in all_live_tournaments:
+            all_live_tournaments.append(t)
+    all_live_tournaments.sort()
+
+    tour_live_opts = ["🌟 Sabhi Tournaments (All)"] + [
+        f"{t} ({sum(1 for m in all_matches if m.get('tournament_name') == t)})"
+        for t in all_live_tournaments
+    ]
+
+    # --- Search & Filter Bar ---
+    col_t_live, col_filter, col_search = st.columns([1.5, 1.3, 1.2])
+    with col_t_live:
+        selected_live_tour_raw = st.selectbox(
+            "🏏 Filter by Tournament",
+            tour_live_opts,
+            index=0,
+            key="select_live_tournament"
+        )
+        selected_live_tour = selected_live_tour_raw.rsplit(" (", 1)[0] if selected_live_tour_raw != "🌟 Sabhi Tournaments (All)" else "🌟 Sabhi Tournaments (All)"
+
+    with col_filter:
+        filter_type = st.selectbox(
+            "🎯 Filter by Verdict",
+            ["🌟 Sabhi Matches (All)", "🟢 Sirf Play Wale (Actionable)", "💎 Sirf Jackpot Plays", "🟡 Sirf Skips (Pass)"],
+            index=0,
+            key="select_punter_filter"
+        )
+
+    with col_search:
+        search_q = st.text_input(
+            "🔍 Search Team / Match",
+            placeholder="e.g. Abu Dhabi, Emirates Blues...",
+            key="input_search_punter"
+        )
+
+    # Filter by Tournament
+    filtered_matches = all_matches
+    if selected_live_tour != "🌟 Sabhi Tournaments (All)":
+        filtered_matches = [m for m in filtered_matches if m.get("tournament_name") == selected_live_tour]
+
+    # Filter by Search Query
+    if search_q.strip():
+        q = search_q.strip().lower()
+        filtered_matches = [
+            m for m in filtered_matches
+            if q in m["team_a_name"].lower() or q in m["team_b_name"].lower() or q in m["tournament_name"].lower()
+        ]
+
+    # Calculate Counts
+    total_matches = len(filtered_matches)
+    play_matches = [m for m in filtered_matches if m["action_type"] == "PLAY"]
+    skip_matches = [m for m in filtered_matches if m["action_type"] == "SKIP"]
+    jackpot_matches = [m for m in play_matches if "JACKPOT" in m.get("stake_rating", "")]
+
+    # Apply Verdict Filter
+    if filter_type == "🟢 Sirf Play Wale (Actionable)":
+        filtered_list = play_matches
+    elif filter_type == "💎 Sirf Jackpot Plays":
+        filtered_list = jackpot_matches
+    elif filter_type == "🟡 Sirf Skips (Pass)":
+        filtered_list = skip_matches
+    else:
+        filtered_list = filtered_matches
+
+    # --- KPI Ticker Strip ---
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-val" style="color: #38bdf8;">{total_matches}</div>
+            <div class="kpi-lbl">Total Live Matches</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with k2:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-val" style="color: #f59e0b;">{len(jackpot_matches)}</div>
+            <div class="kpi-lbl">💎 Jackpot High-Stakes Plays</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with k3:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-val" style="color: #10b981;">{len(play_matches)}</div>
+            <div class="kpi-lbl">🟢 Confirmed Actionable Plays</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with k4:
+        st.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-val" style="color: #ef4444;">{len(skip_matches)}</div>
+            <div class="kpi-lbl">🟡 Skips / 50-50 Traps (Pass)</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.write("")
+
+    # --- Quick Scan Summary Drawer ---
+    if filtered_list:
+        summary_rows = []
+        for m in filtered_list:
+            t_str = m.get("toss_time_str") or "30m prior"
+            act = m.get("action_type")
+            pick = m.get("recommended_team")
+            conf = m.get("confidence_pct", 50)
+
+            if act == "PLAY" and pick:
+                if "JACKPOT" in m.get("stake_rating", ""):
+                    verdict_str = f"💎 JACKPOT: {pick.upper()} ({conf}%)"
+                else:
+                    verdict_str = f"🟢 PLAY: {pick.upper()} ({conf}%)"
+            elif act == "COMPLETED":
+                verdict_str = f"🏆 TOSS WON: {pick.upper()}"
+            else:
+                verdict_str = "🟡 SKIP (50-50 PASS)"
+
+            summary_rows.append({
+                "🪙 Toss Time (IST)": t_str,
+                "Match": f"{m['team_a_name']} vs {m['team_b_name']}",
+                "Tournament": m.get("tournament_name"),
+                "🎯 Paid Punter Verdict": verdict_str
+            })
+
+        with st.expander("📋 Quick Summary Table (Ek Nazar Me Sabhi Toss Picks)", expanded=True):
+            st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+
+    # --- Match Cards Listing ---
+    st.markdown(f"### 🪙 GamingHelper Live Matches ({len(filtered_list)} Matches)")
+
+    if not filtered_list:
+        st.info("Selected filters ke hisab se koi match nahi mila. 'Sabhi Matches' select karein.")
+    else:
+        for m in filtered_list:
+            mid = m["id"]
+            t_a = m["team_a_name"]
+            t_b = m["team_b_name"]
+            short_a = m.get("team_a_short") or t_a[:3].upper()
+            short_b = m.get("team_b_short") or t_b[:3].upper()
+            tour = m["tournament_name"]
+            time_str = m["time_str"]
+            toss_str = m["toss_time_str"]
+            odds_a = m.get("odds_a", 98)
+            odds_b = m.get("odds_b", 80)
+            venue = m.get("venue", "Cricket Ground")
+            act = m["action_type"]
+            pick = m.get("recommended_team")
+            conf = m.get("confidence_pct", 50)
+            rating = m.get("stake_rating", "NORMAL")
+            rat = m.get("punter_rationale", "")
+
+            with st.container():
+                st.markdown(f"""
+                <div class="vip-match-card">
+                    <div class="card-top-row">
+                        <span class="tour-pill">🏏 {tour}</span>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                            <span class="toss-time-pill">
+                                🪙 TOSS TIME: {toss_str}
+                            </span>
+                            <span class="match-time-pill">⏰ Match Start: {time_str}</span>
+                        </div>
+                    </div>
+                    <div class="teams-arena">
+                        <div class="team-title">{t_a} <span style="font-size:14px; color:#38bdf8;">({short_a})</span></div>
+                        <div class="vs-emblem">VS</div>
+                        <div class="team-title" style="text-align:right;"><span style="font-size:14px; color:#38bdf8;">({short_b})</span> {t_b}</div>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                # --- COMPACT ACTION VERDICT BANNER ---
+                if act == "PLAY" and pick:
+                    is_jackpot = "JACKPOT" in rating
+                    badge_bg = "#f59e0b" if is_jackpot else "#065f46"
+                    badge_col = "#000000" if is_jackpot else "#a7f3d0"
+                    st.markdown(f"""
+                    <div class="verdict-play">
+                        <div class="verdict-header">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <span style="font-size: 11px; font-weight: 800; color: #a7f3d0; text-transform: uppercase; letter-spacing: 0.5px;">🎯 PAID TOSS RECOMMENDATION:</span>
+                                <span class="verdict-team-name">🟢 PLAY: {pick.upper()}</span>
+                            </div>
+                            <span class="verdict-badge" style="background: {badge_bg}; color: {badge_col};">
+                                {rating} · Edge: {conf}%
+                            </span>
+                        </div>
+                        <div class="verdict-reason">
+                            💡 <b>Punter Rationale:</b> {rat}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="verdict-skip">
+                        <div class="verdict-header">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <span style="font-size: 11px; font-weight: 800; color: #fde68a; text-transform: uppercase;">⚠️ TOSS ADVICE:</span>
+                                <span class="verdict-team-name">🟡 SKIP (50-50 NEUTRAL)</span>
+                            </div>
+                            <span class="verdict-badge" style="background: #1c1303; color: #fbbf24; border: 1px solid #d97706;">
+                                ⚖️ STRICT PASS
+                            </span>
+                        </div>
+                        <div class="verdict-reason">
+                            💡 <b>Punter Rationale:</b> {rat}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # --- 4 SHARP INDICATOR PILLS ---
+                st.markdown(f"""
+                <div class="indicator-strip">
+                    <div class="indicator-item">
+                        <div class="indicator-label">Captain Call Form</div>
+                        <div class="indicator-val">{'Favors ' + pick if pick else '50-50 Neutral Run'}</div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-label">Market Win Ratio</div>
+                        <div class="indicator-val">{odds_a} : {odds_b}</div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-label">Venue / Address</div>
+                        <div class="indicator-val">{venue}</div>
+                    </div>
+                    <div class="indicator-item">
+                        <div class="indicator-label">Platform Source</div>
+                        <div class="indicator-val">GamingHelper Live</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # --- INTERACTIVE 1-CLICK TOSS DONE ACTION EXPANDER ---
+                with st.expander(f"🪙 Mark Toss Done: {t_a} vs {t_b}", expanded=False):
+                    st.caption("Jaise hi toss ho jaye, yahan winner select karke save karein. Yeh data future pass/fail analysis ke liye automatically record ho jayega.")
+                    col_m1, col_m2, col_m3 = st.columns([2, 2, 1.5])
+                    with col_m1:
+                        actual_winner = st.selectbox(
+                            "🏆 Toss Winner (Kaun Jeeta?)",
+                            [t_a, t_b],
+                            key=f"win_select_{mid}"
+                        )
+                    with col_m2:
+                        toss_dec = st.selectbox(
+                            "Toss Decision (Pehle kya liya?)",
+                            ["Bowl (Bowling Pehle)", "Bat (Batting Pehle)"],
+                            key=f"dec_select_{mid}"
+                        )
+                    with col_m3:
+                        st.write("")
+                        st.write("")
+                        if st.button("💾 Save Toss Done", key=f"btn_save_done_{mid}", type="primary", use_container_width=True):
+                            dec_str = "Bowl" if "Bowl" in toss_dec else "Bat"
+                            saved_rec = save_toss_result(
+                                match_id=mid,
+                                match_name=f"{t_a} vs {t_b}",
+                                tournament=tour,
+                                toss_time_ist=toss_str,
+                                match_date=today_iso,
+                                team_a=t_a,
+                                team_b=t_b,
+                                recommended_team=pick,
+                                stake_rating=rating,
+                                actual_winner=actual_winner,
+                                toss_decision=dec_str,
+                                is_manual=True
+                            )
+                            st.success(f"✅ Toss Done Saved! Outcome: {saved_rec['outcome_label']}")
+                            st.rerun()
+
+                st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ==============================================================================
+# TAB 2: TOSS DONE & PASS/FAIL ACCURACY AUDIT TRACKER
+# ==============================================================================
+with vip_tabs[1]:
+    st.header("📜 टॉस रिज़ल्ट्स & पास/फ़ेल ट्रैकर (Toss Done & Accuracy Audit)")
+    st.caption("Jaise hi toss complete hota hai, yahan real audit record hota hai — kitna toss pass gaya aur kitna fail gaya.")
+
+    # Calculate Accuracy KPIs
+    kpis = get_toss_accuracy_kpis()
+    completed_results = kpis["results"]
+
+    if kpis["total_completed"] == 0:
+        st.markdown("""
+        <div style="background: #0f172a; border: 1px dashed #334155; border-radius: 14px; padding: 32px 24px; text-align: center; margin: 24px 0;">
+            <div style="font-size: 40px; margin-bottom: 10px;">🪙</div>
+            <h3 style="color: #f59e0b; margin: 0 0 10px 0; font-size: 22px;">अभी तक कोई टॉस Done मार्क नहीं हुआ है</h3>
+            <p style="color: #94a3b8; font-size: 15px; max-width: 650px; margin: 0 auto; line-height: 1.6;">
+                GamingHelper की लाइव लिस्ट (Tab 1) में से जैसे ही किसी मैच का टॉस पूरा हो, आप उस मैच के नीचे <b>'🪙 Mark Toss Done'</b> पर क्लिक करके विनर चुनकर सेव करें।<br>
+                <b>सिर्फ वही असली मैच यहाँ रिकॉर्ड होगा और उसका ✅ PASS या ❌ FAIL नतीजा दिखेगा। कोई भी अनवांटेड या फ़ेक मैच यहाँ नहीं दिखाया जाएगा।</b>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # Top KPI Metrics Cards
+        k1, k2, k3, k4, k5 = st.columns(5)
+        with k1:
+            st.markdown(f"""
+            <div class="kpi-card">
+                <div class="kpi-val" style="color: #38bdf8;">{kpis['total_completed']}</div>
+                <div class="kpi-lbl">Total Tosses Done</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with k2:
+            st.markdown(f"""
+            <div class="kpi-card">
+                <div class="kpi-val" style="color: #f59e0b;">{kpis['played_count']}</div>
+                <div class="kpi-lbl">Tosses Played (Bets)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with k3:
+            st.markdown(f"""
+            <div class="kpi-card">
+                <div class="kpi-val" style="color: #10b981;">{kpis['passed_count']}</div>
+                <div class="kpi-lbl">✅ Tosses Passed (Won)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with k4:
+            st.markdown(f"""
+            <div class="kpi-card">
+                <div class="kpi-val" style="color: #ef4444;">{kpis['failed_count']}</div>
+                <div class="kpi-lbl">❌ Tosses Failed (Missed)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with k5:
+            st.markdown(f"""
+            <div class="kpi-card">
+                <div class="kpi-val" style="color: #a78bfa;">{kpis['pass_rate_pct']:.1f}%</div>
+                <div class="kpi-lbl">🏆 Overall Pass Rate</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.write("")
+        # Pass Rate Visual Bar
+        prog_val = min(1.0, max(0.0, kpis['pass_rate_pct'] / 100.0))
+        st.progress(prog_val, text=f"🎯 Current Pass Accuracy Rate: {kpis['pass_rate_pct']:.1f}% (Winning Edge vs 50% Coin Flip)")
+
+        st.divider()
+
+        # Filter Completed Tosses
+        all_done_tournaments = []
+        for r in completed_results:
+            t = r.get("tournament")
+            if t and t not in all_done_tournaments:
+                all_done_tournaments.append(t)
+        all_done_tournaments.sort()
+
+        tour_done_opts = ["🌟 Sabhi Tournaments (All)"] + [
+            f"{t} ({sum(1 for r in completed_results if r.get('tournament') == t)})"
+            for t in all_done_tournaments
+        ]
+
+        c_f1, c_f2 = st.columns([1.6, 1.4])
+        with c_f1:
+            selected_done_tour_raw = st.selectbox(
+                "🏏 Filter by Tournament (टूर्नामेंट फ़िल्टर करें)",
+                options=tour_done_opts,
+                index=0,
+                key="select_done_tournament"
+            )
+            selected_done_tour = selected_done_tour_raw.rsplit(" (", 1)[0] if selected_done_tour_raw != "🌟 Sabhi Tournaments (All)" else "🌟 Sabhi Tournaments (All)"
+
+        with c_f2:
+            search_done = st.text_input(
+                "🔍 Search Completed Fixture",
+                placeholder="Search by team or venue...",
+                key="input_search_done"
+            )
+
+        done_filter = st.pills(
+            "Filter by Toss Outcome",
+            options=["🌟 Sabhi Completed", "✅ Sirf Pass (Wins)", "❌ Sirf Fail (Losses)", "🟡 Sirf Skipped"],
+            default="🌟 Sabhi Completed",
+            key="pills_done_filter"
+        )
+
+        # Filter Rows
+        filtered_done = completed_results
+
+        # 1. Tournament Filter
+        if selected_done_tour != "🌟 Sabhi Tournaments (All)":
+            filtered_done = [r for r in filtered_done if r.get("tournament") == selected_done_tour]
+
+        # 2. Outcome Filter
+        if done_filter == "✅ Sirf Pass (Wins)":
+            filtered_done = [r for r in filtered_done if r.get("outcome") == "PASS"]
+        elif done_filter == "❌ Sirf Fail (Losses)":
+            filtered_done = [r for r in filtered_done if r.get("outcome") == "FAIL"]
+        elif done_filter == "🟡 Sirf Skipped":
+            filtered_done = [r for r in filtered_done if r.get("outcome") == "SKIPPED"]
+
+        # 3. Search Filter
+        if search_done.strip():
+            sq = search_done.strip().lower()
+            filtered_done = [
+                r for r in filtered_done
+                if sq in r["match_name"].lower() or sq in r["tournament"].lower()
+            ]
+
+        # Tournament Mini-Summary Banner when a specific tournament is selected
+        if selected_done_tour != "🌟 Sabhi Tournaments (All)":
+            t_total = len(filtered_done)
+            t_pass = sum(1 for r in filtered_done if r.get("outcome") == "PASS")
+            t_fail = sum(1 for r in filtered_done if r.get("outcome") == "FAIL")
+            t_skip = sum(1 for r in filtered_done if r.get("outcome") == "SKIPPED")
+            t_played = t_pass + t_fail
+            t_pct = (t_pass / t_played * 100) if t_played > 0 else 0
+            st.info(f"🏏 **टूर्नामेंट: {selected_done_tour}** — कुल मैचेस: **{t_total}** | ✅ Pass: **{t_pass}** | ❌ Fail: **{t_fail}** | 🟡 Skipped: **{t_skip}** | Pass Accuracy: **{t_pct:.1f}%**")
+
+        # Completed Summary Table
+        if filtered_done:
+            table_rows = []
+            for r in filtered_done:
+                table_rows.append({
+                    "📅 Date & Toss Time": f"{r.get('match_date')} ({r.get('toss_time_ist')})",
+                    "Match": r.get("match_name"),
+                    "Tournament": r.get("tournament"),
+                    "🎯 Recommended Play": f"🟢 {r.get('recommended_team')}" if r.get("recommended_team") else "🟡 Skip (50-50)",
+                    "🏆 Actual Toss Winner": f"🏆 {r.get('actual_winner')} ({r.get('toss_decision', 'Bowl')})",
+                    "📊 Result Outcome": r.get("outcome_label", "PASS")
+                })
+
+            st.subheader(f"📋 Verified Completed Tosses Log ({len(filtered_done)} Matches)")
+            st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
+
+            st.divider()
+            st.subheader("🗂️ Completed Toss Audit Cards")
+
+            for r in filtered_done:
+                out = r.get("outcome")
+                is_pass = (out == "PASS")
+                is_fail = (out == "FAIL")
+                card_border = "#10b981" if is_pass else ("#ef4444" if is_fail else "#f59e0b")
+                card_badge = "✅ PASS (PROFIT / WON)" if is_pass else ("❌ FAIL (MISSED)" if is_fail else "🟡 SKIPPED (50-50 PASS)")
+                badge_bg = "#064e3b" if is_pass else ("#450a0a" if is_fail else "#451a03")
+                badge_color = "#34d399" if is_pass else ("#f87171" if is_fail else "#fbbf24")
+
+                rec_display = f"🟢 PLAY: {r.get('recommended_team')}" if r.get('recommended_team') else "🟡 SKIP (50-50 NEUTRAL)"
+
+                st.markdown(f"""
+                <div class="vip-match-card" style="border-left: 6px solid {card_border};">
+                    <div class="card-top-row">
+                        <span class="tour-pill">🏏 {r.get('tournament')} · 📅 {r.get('match_date')}</span>
+                        <span style="background: {badge_bg}; color: {badge_color}; border: 1px solid {card_border}; padding: 6px 16px; border-radius: 20px; font-weight: 900; font-size: 13px;">
+                            {card_badge}
+                        </span>
+                    </div>
+                    <div class="teams-arena">
+                        <div class="team-title">{r.get('team_a')}</div>
+                        <div class="vs-emblem">VS</div>
+                        <div class="team-title" style="text-align:right;">{r.get('team_b')}</div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
+                        <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
+                            <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">🎯 Pre-Toss Advice:</span>
+                            <div style="font-size: 15px; font-weight: 900; color: #ffffff; margin-top: 1px;">{rec_display}</div>
+                            <small style="color: #94a3b8; font-size: 11px;">Rating: {r.get('stake_rating', 'NORMAL')}</small>
+                        </div>
+                        <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
+                            <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">🏆 Official Result:</span>
+                            <div style="font-size: 15px; font-weight: 900; color: #38bdf8; margin-top: 1px;">🏆 {r.get('actual_winner')}</div>
+                            <small style="color: #94a3b8; font-size: 11px;">Elected to: {r.get('toss_decision', 'Bowl')}</small>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No completed tosses match the selected filter. As matches finish, all toss results and pass/fail audit will appear here.")
