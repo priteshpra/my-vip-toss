@@ -280,6 +280,31 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- MASTER SECURITY PIN GATE (PRIVATE ACCESS) ---
+MASTER_PIN = os.environ.get("VIP_PIN", "256531")
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+
+if not st.session_state["authenticated"]:
+    st.markdown("""
+    <div style="max-width: 450px; margin: 40px auto 20px auto; background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 32px 28px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+        <div style="font-size: 42px; margin-bottom: 8px;">🔐</div>
+        <h2 style="color: #ffffff; margin: 0 0 6px 0; font-size: 24px; font-weight: 900;">TossIQ VIP Portal</h2>
+        <p style="color: #94a3b8; font-size: 13px; margin: 0 0 20px 0;">Private & Restricted Access. Please enter your secret PIN to unlock.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_l1, col_l2, col_l3 = st.columns([1, 1.4, 1])
+    with col_l2:
+        pin_input = st.text_input("Enter Secret PIN", type="password", key="vip_pin_entry", placeholder="Enter PIN...", label_visibility="collapsed")
+        if st.button("🔓 Unlock VIP Dashboard", type="primary", use_container_width=True, key="btn_unlock_vip"):
+            if pin_input.strip() == MASTER_PIN:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("❌ Galat PIN! Access Denied.")
+    st.stop()
+
 # --- Top Header ---
 st.markdown(f"""
 <div class="vip-header">

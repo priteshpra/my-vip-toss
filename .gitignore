@@ -2,6 +2,7 @@
 .env
 *.session
 *.session-journal
+data/gaming_helper_session.json
 
 # Database & Local Storage
 *.db
