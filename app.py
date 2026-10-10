@@ -9,10 +9,16 @@ Built for serious punters: zero clutter, zero academic formulas, 100% actionable
 """
 
 import os
+import sys
 import json
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta
+
+# Ensure project root is in sys.path for Streamlit Cloud / Linux runtime
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
 
 from core.timezone import now_ist, format_ist
 from core.providers.gaming_helper_provider import (
@@ -25,10 +31,16 @@ from core.providers.gaming_helper_provider import (
 from core.engine.toss_results_manager import (
     load_toss_results,
     save_toss_result,
-    delete_toss_result,
     get_toss_accuracy_kpis,
     sync_completed_tosses_from_gaming_helper
 )
+
+# Safe import with fallback for zero-downtime hot reloading
+try:
+    from core.engine.toss_results_manager import delete_toss_result
+except ImportError:
+    def delete_toss_result(match_id: str) -> bool:
+        return False
 
 # --- Page Configuration ---
 st.set_page_config(

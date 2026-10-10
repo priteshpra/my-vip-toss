@@ -1,5 +1,22 @@
 [
   {
+    "match_id": "39242",
+    "match_name": "Dubai Dare Devils vs Elegant Royals",
+    "tournament": "ICCA i10x Summer Cup",
+    "toss_time_ist": "08:40 PM IST",
+    "match_date": "2026-10-10",
+    "team_a": "Dubai Dare Devils",
+    "team_b": "Elegant Royals",
+    "recommended_team": "Dubai Dare Devils",
+    "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
+    "actual_winner": "Pending Confirmation",
+    "toss_decision": "Pending",
+    "outcome": "PENDING",
+    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
+    "is_manual": false,
+    "recorded_at": "2026-10-10 08:51 PM IST"
+  },
+  {
     "match_id": "39246",
     "match_name": "South Africa Champions vs India Champions",
     "tournament": "World Championship of Legends (WCL)",
@@ -9,12 +26,12 @@
     "team_b": "India Champions",
     "recommended_team": "South Africa Champions",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Pending Confirmation",
-    "toss_decision": "Pending",
-    "outcome": "PENDING",
-    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
-    "is_manual": false,
-    "recorded_at": "2026-10-10 08:31 PM IST"
+    "actual_winner": "South Africa Champions",
+    "toss_decision": "Bowl",
+    "outcome": "PASS",
+    "outcome_label": "\u2705 PASS (WON)",
+    "is_manual": true,
+    "recorded_at": "2026-10-10 08:51 PM IST"
   },
   {
     "match_id": "39249",
