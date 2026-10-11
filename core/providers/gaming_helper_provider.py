@@ -338,30 +338,10 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
     b_rate = (b_wins / b_total) if b_total > 0 else 0.5
     hist_edge = (a_rate - b_rate) * 100
 
-    # Composite Score Calculation (Baseline is 0 = Strict 50-50)
-    score_advantage = 0
-
-    # Market odds weight (strong bookmaker asymmetry)
-    if abs_odds_gap >= 25:
-        score_advantage += (22 if odds_diff > 0 else -22)
-    elif abs_odds_gap >= 15:
-        score_advantage += (12 if odds_diff > 0 else -12)
-
-    # Historical edge from verified results
-    if a_total > 0 or b_total > 0:
-        score_advantage += hist_edge * 0.5
-
-    # Deterministic team & tournament trend component
-    hash_seed = sum(ord(c) for c in (t_a_clean + t_b_clean + tour_clean))
-    fine_tune = ((hash_seed % 53) - 26)  # Range -26 to +26
-    score_advantage += fine_tune
-
-    total_gap = abs(score_advantage)
-
-    # STRICT BANKROLL PROTECTION:
-    # 65-75% of matches are pure 50-50 neutral coin flips -> STRICT PASS / SKIP!
-    # Only clear edge (total_gap >= 24) qualifies for PLAY!
-    if total_gap < 24:
+    # STRICT GROUND-TRUTH RULE:
+    # If both teams have ZERO verified historical data and market odds are close (gap < 24),
+    # It is a pure unknown 50-50 coin flip. NEVER gamble user bankroll on unknowns!
+    if a_total == 0 and b_total == 0 and abs_odds_gap < 24:
         return {
             "action": "SKIP",
             "pick": None,
@@ -369,26 +349,51 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
             "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
             "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ka toss balance 50-50 neutral hai. Yahan bet lagana risky hai — bankroll safe rakhne ke liye STRICT PASS karein."
         }
-    elif total_gap >= 32:
-        favored = t_a_clean if score_advantage > 0 else t_b_clean
-        underdog = t_b_clean if score_advantage > 0 else t_a_clean
-        conf = 85 + min(7, int((total_gap - 32) * 0.8))
+
+    # Calculate genuine edge based on verified history and real odds
+    edge = 0
+    if abs_odds_gap >= 28:
+        edge += (20 if odds_diff > 0 else -20)
+    elif abs_odds_gap >= 22:
+        edge += (12 if odds_diff > 0 else -12)
+
+    if a_total > 0 or b_total > 0:
+        a_rate = (a_wins / a_total) if a_total > 0 else 0.5
+        b_rate = (b_wins / b_total) if b_total > 0 else 0.5
+        edge += (a_rate - b_rate) * 35
+
+    if abs(edge) < 14:
+        return {
+            "action": "SKIP",
+            "pick": None,
+            "confidence_pct": 50,
+            "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
+            "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ke beech koi clear toss advantage nahi hai (50-50 trap). Strict Pass."
+        }
+
+    favored = t_a_clean if edge > 0 else t_b_clean
+    underdog = t_b_clean if edge > 0 else t_a_clean
+    fav_wins = a_wins if edge > 0 else b_wins
+    fav_tot = a_total if edge > 0 else b_total
+
+    is_jackpot = (abs(edge) >= 28 and fav_wins >= 2 and abs_odds_gap >= 20)
+    if is_jackpot:
+        conf = 84
         return {
             "action": "PLAY",
             "pick": favored,
             "confidence_pct": conf,
             "stake_rating": "💎 JACKPOT PLAY (MAX STAKE)",
-            "rationale": f"Ground toss pattern, market odds weight aur coin call form seedha {favored} ke favour me hai. {underdog} coin call streak negative chal rahi hai."
+            "rationale": f"Verified toss form ({fav_wins}/{fav_tot} wins) aur market volume seedha {favored} ke favour me hai. High edge play."
         }
     else:
-        favored = t_a_clean if score_advantage > 0 else t_b_clean
-        conf = 75 + int((total_gap - 24) * 0.9)
+        conf = 72 + min(6, int(abs(edge) * 0.2))
         return {
             "action": "PLAY",
             "pick": favored,
             "confidence_pct": conf,
             "stake_rating": "🟢 CONFIRMED PLAY",
-            "rationale": f"Recent toss trends aur venue conditions me {favored} ka edge clear hai. Calculated safe play."
+            "rationale": f"Recent toss records aur market positioning me {favored} ka edge clear hai. Calculated safe play."
         }
 
 
