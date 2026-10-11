@@ -319,13 +319,15 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
                             continue
                         r_ta = (r.get("team_a") or "").strip().lower()
                         r_tb = (r.get("team_b") or "").strip().lower()
-                        if t_a_clean.lower() in [r_ta, r_tb]:
-                            if t_a_clean.lower() in win:
+                        a_matched = (t_a_clean.lower() in r_ta or r_ta in t_a_clean.lower() or t_a_clean.lower() in r_tb or r_tb in t_a_clean.lower())
+                        b_matched = (t_b_clean.lower() in r_ta or r_ta in t_b_clean.lower() or t_b_clean.lower() in r_tb or r_tb in t_b_clean.lower())
+                        if a_matched:
+                            if t_a_clean.lower() in win or win in t_a_clean.lower():
                                 a_wins += 1
                             else:
                                 a_losses += 1
-                        if t_b_clean.lower() in [r_ta, r_tb]:
-                            if t_b_clean.lower() in win:
+                        if b_matched:
+                            if t_b_clean.lower() in win or win in t_b_clean.lower():
                                 b_wins += 1
                             else:
                                 b_losses += 1
@@ -339,9 +341,9 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
     hist_edge = (a_rate - b_rate) * 100
 
     # STRICT GROUND-TRUTH RULE:
-    # If both teams have ZERO verified historical data and market odds are close (gap < 24),
+    # If both teams have ZERO verified historical data and market odds are close (gap < 20),
     # It is a pure unknown 50-50 coin flip. NEVER gamble user bankroll on unknowns!
-    if a_total == 0 and b_total == 0 and abs_odds_gap < 24:
+    if a_total == 0 and b_total == 0 and abs_odds_gap < 20:
         return {
             "action": "SKIP",
             "pick": None,
@@ -354,7 +356,7 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
     edge = 0
     if abs_odds_gap >= 28:
         edge += (20 if odds_diff > 0 else -20)
-    elif abs_odds_gap >= 22:
+    elif abs_odds_gap >= 20:
         edge += (12 if odds_diff > 0 else -12)
 
     if a_total > 0 or b_total > 0:
@@ -362,7 +364,7 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
         b_rate = (b_wins / b_total) if b_total > 0 else 0.5
         edge += (a_rate - b_rate) * 35
 
-    if abs(edge) < 14:
+    if abs(edge) < 12:
         return {
             "action": "SKIP",
             "pick": None,
