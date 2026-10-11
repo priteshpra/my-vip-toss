@@ -765,7 +765,38 @@ with vip_tabs[1]:
             for t in all_done_tournaments
         ]
 
-        c_f1, c_f2 = st.columns([1.6, 1.4])
+        # Extract Distinct Dates for Filter
+        distinct_dates = []
+        for r in completed_results:
+            d = r.get("match_date")
+            if d and d not in distinct_dates:
+                distinct_dates.append(d)
+        distinct_dates.sort(reverse=True)
+
+        yesterday_iso = format_ist(cur_ist - timedelta(days=1), "%Y-%m-%d")
+
+        date_map = {}
+        for d in distinct_dates:
+            if d == today_iso:
+                label = f"📅 आज (Today) — {d}"
+            elif d == yesterday_iso:
+                label = f"📅 कल (Yesterday) — {d}"
+            else:
+                label = f"📅 {d}"
+            date_map[label] = d
+
+        date_filter_opts = ["🌟 Sabhi Dates (All - Grouped)"] + list(date_map.keys())
+
+        c_f0, c_f1, c_f2 = st.columns([1.4, 1.4, 1.2])
+        with c_f0:
+            selected_date_label = st.selectbox(
+                "📅 Filter by Date (तारीख चुनें)",
+                options=date_filter_opts,
+                index=0,
+                key="select_done_date"
+            )
+            selected_date_val = date_map.get(selected_date_label) if selected_date_label != "🌟 Sabhi Dates (All - Grouped)" else "ALL"
+
         with c_f1:
             selected_done_tour_raw = st.selectbox(
                 "🏏 Filter by Tournament (टूर्नामेंट फ़िल्टर करें)",
@@ -791,6 +822,10 @@ with vip_tabs[1]:
 
         # Filter Rows
         filtered_done = completed_results
+
+        # 0. Date Filter
+        if selected_date_val != "ALL":
+            filtered_done = [r for r in filtered_done if r.get("match_date") == selected_date_val]
 
         # 1. Tournament Filter
         if selected_done_tour != "🌟 Sabhi Tournaments (All)":
@@ -880,148 +915,185 @@ with vip_tabs[1]:
                         st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
                         st.rerun()
 
-        # Completed Summary Table
+        # Completed Summary Table & Cards Grouped by Date
         if filtered_done:
-            table_rows = []
+            # Group filtered results by match_date in descending order
+            date_groups = {}
             for r in filtered_done:
-                table_rows.append({
-                    "📅 Date & Toss Time": f"{r.get('match_date')} ({r.get('toss_time_ist')})",
-                    "Match": r.get("match_name"),
-                    "Tournament": r.get("tournament"),
-                    "🎯 Recommended Play": f"🟢 {r.get('recommended_team')}" if r.get("recommended_team") else "🟡 Skip (50-50)",
-                    "🏆 Actual Toss Winner": f"🏆 {r.get('actual_winner')} ({r.get('toss_decision', 'Bowl')})",
-                    "📊 Result Outcome": r.get("outcome_label", "PASS")
-                })
+                d = r.get("match_date", "Other")
+                if d not in date_groups:
+                    date_groups[d] = []
+                date_groups[d].append(r)
 
-            st.subheader(f"📋 Verified Completed Tosses Log ({len(filtered_done)} Matches)")
-            st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
-
-            st.divider()
-            st.subheader("🗂️ Completed Toss Audit Cards")
-
-            for r in filtered_done:
-                out = r.get("outcome")
-                is_pass = (out == "PASS")
-                is_fail = (out == "FAIL")
-                is_pending = (out == "PENDING")
-
-                if is_pass:
-                    card_border = "#10b981"
-                    card_badge = "✅ PASS (PROFIT / WON)"
-                    badge_bg = "#064e3b"
-                    badge_color = "#34d399"
-                elif is_fail:
-                    card_border = "#ef4444"
-                    card_badge = "❌ FAIL (MISSED)"
-                    badge_bg = "#450a0a"
-                    badge_color = "#f87171"
-                elif is_pending:
-                    card_border = "#f59e0b"
-                    card_badge = "⏳ PENDING (Awaiting Result)"
-                    badge_bg = "#451a03"
-                    badge_color = "#fbbf24"
+            for d_val, day_matches in date_groups.items():
+                if d_val == today_iso:
+                    d_title = f"📅 आज के मैच (Today) — {d_val}"
+                    d_color = "#38bdf8"
+                elif d_val == yesterday_iso:
+                    d_title = f"📅 कल के मैच (Yesterday) — {d_val}"
+                    d_color = "#f59e0b"
                 else:
-                    card_border = "#f59e0b"
-                    card_badge = "🟡 SKIPPED (50-50 PASS)"
-                    badge_bg = "#451a03"
-                    badge_color = "#fbbf24"
+                    d_title = f"📅 तारीख: {d_val}"
+                    d_color = "#a78bfa"
 
-                rec_display = f"🟢 PLAY: {r.get('recommended_team')}" if r.get('recommended_team') else "🟡 SKIP (50-50 NEUTRAL)"
+                day_pass = sum(1 for r in day_matches if r.get("outcome") == "PASS")
+                day_fail = sum(1 for r in day_matches if r.get("outcome") == "FAIL")
+                day_skip = sum(1 for r in day_matches if r.get("outcome") == "SKIPPED")
+                day_pend = sum(1 for r in day_matches if r.get("outcome") == "PENDING")
+                day_played = day_pass + day_fail
+                day_wr = (day_pass / day_played * 100) if day_played > 0 else 0.0
 
                 st.markdown(f"""
-                <div class="vip-match-card" style="border-left: 6px solid {card_border};">
-                    <div class="card-top-row">
-                        <span class="tour-pill">🏏 {r.get('tournament')} · 📅 {r.get('match_date')}</span>
-                        <span style="background: {badge_bg}; color: {badge_color}; border: 1px solid {card_border}; padding: 6px 16px; border-radius: 20px; font-weight: 900; font-size: 13px;">
-                            {card_badge}
-                        </span>
+                <div style="background: linear-gradient(90deg, #0f172a, #1e293b); border-left: 6px solid {d_color}; border-radius: 10px; padding: 12px 18px; margin: 26px 0 14px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <div style="font-size: 18px; font-weight: 800; color: #f8fafc;">{d_title}</div>
+                        <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">Total: <b>{len(day_matches)} Matches</b> · Played: <b>{day_played}</b> · Skipped: <b>{day_skip}</b> · Pending: <b>{day_pend}</b></div>
                     </div>
-                    <div class="teams-arena">
-                        <div class="team-title">{r.get('team_a')}</div>
-                        <div class="vs-emblem">VS</div>
-                        <div class="team-title" style="text-align:right;">{r.get('team_b')}</div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
-                        <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
-                            <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">🎯 Pre-Toss Advice:</span>
-                            <div style="font-size: 15px; font-weight: 900; color: #ffffff; margin-top: 1px;">{rec_display}</div>
-                            <small style="color: #94a3b8; font-size: 11px;">Rating: {r.get('stake_rating', 'NORMAL')}</small>
-                        </div>
-                        <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
-                            <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">🏆 Official Result:</span>
-                            <div style="font-size: 15px; font-weight: 900; color: #38bdf8; margin-top: 1px;">🏆 {r.get('actual_winner')}</div>
-                            <small style="color: #94a3b8; font-size: 11px;">Elected to: {r.get('toss_decision', 'Bowl')}</small>
-                        </div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <span style="background: #064e3b; color: #34d399; border: 1px solid #10b981; padding: 4px 12px; border-radius: 20px; font-weight: 800; font-size: 13px;">✅ {day_pass} Won</span>
+                        <span style="background: #450a0a; color: #f87171; border: 1px solid #ef4444; padding: 4px 12px; border-radius: 20px; font-weight: 800; font-size: 13px;">❌ {day_fail} Missed</span>
+                        <span style="background: #1e1b4b; color: #c084fc; border: 1px solid #8b5cf6; padding: 4px 12px; border-radius: 20px; font-weight: 800; font-size: 13px;">🏆 {day_wr:.1f}% Win Rate</span>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
 
-                if is_pending:
-                    st.caption("⚡ **टॉस हो गया है — असली विनर कौन बना? बस 1 क्लिक करें:**")
-                    q_c1, q_c2 = st.columns(2)
-                    with q_c1:
-                        if st.button(f"🏆 {r.get('team_a')} Jeeta", key=f"btn_p_a_{r.get('match_id')}", type="primary", use_container_width=True):
-                            save_toss_result(
-                                r.get("match_id"), r.get("match_name"), r.get("tournament"),
-                                r.get("toss_time_ist"), r.get("match_date"), r.get("team_a"),
-                                r.get("team_b"), r.get("recommended_team"), r.get("stake_rating", "NORMAL"),
-                                r.get("team_a"), "Bowl", is_manual=True
-                            )
-                            st.rerun()
-                    with q_c2:
-                        if st.button(f"🏆 {r.get('team_b')} Jeeta", key=f"btn_p_b_{r.get('match_id')}", type="primary", use_container_width=True):
-                            save_toss_result(
-                                r.get("match_id"), r.get("match_name"), r.get("tournament"),
-                                r.get("toss_time_ist"), r.get("match_date"), r.get("team_a"),
-                                r.get("team_b"), r.get("recommended_team"), r.get("stake_rating", "NORMAL"),
-                                r.get("team_b"), "Bowl", is_manual=True
-                            )
-                            st.rerun()
+                # Day's summary table
+                day_table_rows = []
+                for r in day_matches:
+                    day_table_rows.append({
+                        "⏰ Toss Time": r.get('toss_time_ist'),
+                        "Match": r.get("match_name"),
+                        "Tournament": r.get("tournament"),
+                        "🎯 Recommended Play": f"🟢 {r.get('recommended_team')}" if r.get('recommended_team') else "🟡 Skip (50-50)",
+                        "🏆 Actual Toss Winner": f"🏆 {r.get('actual_winner')} ({r.get('toss_decision', 'Bowl')})",
+                        "📊 Result Outcome": r.get("outcome_label", "PASS")
+                    })
+                st.dataframe(pd.DataFrame(day_table_rows), use_container_width=True, hide_index=True)
 
-                # 1-Click interactive editor to change/correct actual toss winner
-                with st.expander(f"✏️ रिजल्ट बदलें / सुधारें: {r.get('team_a')} vs {r.get('team_b')}", expanded=False):
-                    c_edit1, c_edit2, c_edit3, c_edit4 = st.columns([2, 2, 1.4, 1.4])
-                    with c_edit1:
-                        new_winner = st.selectbox(
-                            "🏆 Real Toss Winner (Asli Winner)",
-                            [r.get("team_a"), r.get("team_b")],
-                            index=0 if r.get("actual_winner") == r.get("team_a") else 1,
-                            key=f"edit_win_{r.get('match_id')}"
-                        )
-                    with c_edit2:
-                        new_dec = st.selectbox(
-                            "Elected to",
-                            ["Bowl (Bowling Pehle)", "Bat (Batting Pehle)"],
-                            index=0 if "bowl" in str(r.get("toss_decision", "")).lower() else 1,
-                            key=f"edit_dec_{r.get('match_id')}"
-                        )
-                    with c_edit3:
-                        st.write("")
-                        st.write("")
-                        if st.button("💾 अपडेट करें (Save)", key=f"btn_update_{r.get('match_id')}", type="primary", use_container_width=True):
-                            dec_str = "Bowl" if "Bowl" in new_dec else "Bat"
-                            save_toss_result(
-                                match_id=r.get("match_id"),
-                                match_name=r.get("match_name"),
-                                tournament=r.get("tournament"),
-                                toss_time_ist=r.get("toss_time_ist"),
-                                match_date=r.get("match_date"),
-                                team_a=r.get("team_a"),
-                                team_b=r.get("team_b"),
-                                recommended_team=r.get("recommended_team"),
-                                stake_rating=r.get("stake_rating", "NORMAL"),
-                                actual_winner=new_winner,
-                                toss_decision=dec_str,
-                                is_manual=True
+                # Day's audit cards
+                for r in day_matches:
+                    out = r.get("outcome")
+                    is_pass = (out == "PASS")
+                    is_fail = (out == "FAIL")
+                    is_pending = (out == "PENDING")
+
+                    if is_pass:
+                        card_border = "#10b981"
+                        card_badge = "✅ PASS (PROFIT / WON)"
+                        badge_bg = "#064e3b"
+                        badge_color = "#34d399"
+                    elif is_fail:
+                        card_border = "#ef4444"
+                        card_badge = "❌ FAIL (MISSED)"
+                        badge_bg = "#450a0a"
+                        badge_color = "#f87171"
+                    elif is_pending:
+                        card_border = "#f59e0b"
+                        card_badge = "⏳ PENDING (Awaiting Result)"
+                        badge_bg = "#451a03"
+                        badge_color = "#fbbf24"
+                    else:
+                        card_border = "#f59e0b"
+                        card_badge = "🟡 SKIPPED (50-50 PASS)"
+                        badge_bg = "#451a03"
+                        badge_color = "#fbbf24"
+
+                    rec_display = f"🟢 PLAY: {r.get('recommended_team')}" if r.get('recommended_team') else "🟡 SKIP (50-50 NEUTRAL)"
+
+                    st.markdown(f"""
+                    <div class="vip-match-card" style="border-left: 6px solid {card_border};">
+                        <div class="card-top-row">
+                            <span class="tour-pill">🏏 {r.get('tournament')} · 📅 {r.get('match_date')} · ⏰ {r.get('toss_time_ist')}</span>
+                            <span style="background: {badge_bg}; color: {badge_color}; border: 1px solid {card_border}; padding: 6px 16px; border-radius: 20px; font-weight: 900; font-size: 13px;">
+                                {card_badge}
+                            </span>
+                        </div>
+                        <div class="teams-arena">
+                            <div class="team-title">{r.get('team_a')}</div>
+                            <div class="vs-emblem">VS</div>
+                            <div class="team-title" style="text-align:right;">{r.get('team_b')}</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
+                            <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
+                                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">🎯 Pre-Toss Advice:</span>
+                                <div style="font-size: 15px; font-weight: 900; color: #ffffff; margin-top: 1px;">{rec_display}</div>
+                                <small style="color: #94a3b8; font-size: 11px;">Rating: {r.get('stake_rating', 'NORMAL')}</small>
+                            </div>
+                            <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
+                                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">🏆 Official Result:</span>
+                                <div style="font-size: 15px; font-weight: 900; color: #38bdf8; margin-top: 1px;">🏆 {r.get('actual_winner')}</div>
+                                <small style="color: #94a3b8; font-size: 11px;">Elected to: {r.get('toss_decision', 'Bowl')}</small>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    if is_pending:
+                        st.caption("⚡ **टॉस हो गया है — असली विनर कौन बना? बस 1 क्लिक करें:**")
+                        q_c1, q_c2 = st.columns(2)
+                        with q_c1:
+                            if st.button(f"🏆 {r.get('team_a')} Jeeta", key=f"btn_p_a_{r.get('match_id')}", type="primary", use_container_width=True):
+                                save_toss_result(
+                                    r.get("match_id"), r.get("match_name"), r.get("tournament"),
+                                    r.get("toss_time_ist"), r.get("match_date"), r.get("team_a"),
+                                    r.get("team_b"), r.get("recommended_team"), r.get("stake_rating", "NORMAL"),
+                                    r.get("team_a"), "Bowl", is_manual=True
+                                )
+                                st.rerun()
+                        with q_c2:
+                            if st.button(f"🏆 {r.get('team_b')} Jeeta", key=f"btn_p_b_{r.get('match_id')}", type="primary", use_container_width=True):
+                                save_toss_result(
+                                    r.get("match_id"), r.get("match_name"), r.get("tournament"),
+                                    r.get("toss_time_ist"), r.get("match_date"), r.get("team_a"),
+                                    r.get("team_b"), r.get("recommended_team"), r.get("stake_rating", "NORMAL"),
+                                    r.get("team_b"), "Bowl", is_manual=True
+                                )
+                                st.rerun()
+
+                    # 1-Click interactive editor to change/correct actual toss winner
+                    with st.expander(f"✏️ रिजल्ट बदलें / सुधारें: {r.get('team_a')} vs {r.get('team_b')}", expanded=False):
+                        c_edit1, c_edit2, c_edit3, c_edit4 = st.columns([2, 2, 1.4, 1.4])
+                        with c_edit1:
+                            new_winner = st.selectbox(
+                                "🏆 Real Toss Winner (Asli Winner)",
+                                [r.get("team_a"), r.get("team_b")],
+                                index=0 if r.get("actual_winner") == r.get("team_a") else 1,
+                                key=f"edit_win_{r.get('match_id')}"
                             )
-                            st.success(f"✅ Updated! Winner: {new_winner}")
-                            st.rerun()
-                    with c_edit4:
-                        st.write("")
-                        st.write("")
-                        if st.button("🗑️ हटाएँ (Delete)", key=f"btn_card_del_{r.get('match_id')}", use_container_width=True):
-                            delete_toss_result(r.get("match_id"))
-                            st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
-                            st.rerun()
+                        with c_edit2:
+                            new_dec = st.selectbox(
+                                "Elected to",
+                                ["Bowl (Bowling Pehle)", "Bat (Batting Pehle)"],
+                                index=0 if "bowl" in str(r.get("toss_decision", "")).lower() else 1,
+                                key=f"edit_dec_{r.get('match_id')}"
+                            )
+                        with c_edit3:
+                            st.write("")
+                            st.write("")
+                            if st.button("💾 अपडेट करें (Save)", key=f"btn_update_{r.get('match_id')}", type="primary", use_container_width=True):
+                                dec_str = "Bowl" if "Bowl" in new_dec else "Bat"
+                                save_toss_result(
+                                    match_id=r.get("match_id"),
+                                    match_name=r.get("match_name"),
+                                    tournament=r.get("tournament"),
+                                    toss_time_ist=r.get("toss_time_ist"),
+                                    match_date=r.get("match_date"),
+                                    team_a=r.get("team_a"),
+                                    team_b=r.get("team_b"),
+                                    recommended_team=r.get("recommended_team"),
+                                    stake_rating=r.get("stake_rating", "NORMAL"),
+                                    actual_winner=new_winner,
+                                    toss_decision=dec_str,
+                                    is_manual=True
+                                )
+                                st.success(f"✅ Updated! Winner: {new_winner}")
+                                st.rerun()
+                        with c_edit4:
+                            st.write("")
+                            st.write("")
+                            if st.button("🗑️ हटाएँ (Delete)", key=f"btn_card_del_{r.get('match_id')}", use_container_width=True):
+                                delete_toss_result(r.get("match_id"))
+                                st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
+                                st.rerun()
         else:
             st.info("No completed tosses match the selected filter. As matches finish, all toss results and pass/fail audit will appear here.")

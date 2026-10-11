@@ -231,13 +231,20 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         rec_team = vip.get("pick")
         rating = vip.get("stake_rating", "NORMAL")
 
+        # Extract actual match date from API record
+        m_date_raw = m.get("match_date")
+        if m_date_raw:
+            m_date = str(m_date_raw).split("T")[0].strip()
+        else:
+            m_date = today_str
+
         # Zero fake guessing: Mark as Pending Confirmation for genuine user confirmation
         save_toss_result(
             match_id=m_id,
             match_name=f"{t1} vs {t2}",
             tournament=tour,
             toss_time_ist=toss_ist,
-            match_date=today_str,
+            match_date=m_date,
             team_a=t1,
             team_b=t2,
             recommended_team=rec_team,
