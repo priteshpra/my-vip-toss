@@ -319,15 +319,23 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
                             continue
                         r_ta = (r.get("team_a") or "").strip().lower()
                         r_tb = (r.get("team_b") or "").strip().lower()
-                        a_matched = (t_a_clean.lower() in r_ta or r_ta in t_a_clean.lower() or t_a_clean.lower() in r_tb or r_tb in t_a_clean.lower())
-                        b_matched = (t_b_clean.lower() in r_ta or r_ta in t_b_clean.lower() or t_b_clean.lower() in r_tb or r_tb in t_b_clean.lower())
+                        def _tm(a, b):
+                            a, b = a.lower(), b.lower()
+                            if a == b: return True
+                            if ("women" in a or "wmn" in a) != ("women" in b or "wmn" in b): return False
+                            if ("u19" in a or "under-19" in a) != ("u19" in b or "under-19" in b): return False
+                            if ("champions" in a or "legends" in a) != ("champions" in b or "legends" in b): return False
+                            return (a in b or b in a)
+
+                        a_matched = (_tm(t_a_clean, r_ta) or _tm(t_a_clean, r_tb))
+                        b_matched = (_tm(t_b_clean, r_ta) or _tm(t_b_clean, r_tb))
                         if a_matched:
-                            if t_a_clean.lower() in win or win in t_a_clean.lower():
+                            if _tm(t_a_clean, win):
                                 a_wins += 1
                             else:
                                 a_losses += 1
                         if b_matched:
-                            if t_b_clean.lower() in win or win in t_b_clean.lower():
+                            if _tm(t_b_clean, win):
                                 b_wins += 1
                             else:
                                 b_losses += 1
