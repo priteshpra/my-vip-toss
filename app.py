@@ -691,11 +691,9 @@ with vip_tabs[1]:
     st.header("📜 टॉस रिज़ल्ट्स & पास/फ़ेल ट्रैकर (Toss Done & Accuracy Audit)")
     st.caption("Jaise hi toss complete hota hai, yahan real audit record hota hai — kitna toss pass gaya aur kitna fail gaya.")
 
-    # Calculate Accuracy KPIs
-    kpis = get_toss_accuracy_kpis()
-    completed_results = kpis["results"]
+    completed_results = load_toss_results()
 
-    if kpis["total_completed"] == 0:
+    if not completed_results:
         st.markdown("""
         <div style="background: #0f172a; border: 1px dashed #334155; border-radius: 14px; padding: 32px 24px; text-align: center; margin: 24px 0;">
             <div style="font-size: 40px; margin-bottom: 10px;">🪙</div>
@@ -707,7 +705,53 @@ with vip_tabs[1]:
         </div>
         """, unsafe_allow_html=True)
     else:
-        # Top KPI Metrics Cards
+        # Extract Distinct Dates for 1-Click Fast Date Filter
+        distinct_dates = []
+        for r in completed_results:
+            d = r.get("match_date")
+            if d and d not in distinct_dates:
+                distinct_dates.append(d)
+        distinct_dates.sort(reverse=True)
+
+        yesterday_iso = format_ist(cur_ist - timedelta(days=1), "%Y-%m-%d")
+
+        date_pill_map = {}
+        for d in distinct_dates:
+            c = sum(1 for r in completed_results if r.get("match_date") == d)
+            if d == today_iso:
+                label = f"📅 आज (Today) · {d} ({c})"
+            elif d == yesterday_iso:
+                label = f"📅 कल (Yesterday) · {d} ({c})"
+            else:
+                label = f"📅 {d} ({c})"
+            date_pill_map[label] = d
+
+        date_pill_options = list(date_pill_map.keys()) + ["🌟 सभी तारीखें (All Dates)"]
+
+        # 1-Click Fast Date Filter Pills at the Top
+        st.markdown("<div style='font-size: 15px; font-weight: 800; color: #38bdf8; margin: 8px 0 6px 0;'>📅 तारीख चुनें (Select Date):</div>", unsafe_allow_html=True)
+        selected_date_label = st.pills(
+            "तारीख चुनें",
+            options=date_pill_options,
+            default=date_pill_options[0] if date_pill_options else None,
+            key="pills_done_date",
+            label_visibility="collapsed"
+        )
+        selected_date_val = date_pill_map.get(selected_date_label) if (selected_date_label and "All Dates" not in selected_date_label) else "ALL"
+
+        # Dynamically compute KPIs strictly for the SELECTED DATE!
+        if selected_date_val != "ALL":
+            active_date_results = [r for r in completed_results if r.get("match_date") == selected_date_val]
+            kpi_title_ctx = f"{selected_date_label.split(' · ')[0]} ({selected_date_val})"
+        else:
+            active_date_results = completed_results
+            kpi_title_ctx = "सभी तारीखें (Overall All Dates)"
+
+        kpis = get_toss_accuracy_kpis(active_date_results)
+
+        st.caption(f"📊 **एक्यूरेसी & टॉस काउंट बॉक्स ({kpi_title_ctx} के अनुसार):**")
+
+        # Top 5 KPI Metrics Cards (Updates Dynamically With Selected Date)
         k1, k2, k3, k4, k5 = st.columns(5)
         with k1:
             st.markdown(f"""
@@ -741,63 +785,28 @@ with vip_tabs[1]:
             st.markdown(f"""
             <div class="kpi-card">
                 <div class="kpi-val" style="color: #a78bfa;">{kpis['pass_rate_pct']:.1f}%</div>
-                <div class="kpi-lbl">🏆 Overall Pass Rate</div>
+                <div class="kpi-lbl">🏆 Win Rate ({kpis['pass_rate_pct']:.1f}%)</div>
             </div>
             """, unsafe_allow_html=True)
 
         st.write("")
-        # Pass Rate Visual Bar
         prog_val = min(1.0, max(0.0, kpis['pass_rate_pct'] / 100.0))
-        st.progress(prog_val, text=f"🎯 Current Pass Accuracy Rate: {kpis['pass_rate_pct']:.1f}% (Winning Edge vs 50% Coin Flip)")
+        st.progress(prog_val, text=f"🎯 {kpi_title_ctx} Pass Accuracy Rate: {kpis['pass_rate_pct']:.1f}%")
 
         st.divider()
 
-        # Filter Completed Tosses
+        # Secondary Filters: Tournament & Search
         all_done_tournaments = []
-        for r in completed_results:
+        for r in active_date_results:
             t = r.get("tournament")
             if t and t not in all_done_tournaments:
                 all_done_tournaments.append(t)
         all_done_tournaments.sort()
 
         tour_done_opts = ["🌟 Sabhi Tournaments (All)"] + [
-            f"{t} ({sum(1 for r in completed_results if r.get('tournament') == t)})"
+            f"{t} ({sum(1 for r in active_date_results if r.get('tournament') == t)})"
             for t in all_done_tournaments
         ]
-
-        # Extract Distinct Dates for Filter
-        distinct_dates = []
-        for r in completed_results:
-            d = r.get("match_date")
-            if d and d not in distinct_dates:
-                distinct_dates.append(d)
-        distinct_dates.sort(reverse=True)
-
-        yesterday_iso = format_ist(cur_ist - timedelta(days=1), "%Y-%m-%d")
-
-        date_pill_map = {}
-        for d in distinct_dates:
-            c = sum(1 for r in completed_results if r.get("match_date") == d)
-            if d == today_iso:
-                label = f"📅 आज (Today) · {d} ({c})"
-            elif d == yesterday_iso:
-                label = f"📅 कल (Yesterday) · {d} ({c})"
-            else:
-                label = f"📅 {d} ({c})"
-            date_pill_map[label] = d
-
-        date_pill_options = list(date_pill_map.keys()) + ["🌟 सभी तारीखें (All Dates)"]
-
-        # 1-Click Fast Date Filter Pills (Defaults to TODAY to avoid endless scrolling)
-        st.markdown("<div style='font-size: 15px; font-weight: 800; color: #38bdf8; margin: 12px 0 6px 0;'>📅 तारीख चुनें (Select Date):</div>", unsafe_allow_html=True)
-        selected_date_label = st.pills(
-            "तारीख चुनें",
-            options=date_pill_options,
-            default=date_pill_options[0] if date_pill_options else None,
-            key="pills_done_date",
-            label_visibility="collapsed"
-        )
-        selected_date_val = date_pill_map.get(selected_date_label) if (selected_date_label and "All Dates" not in selected_date_label) else "ALL"
 
         c_f1, c_f2 = st.columns([1.6, 1.4])
         with c_f1:
@@ -824,11 +833,7 @@ with vip_tabs[1]:
         )
 
         # Filter Rows
-        filtered_done = completed_results
-
-        # 0. Date Filter (Renders ONLY the chosen date for fast zero-scroll experience)
-        if selected_date_val != "ALL":
-            filtered_done = [r for r in filtered_done if r.get("match_date") == selected_date_val]
+        filtered_done = active_date_results
 
         # 1. Tournament Filter
         if selected_done_tour != "🌟 Sabhi Tournaments (All)":
@@ -851,6 +856,7 @@ with vip_tabs[1]:
                 r for r in filtered_done
                 if sq in r["match_name"].lower() or sq in r["tournament"].lower()
             ]
+
 
         # Tournament Mini-Summary Banner when a specific tournament is selected
         if selected_done_tour != "🌟 Sabhi Tournaments (All)":

@@ -257,9 +257,9 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
     return load_toss_results()
 
 
-def get_toss_accuracy_kpis() -> Dict[str, Any]:
+def get_toss_accuracy_kpis(target_results: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Calculate aggregate pass/fail KPIs strictly across confirmed completed tosses."""
-    results = load_toss_results()
+    results = target_results if target_results is not None else load_toss_results()
     total = len(results)
     played = 0
     passed = 0
