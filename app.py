@@ -775,28 +775,31 @@ with vip_tabs[1]:
 
         yesterday_iso = format_ist(cur_ist - timedelta(days=1), "%Y-%m-%d")
 
-        date_map = {}
+        date_pill_map = {}
         for d in distinct_dates:
+            c = sum(1 for r in completed_results if r.get("match_date") == d)
             if d == today_iso:
-                label = f"📅 आज (Today) — {d}"
+                label = f"📅 आज (Today) · {d} ({c})"
             elif d == yesterday_iso:
-                label = f"📅 कल (Yesterday) — {d}"
+                label = f"📅 कल (Yesterday) · {d} ({c})"
             else:
-                label = f"📅 {d}"
-            date_map[label] = d
+                label = f"📅 {d} ({c})"
+            date_pill_map[label] = d
 
-        date_filter_opts = ["🌟 Sabhi Dates (All - Grouped)"] + list(date_map.keys())
+        date_pill_options = list(date_pill_map.keys()) + ["🌟 सभी तारीखें (All Dates)"]
 
-        c_f0, c_f1, c_f2 = st.columns([1.4, 1.4, 1.2])
-        with c_f0:
-            selected_date_label = st.selectbox(
-                "📅 Filter by Date (तारीख चुनें)",
-                options=date_filter_opts,
-                index=0,
-                key="select_done_date"
-            )
-            selected_date_val = date_map.get(selected_date_label) if selected_date_label != "🌟 Sabhi Dates (All - Grouped)" else "ALL"
+        # 1-Click Fast Date Filter Pills (Defaults to TODAY to avoid endless scrolling)
+        st.markdown("<div style='font-size: 15px; font-weight: 800; color: #38bdf8; margin: 12px 0 6px 0;'>📅 तारीख चुनें (Select Date):</div>", unsafe_allow_html=True)
+        selected_date_label = st.pills(
+            "तारीख चुनें",
+            options=date_pill_options,
+            default=date_pill_options[0] if date_pill_options else None,
+            key="pills_done_date",
+            label_visibility="collapsed"
+        )
+        selected_date_val = date_pill_map.get(selected_date_label) if (selected_date_label and "All Dates" not in selected_date_label) else "ALL"
 
+        c_f1, c_f2 = st.columns([1.6, 1.4])
         with c_f1:
             selected_done_tour_raw = st.selectbox(
                 "🏏 Filter by Tournament (टूर्नामेंट फ़िल्टर करें)",
@@ -823,7 +826,7 @@ with vip_tabs[1]:
         # Filter Rows
         filtered_done = completed_results
 
-        # 0. Date Filter
+        # 0. Date Filter (Renders ONLY the chosen date for fast zero-scroll experience)
         if selected_date_val != "ALL":
             filtered_done = [r for r in filtered_done if r.get("match_date") == selected_date_val]
 
