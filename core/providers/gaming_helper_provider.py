@@ -443,11 +443,11 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
         if isinstance(args[0], bool):
             force_refresh = args[0]
     res = fetch_gaming_helper_live_bets(force_refresh=force_refresh)
-    if res.get("success") and res.get("matches"):
+    if res.get("success"):
         return {
             "source": "GamingHelper Online (Live Bets)",
             "connected": True,
-            "matches": res["matches"],
+            "matches": res.get("matches") or [],
             "needs_login": False
         }
     
