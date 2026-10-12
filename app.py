@@ -32,7 +32,8 @@ from core.engine.toss_results_manager import (
     load_toss_results,
     save_toss_result,
     get_toss_accuracy_kpis,
-    sync_completed_tosses_from_gaming_helper
+    sync_completed_tosses_from_gaming_helper,
+    auto_update_toss_results_from_telegram
 )
 
 # Safe import with fallback for zero-downtime hot reloading
@@ -690,6 +691,25 @@ with vip_tabs[0]:
 with vip_tabs[1]:
     st.header("📜 टॉस रिज़ल्ट्स & पास/फ़ेल ट्रैकर (Toss Done & Accuracy Audit)")
     st.caption("Jaise hi toss complete hota hai, yahan real audit record hota hai — kitna toss pass gaya aur kitna fail gaya.")
+
+    col_audit_info, col_audit_btn = st.columns([2.5, 1.5])
+    with col_audit_info:
+        st.markdown(
+            "<div style='display:inline-flex; align-items:center; gap:8px; background:#0f172a; padding:6px 14px; border-radius:20px; border:1px solid #38bdf8; font-size:13px; color:#38bdf8; font-weight:700; margin-bottom:10px;'>"
+            "<span>📡 Telegram Live Auto-Sync Active:</span> <span style='color:#f8fafc;'>@KINGTOSSLINE111 (Auto-resolves live toss results)</span>"
+            "</div>",
+            unsafe_allow_html=True
+        )
+    with col_audit_btn:
+        if st.button("⚡ Telegram Auto-Sync Now", key="btn_tg_sync_tab2", use_container_width=True):
+            with st.spinner("Fetching latest toss outcomes from @KINGTOSSLINE111..."):
+                sync_completed_tosses_from_gaming_helper()
+                res_count = auto_update_toss_results_from_telegram()
+                if res_count > 0:
+                    st.success(f"✅ {res_count} Toss results automatically resolved from @KINGTOSSLINE111!")
+                else:
+                    st.info("ℹ️ All matches already up-to-date with live Telegram channel.")
+                st.rerun()
 
     completed_results = load_toss_results()
 

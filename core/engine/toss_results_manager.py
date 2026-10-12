@@ -254,7 +254,70 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             is_manual=False
         )
 
+    # Automatically resolve freshly closed matches using Telegram live feed @KINGTOSSLINE111
+    try:
+        auto_update_toss_results_from_telegram()
+    except Exception as e:
+        print(f"Error in auto_update_toss_results_from_telegram: {e}")
+
     return load_toss_results()
+
+
+def auto_update_toss_results_from_telegram() -> int:
+    """
+    Automatically resolve Pending Confirmation matches using live toss announcements
+    from public Telegram channel @KINGTOSSLINE111.
+    
+    Returns the number of matches newly resolved.
+    """
+    from core.providers.telegram_toss_feed import fetch_telegram_toss_feed, match_team_with_tg_winner
+
+    feed = fetch_telegram_toss_feed(pages=3)
+    if not feed:
+        return 0
+
+    results = load_toss_results()
+    resolved_count = 0
+
+    for r in results:
+        # Only resolve pending matches
+        if r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower():
+            continue
+
+        t1 = r.get("team_a") or ""
+        t2 = r.get("team_b") or ""
+        rec = r.get("recommended_team")
+
+        for tg in feed:
+            w_raw = tg.get("winner_raw", "")
+            decision = tg.get("decision", "Bowl")
+
+            winner_name = None
+            if match_team_with_tg_winner(t1, w_raw):
+                winner_name = t1
+            elif match_team_with_tg_winner(t2, w_raw):
+                winner_name = t2
+
+            if winner_name:
+                save_toss_result(
+                    match_id=r.get("match_id"),
+                    match_name=r.get("match_name"),
+                    tournament=r.get("tournament", "General"),
+                    toss_time_ist=r.get("toss_time_ist", ""),
+                    match_date=r.get("match_date", ""),
+                    team_a=t1,
+                    team_b=t2,
+                    recommended_team=rec,
+                    stake_rating=r.get("stake_rating", "NORMAL"),
+                    actual_winner=winner_name,
+                    toss_decision=decision,
+                    is_manual=False
+                )
+                resolved_count += 1
+                break
+
+    return resolved_count
+
 
 
 def get_toss_accuracy_kpis(target_results: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
