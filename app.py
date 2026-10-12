@@ -68,11 +68,7 @@ st.markdown("""
     }
 
     /* Universal Pure White Text Overrides */
-    .stApp p, .stApp span, .stApp label, .stApp div, .stApp small, .stApp li {
-        color: #ffffff;
-    }
-
-    .stMarkdown p, .stMarkdown span {
+    .stMarkdown p, .stMarkdown span, .stMarkdown div, .stMarkdown li {
         color: #ffffff !important;
     }
 
@@ -98,6 +94,75 @@ st.markdown("""
         color: #ffffff !important;
         font-weight: 800 !important;
         font-size: 15px !important;
+    }
+
+    /* Streamlit Pills Component Styling - High-Contrast Dark Theme */
+    [data-testid="stPills"] button,
+    div[data-testid="stPills"] button,
+    button[data-testid="stPill"],
+    div[role="radiogroup"] button {
+        background-color: #1e293b !important;
+        color: #ffffff !important;
+        border: 1.5px solid #475569 !important;
+        border-radius: 20px !important;
+        padding: 5px 14px !important;
+        font-weight: 700 !important;
+    }
+    
+    [data-testid="stPills"] button *,
+    div[data-testid="stPills"] button *,
+    button[data-testid="stPill"] *,
+    div[role="radiogroup"] button * {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+
+    /* Selected state for pills */
+    [data-testid="stPills"] button[aria-checked="true"],
+    [data-testid="stPills"] button[aria-selected="true"],
+    [data-testid="stPills"] button[data-selected="true"],
+    div[role="radiogroup"] button[aria-checked="true"] {
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+        color: #ffffff !important;
+        border: 2px solid #38bdf8 !important;
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.45) !important;
+    }
+
+    [data-testid="stPills"] button[aria-checked="true"] *,
+    [data-testid="stPills"] button[aria-selected="true"] *,
+    div[role="radiogroup"] button[aria-checked="true"] * {
+        color: #ffffff !important;
+        font-weight: 800 !important;
+    }
+
+    /* Hover state for pills */
+    [data-testid="stPills"] button:hover,
+    div[data-testid="stPills"] button:hover {
+        background-color: #334155 !important;
+        border-color: #64748b !important;
+        color: #ffffff !important;
+    }
+
+    /* Selectbox styling in dark theme */
+    div[data-baseweb="select"] > div {
+        background-color: #0f172a !important;
+        border-color: #334155 !important;
+        color: #ffffff !important;
+    }
+
+    div[data-baseweb="select"] * {
+        color: #ffffff !important;
+    }
+
+    /* Text input styling in dark theme */
+    div[data-baseweb="input"] > div {
+        background-color: #0f172a !important;
+        border-color: #334155 !important;
+        color: #ffffff !important;
+    }
+
+    div[data-baseweb="input"] input {
+        color: #ffffff !important;
     }
     
     /* VIP Top Header */
