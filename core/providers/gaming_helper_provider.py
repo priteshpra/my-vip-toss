@@ -386,6 +386,7 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
     b_rate = (b_wins + 1) / (b_total + 2)
 
     # Sample certainty weighting: requires at least 3-4 matches for full weight
+    sample_weight = min(1.0, tot_samples / 4.0)
     hist_edge = (a_rate - b_rate) * 35.0 * sample_weight
 
     # Noise dampener for junior/local matches where toss captain form is erratic
