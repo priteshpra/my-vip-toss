@@ -141,6 +141,9 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
     """
     from core.providers.gaming_helper_provider import (
         get_stored_credentials,
+        login_gaming_helper,
+        DEFAULT_PHONE,
+        DEFAULT_PASS,
         _format_time_24_to_ist,
         _extract_tournament_from_match_name,
         compute_vip_punter_verdict,
@@ -150,7 +153,10 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
     creds = get_stored_credentials()
     token = creds.get("token")
     if not token:
-        return load_toss_results()
+        login_res = login_gaming_helper(DEFAULT_PHONE, DEFAULT_PASS)
+        token = login_res.get("token")
+        if not token:
+            return load_toss_results()
 
     # Paginate through all closed matches so nothing gets truncated
     raw_closed = []
@@ -176,6 +182,14 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
                 if page >= total_pages:
                     break
                 page += 1
+        except urllib.error.HTTPError as he:
+            if he.code == 440:
+                login_res = login_gaming_helper(DEFAULT_PHONE, DEFAULT_PASS)
+                token = login_res.get("token")
+                if not token:
+                    break
+                continue
+            break
         except Exception:
             break
 

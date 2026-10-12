@@ -284,6 +284,23 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
             "source": "GamingHelper Online"
         })
 
+    # Professional Tipper Quota Protection:
+    # On large cards (e.g. 40-50 matches), cap PLAY matches to top ~30-35% (max 18-20)
+    # Never exceed 35% PLAY ratio so bankroll is strictly protected.
+    if len(normalized) > 0:
+        max_plays = max(1, int(len(normalized) * 0.35))
+        current_plays = [m for m in normalized if m["action_type"] == "PLAY"]
+        if len(current_plays) > max_plays:
+            current_plays.sort(key=lambda x: x.get("confidence_pct", 50), reverse=True)
+            top_play_ids = {m["id"] for m in current_plays[:max_plays]}
+            for m in normalized:
+                if m["action_type"] == "PLAY" and m["id"] not in top_play_ids:
+                    m["action_type"] = "SKIP"
+                    m["recommended_team"] = None
+                    m["confidence_pct"] = 50
+                    m["stake_rating"] = "🟡 SKIP / 50-50 COIN FLIP"
+                    m["punter_rationale"] = "Tipper Quota Discipline: Bankroll safe rakhne ke liye sirf din ke top high-conviction matches ko PLAY rakha gaya hai. Yeh match strict pass karein."
+
     return normalized
 
 
@@ -301,11 +318,16 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
     t_b_clean = (team_b or "").strip()
     tour_clean = (tournament or "").strip()
 
-    # 1. Market Asymmetry Signal (Bookmaker Win Ratio Gap)
+    # 1. Real Market Odds Asymmetry (Ignore GamingHelper's default 98:80 template)
     odds_diff = odds_a - odds_b  # Positive favors A, negative favors B
     abs_odds_gap = abs(odds_diff)
+    real_market_edge = 0
+    if abs_odds_gap >= 28:
+        real_market_edge = 20 if odds_diff > 0 else -20
+    elif abs_odds_gap >= 22:
+        real_market_edge = 12 if odds_diff > 0 else -12
 
-    # 2. Historical Toss Record Signal from verified database
+    # 2. Historical Toss Record Signal with Strict Sample Verification
     a_wins, a_losses, b_wins, b_losses = 0, 0, 0, 0
     try:
         results_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "toss_results_log.json")
@@ -344,66 +366,69 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
 
     a_total = a_wins + a_losses
     b_total = b_wins + b_losses
-    a_rate = (a_wins / a_total) if a_total > 0 else 0.5
-    b_rate = (b_wins / b_total) if b_total > 0 else 0.5
-    hist_edge = (a_rate - b_rate) * 100
+    tot_samples = a_total + b_total
 
-    # STRICT GROUND-TRUTH RULE:
-    # If both teams have ZERO verified historical data and market odds are close (gap < 20),
-    # It is a pure unknown 50-50 coin flip. NEVER gamble user bankroll on unknowns!
-    if a_total == 0 and b_total == 0 and abs_odds_gap < 20:
+    # STRICT TIPPER RULE 1: Minimum Sample Size Protection
+    # If total matches between both teams < 2 and no real market odds move,
+    # it is a pure unknown 50-50 coin flip. NEVER call PLAY on coin flips!
+    if tot_samples < 2 and real_market_edge == 0:
         return {
             "action": "SKIP",
             "pick": None,
             "confidence_pct": 50,
             "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
-            "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ka toss balance 50-50 neutral hai. Yahan bet lagana risky hai — bankroll safe rakhne ke liye STRICT PASS karein."
+            "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ka toss sample size na ke barabar hai (A: {a_total}, B: {b_total}). Paid tipper rule: Unknown 50-50 coin flip me paisa na lagayein, STRICT SKIP karein."
         }
 
-    # Calculate genuine edge based on verified history and real odds
-    edge = 0
-    if abs_odds_gap >= 28:
-        edge += (20 if odds_diff > 0 else -20)
-    elif abs_odds_gap >= 20:
-        edge += (12 if odds_diff > 0 else -12)
+    # Bayesian / Laplacian Smoothing: (wins + 1) / (total + 2)
+    # Prevents 1 match from being falsely treated as 100% or 0% form
+    a_rate = (a_wins + 1) / (a_total + 2)
+    b_rate = (b_wins + 1) / (b_total + 2)
 
-    if a_total > 0 or b_total > 0:
-        a_rate = (a_wins / a_total) if a_total > 0 else 0.5
-        b_rate = (b_wins / b_total) if b_total > 0 else 0.5
-        edge += (a_rate - b_rate) * 35
+    # Sample certainty weighting: requires at least 3-4 matches for full weight
+    hist_edge = (a_rate - b_rate) * 35.0 * sample_weight
 
-    if abs(edge) < 12:
+    # Noise dampener for junior/local matches where toss captain form is erratic
+    is_junior_local = any(k in tour_clean.lower() for k in ['under-19', 'u19', 'alwar', 'talent series']) or ('women' in t_a_clean.lower() and 'under-19' in t_a_clean.lower())
+    if is_junior_local:
+        hist_edge *= 0.70
+
+    total_edge = real_market_edge + hist_edge
+
+    # STRICT TIPPER RULE 2: Minimum Edge Threshold
+    # Must have solid minimum edge to qualify as PLAY
+    if abs(total_edge) < 14:
         return {
             "action": "SKIP",
             "pick": None,
             "confidence_pct": 50,
             "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
-            "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ke beech koi clear toss advantage nahi hai (50-50 trap). Strict Pass."
+            "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ke beech ka toss edge kafi kam ({abs(total_edge):.1f}%) hai. Paid Tipper advice: 50-50 trap me risk mat lijiye, STRICT PASS karein."
         }
 
-    favored = t_a_clean if edge > 0 else t_b_clean
-    underdog = t_b_clean if edge > 0 else t_a_clean
-    fav_wins = a_wins if edge > 0 else b_wins
-    fav_tot = a_total if edge > 0 else b_total
+    favored = t_a_clean if total_edge > 0 else t_b_clean
+    underdog = t_b_clean if total_edge > 0 else t_a_clean
+    fav_wins = a_wins if total_edge > 0 else b_wins
+    fav_tot = a_total if total_edge > 0 else b_total
 
-    is_jackpot = (abs(edge) >= 28 and fav_wins >= 2 and abs_odds_gap >= 20)
+    is_jackpot = (abs(total_edge) >= 25 and fav_wins >= 2 and (abs_odds_gap >= 22 or fav_tot >= 3))
     if is_jackpot:
-        conf = 84
+        conf = min(88, int(80 + abs(total_edge) * 0.3))
         return {
             "action": "PLAY",
             "pick": favored,
             "confidence_pct": conf,
             "stake_rating": "💎 JACKPOT PLAY (MAX STAKE)",
-            "rationale": f"Verified toss form ({fav_wins}/{fav_tot} wins) aur market volume seedha {favored} ke favour me hai. High edge play."
+            "rationale": f"Verified toss form ({fav_wins}/{fav_tot} wins, Sample: {tot_samples} matches) aur market strength seedha {favored} ke favour me hai. High-confidence Jackpot play."
         }
     else:
-        conf = 72 + min(6, int(abs(edge) * 0.2))
+        conf = min(82, int(72 + abs(total_edge) * 0.3))
         return {
             "action": "PLAY",
             "pick": favored,
             "confidence_pct": conf,
             "stake_rating": "🟢 CONFIRMED PLAY",
-            "rationale": f"Recent toss records aur market positioning me {favored} ka edge clear hai. Calculated safe play."
+            "rationale": f"Verified toss records (Sample: {tot_samples} matches) aur pattern me {favored} ka genuine edge ({abs(total_edge):.1f}%) clear hai. Tipper verified safe play."
         }
 
 
