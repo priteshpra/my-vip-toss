@@ -60,11 +60,44 @@ today_iso = format_ist(cur_ist, "%Y-%m-%d")
 # --- Elite VIP Sportsbook Theme CSS ---
 st.markdown("""
 <style>
-    /* Dark VIP terminal theme */
+    /* Dark VIP terminal theme with Crisp High-Contrast Pure White Typography */
     .stApp {
         background-color: #070a13;
-        color: #f3f4f6;
+        color: #ffffff !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* Universal Pure White Text Overrides */
+    .stApp p, .stApp span, .stApp label, .stApp div, .stApp small, .stApp li {
+        color: #ffffff;
+    }
+
+    .stMarkdown p, .stMarkdown span {
+        color: #ffffff !important;
+    }
+
+    .stCaption, .stCaption p, [data-testid="stCaptionContainer"] p {
+        color: #f1f5f9 !important;
+        font-size: 13.5px !important;
+        font-weight: 600 !important;
+    }
+
+    label[data-testid="stWidgetLabel"] p, label[data-testid="stWidgetLabel"] span {
+        color: #ffffff !important;
+        font-weight: 800 !important;
+        font-size: 14.5px !important;
+    }
+
+    [data-testid="stExpander"] details summary span {
+        color: #ffffff !important;
+        font-weight: 800 !important;
+        font-size: 15px !important;
+    }
+
+    button[data-baseweb="tab"] p, button[data-baseweb="tab"] span {
+        color: #ffffff !important;
+        font-weight: 800 !important;
+        font-size: 15px !important;
     }
     
     /* VIP Top Header */
@@ -100,8 +133,9 @@ st.markdown("""
         text-transform: uppercase;
     }
     .vip-sub {
-        color: #94a3b8 !important;
-        font-size: 13px;
+        color: #ffffff !important;
+        font-size: 13.5px;
+        font-weight: 600;
         margin: 4px 0 0 0;
     }
     .clock-badge {
@@ -127,8 +161,8 @@ st.markdown("""
     }
     .kpi-lbl {
         font-size: 12px;
-        color: #94a3b8;
-        font-weight: 700;
+        color: #ffffff !important;
+        font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -260,9 +294,9 @@ st.markdown("""
         letter-spacing: 0.3px;
     }
     .verdict-reason {
-        color: #e2e8f0;
-        font-size: 12.5px;
-        line-height: 1.4;
+        color: #ffffff !important;
+        font-size: 13px;
+        line-height: 1.5;
         margin: 3px 0 0 0;
     }
 
@@ -280,9 +314,9 @@ st.markdown("""
         padding: 6px 10px;
     }
     .indicator-label {
-        font-size: 10px;
-        color: #94a3b8;
-        font-weight: 700;
+        font-size: 11px;
+        color: #ffffff !important;
+        font-weight: 800;
         text-transform: uppercase;
     }
     .indicator-val {
@@ -304,7 +338,7 @@ if not st.session_state["authenticated"]:
     <div style="max-width: 450px; margin: 40px auto 20px auto; background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 32px 28px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
         <div style="font-size: 42px; margin-bottom: 8px;">🔐</div>
         <h2 style="color: #ffffff; margin: 0 0 6px 0; font-size: 24px; font-weight: 900;">TossIQ VIP Portal</h2>
-        <p style="color: #94a3b8; font-size: 13px; margin: 0 0 20px 0;">Private & Restricted Access. Please enter your secret PIN to unlock.</p>
+        <p style="color: #ffffff; font-size: 14px; margin: 0 0 20px 0; font-weight: 600;">Private & Restricted Access. Please enter your secret PIN to unlock.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -331,7 +365,7 @@ st.markdown(f"""
     </div>
     <div class="clock-badge">
         <div style="font-size: 16px; font-weight: 900; color: #10b981;">⏰ {ist_time_display}</div>
-        <div style="color: #94a3b8; font-size: 12px; margin-top: 2px;">{ist_date_display}</div>
+        <div style="color: #ffffff; font-size: 12px; margin-top: 2px; font-weight: 700;">{ist_date_display}</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -718,7 +752,7 @@ with vip_tabs[1]:
         <div style="background: #0f172a; border: 1px dashed #334155; border-radius: 14px; padding: 32px 24px; text-align: center; margin: 24px 0;">
             <div style="font-size: 40px; margin-bottom: 10px;">🪙</div>
             <h3 style="color: #f59e0b; margin: 0 0 10px 0; font-size: 22px;">अभी तक कोई टॉस Done मार्क नहीं हुआ है</h3>
-            <p style="color: #94a3b8; font-size: 15px; max-width: 650px; margin: 0 auto; line-height: 1.6;">
+            <p style="color: #ffffff; font-size: 15px; max-width: 650px; margin: 0 auto; line-height: 1.6; font-weight: 600;">
                 GamingHelper की लाइव लिस्ट (Tab 1) में से जैसे ही किसी मैच का टॉस पूरा हो, आप उस मैच के नीचे <b>'🪙 Mark Toss Done'</b> पर क्लिक करके विनर चुनकर सेव करें।<br>
                 <b>सिर्फ वही असली मैच यहाँ रिकॉर्ड होगा और उसका ✅ PASS या ❌ FAIL नतीजा दिखेगा। कोई भी अनवांटेड या फ़ेक मैच यहाँ नहीं दिखाया जाएगा।</b>
             </p>
@@ -975,8 +1009,8 @@ with vip_tabs[1]:
                 st.markdown(f"""
                 <div style="background: linear-gradient(90deg, #0f172a, #1e293b); border-left: 6px solid {d_color}; border-radius: 10px; padding: 12px 18px; margin: 26px 0 14px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                     <div>
-                        <div style="font-size: 18px; font-weight: 800; color: #f8fafc;">{d_title}</div>
-                        <div style="font-size: 12px; color: #94a3b8; margin-top: 2px;">Total: <b>{len(day_matches)} Matches</b> · Played: <b>{day_played}</b> · Skipped: <b>{day_skip}</b> · Pending: <b>{day_pend}</b></div>
+                        <div style="font-size: 18px; font-weight: 800; color: #ffffff;">{d_title}</div>
+                        <div style="font-size: 13px; color: #ffffff; margin-top: 2px; font-weight: 600;">Total: <b>{len(day_matches)} Matches</b> · Played: <b>{day_played}</b> · Skipped: <b>{day_skip}</b> · Pending: <b>{day_pend}</b></div>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <span style="background: #064e3b; color: #34d399; border: 1px solid #10b981; padding: 4px 12px; border-radius: 20px; font-weight: 800; font-size: 13px;">✅ {day_pass} Won</span>
@@ -1044,14 +1078,14 @@ with vip_tabs[1]:
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
                             <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
-                                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">🎯 Pre-Toss Advice:</span>
+                                <span style="font-size: 11px; color: #ffffff; text-transform: uppercase; font-weight: 800;">🎯 Pre-Toss Advice:</span>
                                 <div style="font-size: 15px; font-weight: 900; color: #ffffff; margin-top: 1px;">{rec_display}</div>
-                                <small style="color: #94a3b8; font-size: 11px;">Rating: {r.get('stake_rating', 'NORMAL')}</small>
+                                <small style="color: #ffffff; font-size: 12px; font-weight: 600;">Rating: {r.get('stake_rating', 'NORMAL')}</small>
                             </div>
                             <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
-                                <span style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">🏆 Official Result:</span>
+                                <span style="font-size: 11px; color: #ffffff; text-transform: uppercase; font-weight: 800;">🏆 Official Result:</span>
                                 <div style="font-size: 15px; font-weight: 900; color: #38bdf8; margin-top: 1px;">🏆 {r.get('actual_winner')}</div>
-                                <small style="color: #94a3b8; font-size: 11px;">Elected to: {r.get('toss_decision', 'Bowl')}</small>
+                                <small style="color: #ffffff; font-size: 12px; font-weight: 600;">Elected to: {r.get('toss_decision', 'Bowl')}</small>
                             </div>
                         </div>
                     </div>
