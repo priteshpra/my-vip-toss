@@ -87,6 +87,9 @@ def match_team_with_tg_winner(team_name: str, tg_winner: str) -> bool:
     # 1. Gender check
     is_t_wmn = bool(re.search(r'\b(women|wmn|w)\b', t_clean))
     is_w_wmn = bool(re.search(r'\b(women|wmn|w)\b', w_clean))
+    if is_w_wmn and not is_t_wmn:
+        if any(k in t_clean for k in ['meteors', 'sixers', 'heat', 'strikers', 'scorchers', 'thunder', 'stars', 'renegades']):
+            is_t_wmn = True
     if is_t_wmn != is_w_wmn:
         return False
 
@@ -97,16 +100,19 @@ def match_team_with_tg_winner(team_name: str, tg_winner: str) -> bool:
         return False
 
     # Stop words
-    stop = {"under-19s", "under-19", "u19", "under-23s", "under-23", "u23", "women", "wmn", "cricket", "club", "cc", "vs", "the"}
+    stop = {"under-19s", "under-19", "u19", "under-23s", "under-23", "u23", "women", "wmn", "w", "cricket", "club", "cc", "vs", "the"}
     t_toks = {w for w in re.split(r'[\s\-_]+', t_clean) if w and w not in stop and len(w) > 2}
     w_toks = {w for w in re.split(r'[\s\-_]+', w_clean) if w and w not in stop and len(w) > 2}
 
     if not t_toks or not w_toks:
         return False
 
+    if t_toks.issubset(w_toks) or w_toks.issubset(t_toks):
+        return True
+
     diff = (t_toks ^ w_toks)
     distinguishers = {
-        "bank", "television", "kingsmen", "warriors", "riders", "strikers",
+        "bank", "television", "kingsmen", "warriors", "riders",
         "knights", "association", "corporation", "limited", "telecom",
         "champion", "champions", "legend", "legends", "master", "masters",
         "reliance", "aseb", "blasters", "panthers", "dragons", "wanderers"

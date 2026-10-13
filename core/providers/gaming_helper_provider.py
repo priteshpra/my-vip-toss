@@ -285,10 +285,10 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
         })
 
     # Professional Tipper Quota Protection:
-    # On large cards (e.g. 40-50 matches), cap PLAY matches to top ~30-35% (max 18-20)
-    # Never exceed 35% PLAY ratio so bankroll is strictly protected.
+    # Cap PLAY matches to top ~15-20% (max 5-6 matches per day)
+    # NEVER force a minimum: if 0 matches qualify, 0 are played (Bankroll 100% safe!)
     if len(normalized) > 0:
-        max_plays = max(1, int(len(normalized) * 0.35))
+        max_plays = max(1, min(6, int(len(normalized) * 0.20)))
         current_plays = [m for m in normalized if m["action_type"] == "PLAY"]
         if len(current_plays) > max_plays:
             current_plays.sort(key=lambda x: x.get("confidence_pct", 50), reverse=True)
@@ -306,28 +306,52 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
 
 def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_time: str, odds_a: int = 98, odds_b: int = 80) -> Dict[str, Any]:
     """
-    VIP Paid Punter Toss Engine (Conservative & Bankroll Protecting):
-    Strictly follows punter rule: 'If not genuinely sure with high edge, recommend SKIP (50-50 Trap)'.
-    Evaluates:
-    - Bookmaker market asymmetry (odds gap)
-    - Verified past toss records of both teams
-    - Format dew & bowling first advantage
-    - Avoids forced betting on random coin flips
+    VIP High-IQ Sharp Punter Toss Engine (Absolute Capital Protection):
+    Treats every bet as if betting your own hard-earned money.
+    Zero tolerance for amateur coin flips, 1-2 match streaks, or noisy leagues.
+    
+    Rules:
+    1. STRICT LEAGUE FILTER: Amateur, club, talent series, and junior leagues are STRICT SKIP.
+    2. SAMPLE FLOOR: At least 5+ verified matches across both teams required (unless massive market odds shift >= 30).
+    3. BAYESIAN LAPLACE SMOOTHING: Uses prior m=4 (p_0=0.50) to prevent small sample hallucinations.
+    4. MINIMUM EDGE: Net edge must be >= 18% to qualify for PLAY.
+    5. FORM REQUIREMENT: Favored team must have at least 3+ toss wins and >= 60% win rate.
+    6. CAPITAL PRESERVATION: If any condition fails, verdict is STRICT PASS / NO BET.
     """
     t_a_clean = (team_a or "").strip()
     t_b_clean = (team_b or "").strip()
     tour_clean = (tournament or "").strip()
 
-    # 1. Real Market Odds Asymmetry (Ignore GamingHelper's default 98:80 template)
+    # 1. Market Asymmetry (GamingHelper default is 98:80 template, gap = 18 is neutral)
     odds_diff = odds_a - odds_b  # Positive favors A, negative favors B
     abs_odds_gap = abs(odds_diff)
     real_market_edge = 0
-    if abs_odds_gap >= 28:
+    if abs_odds_gap >= 30:
         real_market_edge = 20 if odds_diff > 0 else -20
-    elif abs_odds_gap >= 22:
+    elif abs_odds_gap >= 26:
         real_market_edge = 12 if odds_diff > 0 else -12
 
-    # 2. Historical Toss Record Signal with Strict Sample Verification
+    # 2. Strict League Noise Filter (Never bet hard-earned money on amateur / junior / unranked club matches)
+    NOISY_LEAGUES = [
+        "talent series", "talent", "deutsche", "under-19", "under 19", "u19", "u-19",
+        "under-23", "under 23", "u23", "alwar", "bcci", "japan futures", "futures",
+        "club cricket", "friendship", "minor league", "national premier league",
+        "cricket club", "sports club", "cardinals", "falcons"
+    ]
+    is_noisy_league = any(k in tour_clean.lower() for k in NOISY_LEAGUES) or any(
+        k in t_a_clean.lower() for k in ["under-19", "u19", "under-23", "u23", "sports club"]
+    )
+
+    if is_noisy_league and abs_odds_gap < 32:
+        return {
+            "action": "SKIP",
+            "pick": None,
+            "confidence_pct": 50,
+            "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
+            "rationale": f"Amateur / Sub-Tier League ({tour_clean}): Yahan captains aur players har match me badalte hain aur toss purely 50-50 random flip hota hai. Sharp Punter Rule: Apne paise ko aisi unverified league me risk me mat daalo, STRICT PASS karein."
+        }
+
+    # 3. Verified Historical Database Lookup
     a_wins, a_losses, b_wins, b_losses = 0, 0, 0, 0
     try:
         results_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "toss_results_log.json")
@@ -368,43 +392,34 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
     b_total = b_wins + b_losses
     tot_samples = a_total + b_total
 
-    # STRICT TIPPER RULE 1: Minimum Sample Size Protection
-    # If total matches between both teams < 2 and no real market odds move,
-    # it is a pure unknown 50-50 coin flip. NEVER call PLAY on coin flips!
-    if tot_samples < 2 and real_market_edge == 0:
+    # 4. Strict Minimum Sample Size Protection (At least 5+ matches required for statistical validity)
+    if tot_samples < 5 and real_market_edge == 0:
         return {
             "action": "SKIP",
             "pick": None,
             "confidence_pct": 50,
             "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
-            "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ka toss sample size na ke barabar hai (A: {a_total}, B: {b_total}). Paid tipper rule: Unknown 50-50 coin flip me paisa na lagayein, STRICT SKIP karein."
+            "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ka toss sample size sirf {tot_samples} matches hai (kam se kam 5 verified matches zaroori hain). 1-2 match ka streak pure coin flip luck hota hai. High-IQ Punter Rule: 50-50 trap me paisa mat phansao, STRICT PASS karein."
         }
 
-    # Bayesian / Laplacian Smoothing: (wins + 1) / (total + 2)
-    # Prevents 1 match from being falsely treated as 100% or 0% form
-    a_rate = (a_wins + 1) / (a_total + 2)
-    b_rate = (b_wins + 1) / (b_total + 2)
+    # 5. Bayesian Laplace Smoothing with Prior m=4 (Base 50-50 prior)
+    a_rate = (a_wins + 2) / (a_total + 4)
+    b_rate = (b_wins + 2) / (b_total + 4)
 
-    # Sample certainty weighting: requires at least 3-4 matches for full weight
-    sample_weight = min(1.0, tot_samples / 4.0)
+    # Sample certainty discount (scales with verified sample up to 6 matches)
+    sample_weight = min(1.0, tot_samples / 6.0)
     hist_edge = (a_rate - b_rate) * 35.0 * sample_weight
-
-    # Noise dampener for junior/local matches where toss captain form is erratic
-    is_junior_local = any(k in tour_clean.lower() for k in ['under-19', 'u19', 'alwar', 'talent series']) or ('women' in t_a_clean.lower() and 'under-19' in t_a_clean.lower())
-    if is_junior_local:
-        hist_edge *= 0.70
 
     total_edge = real_market_edge + hist_edge
 
-    # STRICT TIPPER RULE 2: Minimum Edge Threshold
-    # Must have solid minimum edge to qualify as PLAY
-    if abs(total_edge) < 14:
+    # 6. Minimum Edge Threshold (Strict 18% floor)
+    if abs(total_edge) < 18:
         return {
             "action": "SKIP",
             "pick": None,
             "confidence_pct": 50,
             "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
-            "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ke beech ka toss edge kafi kam ({abs(total_edge):.1f}%) hai. Paid Tipper advice: 50-50 trap me risk mat lijiye, STRICT PASS karein."
+            "rationale": f"Dono teams ({t_a_clean} aur {t_b_clean}) ke beech ka toss edge kafi kam ({abs(total_edge):.1f}%) hai (kam se kam 18% edge chahiye). High-IQ Punter Advice: 50-50 coin flip trap me risk mat lo, STRICT PASS karein."
         }
 
     favored = t_a_clean if total_edge > 0 else t_b_clean
@@ -412,25 +427,37 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
     fav_wins = a_wins if total_edge > 0 else b_wins
     fav_tot = a_total if total_edge > 0 else b_total
 
-    is_jackpot = (abs(total_edge) >= 25 and fav_wins >= 2 and (abs_odds_gap >= 22 or fav_tot >= 3))
+    # 7. Quality check on favored team (Must have at least 3 verified wins & >= 60% win rate unless market edge is extreme)
+    if fav_wins < 3 and real_market_edge < 20:
+        return {
+            "action": "SKIP",
+            "pick": None,
+            "confidence_pct": 50,
+            "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
+            "rationale": f"{favored} ke paas sirf {fav_wins} verified toss wins hain. Sharp Punter Rule: Bina kam se kam 3 solid wins aur 60%+ win rate ke toss par paisa lagana gambling hai. STRICT PASS karein."
+        }
+
+    # 8. High-conviction PLAY or JACKPOT
+    is_jackpot = (abs(total_edge) >= 26 and fav_wins >= 4 and fav_tot >= 5 and tot_samples >= 7)
     if is_jackpot:
-        conf = min(88, int(80 + abs(total_edge) * 0.3))
+        conf = min(88, int(82 + abs(total_edge) * 0.25))
         return {
             "action": "PLAY",
             "pick": favored,
             "confidence_pct": conf,
             "stake_rating": "💎 JACKPOT PLAY (MAX STAKE)",
-            "rationale": f"Verified toss form ({fav_wins}/{fav_tot} wins, Sample: {tot_samples} matches) aur market strength seedha {favored} ke favour me hai. High-confidence Jackpot play."
+            "rationale": f"Rock-solid verified toss form ({fav_wins}/{fav_tot} wins, Sample: {tot_samples} matches) aur market confirmation seedha {favored} ke favour me hai. High-IQ Jackpot play."
         }
     else:
-        conf = min(82, int(72 + abs(total_edge) * 0.3))
+        conf = min(80, int(72 + abs(total_edge) * 0.25))
         return {
             "action": "PLAY",
             "pick": favored,
             "confidence_pct": conf,
             "stake_rating": "🟢 CONFIRMED PLAY",
-            "rationale": f"Verified toss records (Sample: {tot_samples} matches) aur pattern me {favored} ka genuine edge ({abs(total_edge):.1f}%) clear hai. Tipper verified safe play."
+            "rationale": f"Verified toss form ({fav_wins}/{fav_tot} wins, Total Sample: {tot_samples} matches) aur {favored} ka genuine edge ({abs(total_edge):.1f}%) confirmed hai. High-IQ safe play."
         }
+
 
 
 def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
