@@ -366,11 +366,14 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
                         r_ta = (r.get("team_a") or "").strip().lower()
                         r_tb = (r.get("team_b") or "").strip().lower()
                         def _tm(a, b):
-                            a, b = a.lower(), b.lower()
+                            a, b = a.strip().lower(), b.strip().lower()
                             if a == b: return True
                             if ("women" in a or "wmn" in a) != ("women" in b or "wmn" in b): return False
                             if ("u19" in a or "under-19" in a) != ("u19" in b or "under-19" in b): return False
                             if ("champions" in a or "legends" in a) != ("champions" in b or "legends" in b): return False
+                            stop_qualifiers = {"state bank of", "association", "television", "eastern", "southern", "western", "northern", "central"}
+                            if any(q in a for q in stop_qualifiers) != any(q in b for q in stop_qualifiers):
+                                return False
                             return (a in b or b in a)
 
                         a_matched = (_tm(t_a_clean, r_ta) or _tm(t_a_clean, r_tb))
