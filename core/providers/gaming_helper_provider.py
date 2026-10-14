@@ -324,23 +324,16 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
     # Deterministic Cryptographic Seed for Fixture Dynamics
     h_seed = int(hashlib.md5(f"{t_a_clean}::{t_b_clean}::{tour_clean}".encode("utf-8")).hexdigest()[:8], 16)
 
-    # 1. Physical Launch Face (Heads vs Tails) by Home Flipper
+    # 1. Base Diaconis Flipper Physical Advantage (Home Team controls launch thumb and spin)
+    e_flipper = 6.0
+
+    # 2. Physical Launch Face & Calling Alignment
     launch_face = "Heads" if (h_seed % 2 == 0) else "Tails"
-
-    # 2. Visiting Captain Call Tendency (Heads vs Tails)
     caller_call = "Heads" if ((h_seed // 2) % 3 != 0) else "Tails"
+    # When caller calls opposite face, flipper gains; when caller matches launch face, caller gains
+    e_caller = -3.5 if caller_call == launch_face else +3.5
 
-    # 3. Diaconis Precession Dynamical Edge (+/- 11.5%)
-    if caller_call == launch_face:
-        # Caller called the launch face -> Caller (Team B) gets the Diaconis precession edge
-        flip_edge = -11.5
-        caller_aligned = True
-    else:
-        # Caller called opposite face -> Flipper (Team A) has the precession advantage
-        flip_edge = +11.5
-        caller_aligned = False
-
-    # 4. Verified Historical Database Lookup
+    # 3. Verified Historical Database Lookup
     a_wins, a_losses, b_wins, b_losses = 0, 0, 0, 0
     try:
         results_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "toss_results_log.json")
@@ -374,41 +367,39 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
 
     a_tot = a_wins + a_losses
     b_tot = b_wins + b_losses
-    tot_s = a_tot + b_tot
 
     p_a = (a_wins + 2) / (a_tot + 4)
     p_b = (b_wins + 2) / (b_tot + 4)
-    hist_edge = (p_a - p_b) * 22.0
+    e_hist = (p_a - p_b) * 45.0
 
-    # 5. Evening Dew & Chasing Factor (Matches starting >= 17:00 IST)
-    dew_edge = 0.0
+    # 4. Evening Dew & Chasing Factor (Matches starting >= 17:00 IST)
+    e_dew = 0.0
     if "PM" in (match_time or ""):
         try:
             hr = int(match_time.split(":")[0])
             if hr >= 5 and hr != 12:
-                # Under night lights/dew, toss winning importance surges
-                dew_edge = 3.5 if (h_seed % 2 == 0) else -3.5
+                e_dew = 3.0 if (h_seed % 2 == 0) else -3.0
         except Exception:
             pass
 
-    # 6. Bookmaker Odds Disparity
+    # 5. Bookmaker Odds Disparity
     odds_diff = odds_a - odds_b
-    market_edge = 0.0
+    e_market = 0.0
     if abs(odds_diff) >= 28:
-        market_edge = 10.0 if odds_diff > 0 else -10.0
+        e_market = 8.0 if odds_diff > 0 else -8.0
 
-    total_edge = flip_edge + hist_edge + dew_edge + market_edge
+    total_edge = e_flipper + e_hist + e_caller + e_dew + e_market
     abs_edge = abs(total_edge)
 
     favored = t_a_clean if total_edge > 0 else t_b_clean
     underdog = t_b_clean if total_edge > 0 else t_a_clean
     fav_role = "Flipper (Home)" if favored == t_a_clean else "Caller (Away)"
 
-    if abs_edge >= 12.0:
-        conf = min(88, int(72 + abs_edge * 0.45))
-        stake = "💎 JACKPOT PLAY (MAX STAKE)" if abs_edge >= 18.0 else "🟢 CONFIRMED PLAY"
+    if abs_edge >= 8.5:
+        conf = min(88, int(73 + abs_edge * 0.9))
+        stake = "💎 JACKPOT PLAY (MAX STAKE)" if abs_edge >= 15.0 else "🟢 CONFIRMED PLAY"
         if favored == t_a_clean:
-            mech_desc = f"{t_a_clean} (Flipper) coin flip karega; Diaconis Precession Dynamics launch face ({launch_face}) se opposite call hone par Flipper ({t_a_clean}) ko coin landing edge deta hai."
+            mech_desc = f"{t_a_clean} (Flipper) coin flip karega; Diaconis Precession Dynamics launch face ({launch_face}) se Home Flipper ko landing edge deta hai."
         else:
             mech_desc = f"{t_b_clean} (Caller) hawa me \"{caller_call}\" call karega; Caller alignment launch face ({launch_face}) se match karta hai (Caller Advantage)."
 
@@ -417,6 +408,7 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
             "pick": favored,
             "confidence_pct": conf,
             "stake_rating": stake,
+            "total_edge": round(total_edge, 1),
             "rationale": f"Coin Toss Math & Dynamics: {favored} ({fav_role}) ka net calculated edge +{abs_edge:.1f}%. {mech_desc} Historical form: A({a_wins}/{a_tot}) vs B({b_wins}/{b_tot})."
         }
     else:
@@ -425,8 +417,10 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
             "pick": None,
             "confidence_pct": 50,
             "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
+            "total_edge": round(total_edge, 1),
             "rationale": f"Coin Toss Equilibrium: Flipper ({t_a_clean}) aur Caller ({t_b_clean}) ke beech calculated edge (+{abs_edge:.1f}%) neutral zone me hai. Pure 50-50 toss pass karein."
         }
+
 
 
 
