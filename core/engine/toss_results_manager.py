@@ -10,11 +10,16 @@ Persistently tracks completed tosses, outcomes, and pass/fail statistics:
 
 import os
 import json
+import ssl
 import urllib.request
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from core.timezone import now_ist, format_ist
+
+_SSL_CTX = ssl.create_default_context()
+_SSL_CTX.check_hostname = False
+_SSL_CTX.verify_mode = ssl.CERT_NONE
 
 RESULTS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "toss_results_log.json")
 
@@ -172,7 +177,7 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             }
         )
         try:
-            with urllib.request.urlopen(req, timeout=12) as resp:
+            with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 batch = data.get("data") or []
                 if not batch:

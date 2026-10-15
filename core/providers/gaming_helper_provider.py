@@ -11,12 +11,18 @@ import os
 import re
 import json
 import hashlib
+import ssl
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 from core.timezone import now_ist, format_ist
+
+# Robust unverified SSL context to prevent certificate handshake errors on any cloud OS
+_SSL_CTX = ssl.create_default_context()
+_SSL_CTX.check_hostname = False
+_SSL_CTX.verify_mode = ssl.CERT_NONE
 
 SESSION_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_session.json")
 CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
@@ -58,7 +64,7 @@ def login_gaming_helper(phone: str = DEFAULT_PHONE, password: str = DEFAULT_PASS
         headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
     )
     try:
-        with urllib.request.urlopen(req, timeout=12) as resp:
+        with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             token = data.get("newAccessToken") or data.get("access-token") or data.get("token") or ""
             if token:
@@ -83,6 +89,12 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
         if login_res.get("success"):
             auth_token = login_res["token"]
         else:
+            if os.path.exists(CACHE_FILE):
+                try:
+                    with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                        return {"success": True, "matches": json.load(f), "cached": True}
+                except Exception:
+                    pass
             return {"success": False, "error": login_res.get("error"), "needs_login": True}
 
     url = f"{API_BASE}/live-bet"
@@ -96,7 +108,7 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=12) as resp:
+        with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             matches = parse_gaming_helper_matches(data)
             # Cache successfully fetched matches
@@ -118,7 +130,7 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
                             "User-Agent": "Mozilla/5.0"
                         }
                     )
-                    with urllib.request.urlopen(retry_req, timeout=12) as retry_resp:
+                    with urllib.request.urlopen(retry_req, timeout=12, context=_SSL_CTX) as retry_resp:
                         data = json.loads(retry_resp.read().decode("utf-8"))
                         matches = parse_gaming_helper_matches(data)
                         os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
@@ -127,6 +139,13 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
                         return {"success": True, "matches": matches, "raw": data}
                 except Exception:
                     pass
+        # Fallback to local cache if network or HTTP error occurs
+        if os.path.exists(CACHE_FILE):
+            try:
+                with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                    return {"success": True, "matches": json.load(f), "cached": True}
+            except Exception:
+                pass
         return {"success": False, "error": f"HTTP {e.code}: {e.read().decode('utf-8', errors='ignore')}", "needs_login": e.code in (401, 440)}
     except Exception as e:
         # Fallback to local cache if network blip

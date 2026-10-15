@@ -1,5 +1,22 @@
 [
   {
+    "match_id": "39488",
+    "match_name": "AMZ Properties vs Vtac Gorillas",
+    "tournament": "ICCA i10x Summer Cup",
+    "toss_time_ist": "08:40 PM IST",
+    "match_date": "2026-10-15",
+    "team_a": "AMZ Properties",
+    "team_b": "Vtac Gorillas",
+    "recommended_team": "AMZ Properties",
+    "stake_rating": "\ud83d\udc8e PRO LOCK (HIGH CONVICTION)",
+    "actual_winner": "Vtac Gorillas",
+    "toss_decision": "Bowl",
+    "outcome": "FAIL",
+    "outcome_label": "\u274c FAIL (MISSED)",
+    "is_manual": false,
+    "recorded_at": "2026-10-15 09:31 PM IST"
+  },
+  {
     "match_id": "39492",
     "match_name": "East Bay Blazers vs RR Stars",
     "tournament": "Atlanta Open T20 2026",
@@ -2219,12 +2236,12 @@
     "team_b": "Dragons",
     "recommended_team": "Dragons",
     "stake_rating": "\ud83d\udc8e JACKPOT PLAY (MAX STAKE)",
-    "actual_winner": "Pending Confirmation",
-    "toss_decision": "Pending",
-    "outcome": "PENDING",
-    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
+    "actual_winner": "Gorillas",
+    "toss_decision": "Bowl",
+    "outcome": "FAIL",
+    "outcome_label": "\u274c FAIL (MISSED)",
     "is_manual": false,
-    "recorded_at": "2026-10-11 08:48 AM IST"
+    "recorded_at": "2026-10-15 09:31 PM IST"
   },
   {
     "match_id": "39271",
