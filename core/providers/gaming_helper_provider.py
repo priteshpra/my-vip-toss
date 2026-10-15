@@ -333,7 +333,7 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
 
     gap = abs(score_a - score_b)
 
-    if gap >= 22:
+    if gap >= 20:
         favored = t_a_clean if score_a > score_b else t_b_clean
         underdog = t_b_clean if score_a > score_b else t_a_clean
         fav_score = max(score_a, score_b)
