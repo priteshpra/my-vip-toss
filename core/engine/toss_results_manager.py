@@ -245,10 +245,36 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             except Exception:
                 pass
 
-        # Pre-toss recommendation
-        vip = compute_vip_punter_verdict(t1, t2, tour, _format_time_24_to_ist(match_raw), odds_a, odds_b)
-        rec_team = vip.get("pick")
-        rating = vip.get("stake_rating", "NORMAL")
+        # Pre-toss recommendation (Honor live panel verdict & quota to avoid false FAILs on SKIPPED matches)
+        rec_team = None
+        rating = "🟡 SKIP / 50-50 COIN FLIP"
+        live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
+        found_in_cache = False
+        if os.path.exists(live_cache_file):
+            try:
+                with open(live_cache_file, "r", encoding="utf-8") as f:
+                    live_cache = json.load(f)
+                    for cm in live_cache:
+                        if str(cm.get("id")) == m_id or (cm.get("team_a_name") == t1 and cm.get("team_b_name") == t2):
+                            if cm.get("action_type") == "PLAY":
+                                rec_team = cm.get("recommended_team")
+                                rating = cm.get("stake_rating", "NORMAL")
+                            else:
+                                rec_team = None
+                                rating = "🟡 SKIP / 50-50 COIN FLIP"
+                            found_in_cache = True
+                            break
+            except Exception:
+                pass
+
+        if not found_in_cache:
+            vip = compute_vip_punter_verdict(t1, t2, tour, _format_time_24_to_ist(match_raw), odds_a, odds_b)
+            if vip.get("action") == "PLAY":
+                rec_team = vip.get("pick")
+                rating = vip.get("stake_rating", "NORMAL")
+            else:
+                rec_team = None
+                rating = "🟡 SKIP / 50-50 COIN FLIP"
 
         # Extract actual match date from API record
         m_date_raw = m.get("match_date")
