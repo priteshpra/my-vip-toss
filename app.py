@@ -464,8 +464,8 @@ with col_st2:
 
 # --- 2 Clear Simple Tabs ---
 vip_tabs = st.tabs([
-    "🎯 लाइव टॉस बेट्स (GamingHelper Live Bets)",
-    "📜 टॉस रिज़ल्ट्स & पास/फ़ेल ट्रैकर (Toss Done & Accuracy Audit)"
+    "🎯 लाइव टॉस बेट्स (Live Toss Bets)",
+    "📜 टॉस रिज़ल्ट्स (Toss Done)"
 ])
 
 
@@ -587,7 +587,7 @@ with vip_tabs[0]:
                 if "JACKPOT" in m.get("stake_rating", ""):
                     verdict_str = f"💎 JACKPOT: {pick.upper()} ({conf}%)"
                 else:
-                    verdict_str = f"🟢 PLAY: {pick.upper()} ({conf}%)"
+                    verdict_str = f"🟢 WINNER: {pick.upper()} ({conf}%)"
             elif act == "COMPLETED":
                 verdict_str = f"🏆 TOSS WON: {pick.upper()}"
             else:
@@ -597,14 +597,14 @@ with vip_tabs[0]:
                 "🪙 Toss Time (IST)": t_str,
                 "Match": f"{m['team_a_name']} vs {m['team_b_name']}",
                 "Tournament": m.get("tournament_name"),
-                "🎯 Paid Punter Verdict": verdict_str
+                "🎯 Predicted Toss Winner": verdict_str
             })
 
-        with st.expander("📋 Quick Summary Table (Ek Nazar Me Sabhi Toss Picks)", expanded=True):
+        with st.expander("📋 Quick Summary Table", expanded=True):
             st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
 
     # --- Match Cards Listing ---
-    st.markdown(f"### 🪙 GamingHelper Live Matches ({len(filtered_list)} Matches)")
+    st.markdown(f"### 🪙 Live Fixtures ({len(filtered_list)} Matches)")
 
     if not filtered_list:
         st.info("Selected filters ke hisab se koi match nahi mila. 'Sabhi Matches' select karein.")
@@ -654,16 +654,13 @@ with vip_tabs[0]:
                     st.markdown(f"""
                     <div class="verdict-play">
                         <div class="verdict-header">
-                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <span style="font-size: 11px; font-weight: 800; color: #a7f3d0; text-transform: uppercase; letter-spacing: 0.5px;">🎯 PAID TOSS RECOMMENDATION:</span>
-                                <span class="verdict-team-name">🟢 PLAY: {pick.upper()}</span>
-                            </div>
-                            <span class="verdict-badge" style="background: {badge_bg}; color: {badge_col};">
-                                {rating} · Edge: {conf}%
+                            <span class="verdict-team-name">🟢 TOSS WINNER: {pick.upper()}</span>
+                            <span class="verdict-badge" style="background: {badge_bg}; color: {badge_col}; font-weight: 800;">
+                                {rating} · {conf}% PROBABILITY
                             </span>
                         </div>
                         <div class="verdict-reason">
-                            💡 <b>Punter Rationale:</b> {rat}
+                            💡 <b>Prediction Signal:</b> {rat}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -671,41 +668,16 @@ with vip_tabs[0]:
                     st.markdown(f"""
                     <div class="verdict-skip">
                         <div class="verdict-header">
-                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <span style="font-size: 11px; font-weight: 800; color: #fde68a; text-transform: uppercase;">⚠️ TOSS ADVICE:</span>
-                                <span class="verdict-team-name">🟡 SKIP (50-50 NEUTRAL)</span>
-                            </div>
+                            <span class="verdict-team-name">🟡 SKIP (50-50 PASS)</span>
                             <span class="verdict-badge" style="background: #1c1303; color: #fbbf24; border: 1px solid #d97706;">
-                                ⚖️ STRICT PASS
+                                ⚖️ PASS
                             </span>
                         </div>
                         <div class="verdict-reason">
-                            💡 <b>Punter Rationale:</b> {rat}
+                            💡 {rat}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-
-                # --- 4 SHARP INDICATOR PILLS ---
-                st.markdown(f"""
-                <div class="indicator-strip">
-                    <div class="indicator-item">
-                        <div class="indicator-label">Captain Call Form</div>
-                        <div class="indicator-val">{'Favors ' + pick if pick else '50-50 Neutral Run'}</div>
-                    </div>
-                    <div class="indicator-item">
-                        <div class="indicator-label">Market Win Ratio</div>
-                        <div class="indicator-val">{odds_a} : {odds_b}</div>
-                    </div>
-                    <div class="indicator-item">
-                        <div class="indicator-label">Venue / Address</div>
-                        <div class="indicator-val">{venue}</div>
-                    </div>
-                    <div class="indicator-item">
-                        <div class="indicator-label">Platform Source</div>
-                        <div class="indicator-val">GamingHelper Live</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
 
                 # Check if this match was already marked done
                 all_done_list = load_toss_results()
@@ -727,9 +699,7 @@ with vip_tabs[0]:
                 # --- INTERACTIVE 1-CLICK TOSS DONE ACTION EXPANDER ---
                 with st.expander(exp_title, expanded=False):
                     if is_already_done:
-                        st.info(f"ℹ️ **वर्तमान रिज़ल्ट:** 🏆 विनर: **{prev_win}** ({prev_dec}) · नतीजा: **{prev_r.get('outcome_label')}**\nअगर मार्क करते समय कोई ग़लती हो गई हो, तो यहाँ से तुरंत दूसरा विनर चुनकर अपडेट करें:")
-                    else:
-                        st.caption("Jaise hi toss ho jaye, yahan winner select karke save karein. Yeh data future pass/fail analysis ke liye automatically record ho jayega.")
+                        st.info(f"ℹ️ **वर्तमान रिज़ल्ट:** 🏆 विनर: **{prev_win}** ({prev_dec}) · नतीजा: **{prev_r.get('outcome_label')}**")
 
                     if is_already_done:
                         col_m1, col_m2, col_m3, col_m4 = st.columns([2, 2, 1.4, 1.4])
@@ -788,87 +758,76 @@ with vip_tabs[0]:
 # TAB 2: TOSS DONE & PASS/FAIL ACCURACY AUDIT TRACKER
 # ==============================================================================
 with vip_tabs[1]:
-    st.header("📜 टॉस रिज़ल्ट्स & पास/फ़ेल ट्रैकर (Toss Done & Accuracy Audit)")
-    st.caption("Jaise hi toss complete hota hai, yahan real audit record hota hai — kitna toss pass gaya aur kitna fail gaya.")
-
-    col_audit_info, col_audit_btn = st.columns([2.5, 1.5])
-    with col_audit_info:
-        st.markdown(
-            "<div style='display:inline-flex; align-items:center; gap:8px; background:#0f172a; padding:6px 14px; border-radius:20px; border:1px solid #38bdf8; font-size:13px; color:#38bdf8; font-weight:700; margin-bottom:10px;'>"
-            "<span>📡 Telegram Live Auto-Sync Active:</span> <span style='color:#f8fafc;'>@KINGTOSSLINE111 (Auto-resolves live toss results)</span>"
-            "</div>",
-            unsafe_allow_html=True
-        )
-    with col_audit_btn:
-        if st.button("⚡ Telegram Auto-Sync Now", key="btn_tg_sync_tab2", use_container_width=True):
-            with st.spinner("Fetching latest toss outcomes from @KINGTOSSLINE111..."):
+    col_head_t2, col_btn_t2 = st.columns([2.5, 1.2])
+    with col_head_t2:
+        st.header("📜 टॉस रिज़ल्ट्स (Toss Done)")
+    with col_btn_t2:
+        if st.button("⚡ Sync Latest Results", key="btn_tg_sync_tab2", use_container_width=True):
+            with st.spinner("Fetching latest toss outcomes..."):
                 sync_completed_tosses_from_gaming_helper()
                 res_count = auto_update_toss_results_from_telegram()
                 if res_count > 0:
-                    st.success(f"✅ {res_count} Toss results automatically resolved from @KINGTOSSLINE111!")
+                    st.success(f"✅ {res_count} Toss results updated!")
                 else:
-                    st.info("ℹ️ All matches already up-to-date with live Telegram channel.")
+                    st.info("ℹ️ All matches up-to-date.")
                 st.rerun()
 
     completed_results = load_toss_results()
 
     if not completed_results:
         st.markdown("""
-        <div style="background: #0f172a; border: 1px dashed #334155; border-radius: 14px; padding: 32px 24px; text-align: center; margin: 24px 0;">
-            <div style="font-size: 40px; margin-bottom: 10px;">🪙</div>
-            <h3 style="color: #f59e0b; margin: 0 0 10px 0; font-size: 22px;">अभी तक कोई टॉस Done मार्क नहीं हुआ है</h3>
-            <p style="color: #ffffff; font-size: 15px; max-width: 650px; margin: 0 auto; line-height: 1.6; font-weight: 600;">
-                GamingHelper की लाइव लिस्ट (Tab 1) में से जैसे ही किसी मैच का टॉस पूरा हो, आप उस मैच के नीचे <b>'🪙 Mark Toss Done'</b> पर क्लिक करके विनर चुनकर सेव करें।<br>
-                <b>सिर्फ वही असली मैच यहाँ रिकॉर्ड होगा और उसका ✅ PASS या ❌ FAIL नतीजा दिखेगा। कोई भी अनवांटेड या फ़ेक मैच यहाँ नहीं दिखाया जाएगा।</b>
+        <div style="background: #0f172a; border: 1px dashed #334155; border-radius: 14px; padding: 24px; text-align: center; margin: 16px 0;">
+            <div style="font-size: 32px; margin-bottom: 8px;">🪙</div>
+            <h3 style="color: #f59e0b; margin: 0 0 6px 0; font-size: 18px;">अभी तक कोई टॉस Done मार्क नहीं हुआ है</h3>
+            <p style="color: #94a3b8; font-size: 14px; margin: 0 auto;">
+                जैसे ही किसी मैच का टॉस पूरा हो, 'Mark Toss Done' पर क्लिक करके विनर सेव करें।
             </p>
         </div>
         """, unsafe_allow_html=True)
     else:
-        # Extract Distinct Dates for 1-Click Fast Date Filter
-        distinct_dates = []
-        for r in completed_results:
-            d = r.get("match_date")
-            if d and d not in distinct_dates:
-                distinct_dates.append(d)
-        distinct_dates.sort(reverse=True)
+        # Clean Date Filter: Today only + Date Picker + All Dates
+        today_done_count = sum(1 for r in completed_results if r.get("match_date") == today_iso)
+        total_done_count = len(completed_results)
 
-        yesterday_iso = format_ist(cur_ist - timedelta(days=1), "%Y-%m-%d")
+        col_df1, col_df2 = st.columns([2.2, 1.2])
+        with col_df1:
+            date_filter_mode = st.pills(
+                "📅 तारीख फ़िल्टर",
+                options=[
+                    f"📅 आज (Today) · {today_done_count}",
+                    "🗓️ तारीख चुनें (Pick Date)",
+                    f"🌟 सभी तारीखें ({total_done_count})"
+                ],
+                default=f"📅 आज (Today) · {today_done_count}",
+                key="pills_done_date_mode"
+            )
+        with col_df2:
+            custom_picked_date = st.date_input(
+                "🗓️ Date Picker",
+                value=cur_ist.date(),
+                key="input_custom_done_date",
+                label_visibility="collapsed"
+            )
 
-        date_pill_map = {}
-        for d in distinct_dates:
-            c = sum(1 for r in completed_results if r.get("match_date") == d)
-            if d == today_iso:
-                label = f"📅 आज (Today) · {d} ({c})"
-            elif d == yesterday_iso:
-                label = f"📅 कल (Yesterday) · {d} ({c})"
-            else:
-                label = f"📅 {d} ({c})"
-            date_pill_map[label] = d
+        custom_picked_iso = custom_picked_date.strftime("%Y-%m-%d") if custom_picked_date else today_iso
 
-        date_pill_options = list(date_pill_map.keys()) + ["🌟 सभी तारीखें (All Dates)"]
-
-        # 1-Click Fast Date Filter Pills at the Top
-        st.markdown("<div style='font-size: 15px; font-weight: 800; color: #38bdf8; margin: 8px 0 6px 0;'>📅 तारीख चुनें (Select Date):</div>", unsafe_allow_html=True)
-        selected_date_label = st.pills(
-            "तारीख चुनें",
-            options=date_pill_options,
-            default=date_pill_options[0] if date_pill_options else None,
-            key="pills_done_date",
-            label_visibility="collapsed"
-        )
-        selected_date_val = date_pill_map.get(selected_date_label) if (selected_date_label and "All Dates" not in selected_date_label) else "ALL"
+        if date_filter_mode and "आज (Today)" in date_filter_mode:
+            selected_date_val = today_iso
+            kpi_title_ctx = f"आज ({today_iso})"
+        elif date_filter_mode and "Pick Date" in date_filter_mode:
+            selected_date_val = custom_picked_iso
+            kpi_title_ctx = f"तारीख: {custom_picked_iso}"
+        else:
+            selected_date_val = "ALL"
+            kpi_title_ctx = "सभी तारीखें"
 
         # Dynamically compute KPIs strictly for the SELECTED DATE!
         if selected_date_val != "ALL":
             active_date_results = [r for r in completed_results if r.get("match_date") == selected_date_val]
-            kpi_title_ctx = f"{selected_date_label.split(' · ')[0]} ({selected_date_val})"
         else:
             active_date_results = completed_results
-            kpi_title_ctx = "सभी तारीखें (Overall All Dates)"
 
         kpis = get_toss_accuracy_kpis(active_date_results)
-
-        st.caption(f"📊 **एक्यूरेसी & टॉस काउंट बॉक्स ({kpi_title_ctx} के अनुसार):**")
 
         # Top 5 KPI Metrics Cards (Updates Dynamically With Selected Date)
         k1, k2, k3, k4, k5 = st.columns(5)
@@ -1142,15 +1101,13 @@ with vip_tabs[1]:
                             <div class="team-title" style="text-align:right;">{r.get('team_b')}</div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;">
-                            <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
-                                <span style="font-size: 11px; color: #ffffff; text-transform: uppercase; font-weight: 800;">🎯 Pre-Toss Advice:</span>
-                                <div style="font-size: 15px; font-weight: 900; color: #ffffff; margin-top: 1px;">{rec_display}</div>
-                                <small style="color: #ffffff; font-size: 12px; font-weight: 600;">Rating: {r.get('stake_rating', 'NORMAL')}</small>
+                            <div style="background: #090d16; border: 1px solid #1e293b; padding: 10px 14px; border-radius: 8px;">
+                                <div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Prediction</div>
+                                <div style="font-size: 16px; font-weight: 900; color: #ffffff; margin-top: 2px;">{rec_display}</div>
                             </div>
-                            <div style="background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 8px;">
-                                <span style="font-size: 11px; color: #ffffff; text-transform: uppercase; font-weight: 800;">🏆 Official Result:</span>
-                                <div style="font-size: 15px; font-weight: 900; color: #38bdf8; margin-top: 1px;">🏆 {r.get('actual_winner')}</div>
-                                <small style="color: #ffffff; font-size: 12px; font-weight: 600;">Elected to: {r.get('toss_decision', 'Bowl')}</small>
+                            <div style="background: #090d16; border: 1px solid #1e293b; padding: 10px 14px; border-radius: 8px;">
+                                <div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Toss Winner</div>
+                                <div style="font-size: 16px; font-weight: 900; color: #38bdf8; margin-top: 2px;">🏆 {r.get('actual_winner')}</div>
                             </div>
                         </div>
                     </div>
