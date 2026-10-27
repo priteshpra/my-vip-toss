@@ -1,5 +1,22 @@
 [
   {
+    "match_id": "40101",
+    "match_name": "Rajasthan Royalsmen vs UP Thunderbolts",
+    "tournament": "Indian T20 League",
+    "toss_time_ist": "07:00 PM IST",
+    "match_date": "2026-10-27",
+    "team_a": "Rajasthan Royalsmen",
+    "team_b": "UP Thunderbolts",
+    "recommended_team": "UP Thunderbolts",
+    "stake_rating": "\ud83d\udc8e VIP HIGH LOAD PLAY (75%)",
+    "actual_winner": "Rajasthan Royalsmen",
+    "toss_decision": "Bowl",
+    "outcome": "FAIL",
+    "outcome_label": "\u274c FAIL (MISSED)",
+    "is_manual": true,
+    "recorded_at": "2026-10-27 07:43 PM IST"
+  },
+  {
     "match_id": "39517",
     "match_name": "PCB Challengers women vs Stars Karachi women",
     "tournament": "T20 / T10 Cricket League",

@@ -3,9 +3,8 @@
 Persistently tracks completed tosses, outcomes, and pass/fail statistics:
 - Automatically synchronizes closed/completed matches from GamingHelper.
 - Strictly tracks real matches from the user's active platform.
-- Zero dummy or unwanted external matches.
 - Evaluates recommendations as PASS (Won), FAIL (Missed), or SKIPPED (50-50).
-- Calculates win rate / pass percentage for future accuracy analysis.
+- Honors permanent locked predictions from toss_predictions_locked.json so PLAY calls are NEVER lost.
 """
 
 import os
@@ -69,6 +68,21 @@ def save_toss_result(
     """Record a completed toss outcome from the user's actual match list and persist it."""
     results = load_toss_results()
 
+    # Auto-restore locked recommendation if match was originally a PLAY call
+    m_id_str = str(match_id or "").strip()
+    if not recommended_team and m_id_str:
+        try:
+            from core.providers.toss_load_provider import load_locked_predictions
+            l_map = load_locked_predictions()
+            if m_id_str in l_map:
+                l_pred = l_map[m_id_str]
+                if l_pred.get("action") == "PLAY":
+                    recommended_team = l_pred.get("recommended_team")
+                    if stake_rating in ["🟡 SKIP / 50-50 COIN FLIP", "NORMAL", ""]:
+                        stake_rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+        except Exception:
+            pass
+
     # Determine PASS / FAIL / SKIPPED / PENDING outcome
     rec_clean = (recommended_team or "").strip().lower()
     win_clean = (actual_winner or "").strip().lower()
@@ -88,7 +102,7 @@ def save_toss_result(
         outcome_label = "🟡 SKIPPED (50-50 NEUTRAL)"
 
     record = {
-        "match_id": str(match_id),
+        "match_id": m_id_str,
         "match_name": match_name,
         "tournament": tournament,
         "toss_time_ist": toss_time_ist,
@@ -98,7 +112,7 @@ def save_toss_result(
         "recommended_team": recommended_team,
         "stake_rating": stake_rating,
         "actual_winner": actual_winner,
-        "toss_decision": toss_decision.capitalize(),
+        "toss_decision": (toss_decision or "Bowl").capitalize(),
         "outcome": outcome,
         "outcome_label": outcome_label,
         "is_manual": is_manual,
@@ -108,7 +122,7 @@ def save_toss_result(
     # Replace if match already recorded, else prepend
     updated = False
     for i, r in enumerate(results):
-        if r.get("match_id") == str(match_id) or r.get("match_name") == match_name:
+        if str(r.get("match_id")) == m_id_str or r.get("match_name") == match_name:
             results[i] = record
             updated = True
             break
@@ -141,8 +155,7 @@ def delete_toss_result(match_id: str) -> bool:
 def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
     """
     Automatically pull completed/closed matches from GamingHelper.
-    NEVER simulates or guesses fake toss winners. Newly closed matches
-    are captured with Pending status so user/scorer can confirm genuine winner.
+    Preserves locked pre-match PLAY recommendations so verified calls are never downgraded to SKIP.
     """
     from core.providers.gaming_helper_provider import (
         get_stored_credentials,
@@ -151,8 +164,11 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         DEFAULT_PASS,
         _format_time_24_to_ist,
         _extract_tournament_from_match_name,
-        compute_vip_punter_verdict,
         API_BASE
+    )
+    from core.providers.toss_load_provider import (
+        load_locked_predictions,
+        compute_multi_source_toss_load,
     )
 
     creds = get_stored_credentials()
@@ -204,6 +220,7 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
     today_str = format_ist(now_ist(), "%Y-%m-%d")
     existing_results = load_toss_results()
     existing_map = {str(r.get("match_id")): r for r in existing_results}
+    locked_map = load_locked_predictions()
 
     # Process all closed matches
     for m in raw_closed:
@@ -214,9 +231,11 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         if not t1 or not t2:
             continue
 
-        # If match is already in the log (verified or manual), NEVER overwrite it!
+        # If match is already confirmed in the log (with non-pending winner), don't overwrite
         if m_id in existing_map:
-            continue
+            ex = existing_map[m_id]
+            if ex.get("actual_winner") and "pending" not in str(ex.get("actual_winner", "")).lower():
+                continue
 
         raw_time = m.get("match_time") or '["10:00","10:30"]'
         toss_raw = "10:00"
@@ -245,36 +264,46 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             except Exception:
                 pass
 
-        # Pre-toss recommendation (Honor live panel verdict & quota to avoid false FAILs on SKIPPED matches)
+        # 1. First priority: Check frozen locked prediction map (Guarantees PLAY verdict is preserved)
         rec_team = None
         rating = "🟡 SKIP / 50-50 COIN FLIP"
-        live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
-        found_in_cache = False
-        if os.path.exists(live_cache_file):
-            try:
-                with open(live_cache_file, "r", encoding="utf-8") as f:
-                    live_cache = json.load(f)
-                    for cm in live_cache:
-                        if str(cm.get("id")) == m_id or (cm.get("team_a_name") == t1 and cm.get("team_b_name") == t2):
-                            if cm.get("action_type") == "PLAY":
-                                rec_team = cm.get("recommended_team")
-                                rating = cm.get("stake_rating", "NORMAL")
-                            else:
-                                rec_team = None
-                                rating = "🟡 SKIP / 50-50 COIN FLIP"
-                            found_in_cache = True
-                            break
-            except Exception:
-                pass
-
-        if not found_in_cache:
-            vip = compute_vip_punter_verdict(t1, t2, tour, _format_time_24_to_ist(match_raw), odds_a, odds_b)
-            if vip.get("action") == "PLAY":
-                rec_team = vip.get("pick")
-                rating = vip.get("stake_rating", "NORMAL")
+        if m_id in locked_map:
+            l_pred = locked_map[m_id]
+            if l_pred.get("action") == "PLAY":
+                rec_team = l_pred.get("recommended_team")
+                rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
             else:
                 rec_team = None
                 rating = "🟡 SKIP / 50-50 COIN FLIP"
+        else:
+            # 2. Second priority: Live matches cache
+            live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
+            found_in_cache = False
+            if os.path.exists(live_cache_file):
+                try:
+                    with open(live_cache_file, "r", encoding="utf-8") as f:
+                        live_cache = json.load(f)
+                        for cm in live_cache:
+                            if str(cm.get("id")) == m_id or (cm.get("team_a_name") == t1 and cm.get("team_b_name") == t2):
+                                if cm.get("action_type") == "PLAY":
+                                    rec_team = cm.get("recommended_team")
+                                    rating = cm.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                                else:
+                                    rec_team = None
+                                    rating = "🟡 SKIP / 50-50 COIN FLIP"
+                                found_in_cache = True
+                                break
+                except Exception:
+                    pass
+
+            if not found_in_cache:
+                vip = compute_multi_source_toss_load(t1, t2, odds_a, odds_b, tour, _format_time_24_to_ist(match_raw), match_id=m_id)
+                if vip.get("action") == "PLAY":
+                    rec_team = vip.get("recommended_team")
+                    rating = vip.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                else:
+                    rec_team = None
+                    rating = "🟡 SKIP / 50-50 COIN FLIP"
 
         # Extract actual match date from API record
         m_date_raw = m.get("match_date")
@@ -283,7 +312,7 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         else:
             m_date = today_str
 
-        # Zero fake guessing: Mark as Pending Confirmation for genuine user confirmation
+        # Mark as Pending Confirmation for genuine user or telegram confirmation
         save_toss_result(
             match_id=m_id,
             match_name=f"{t1} vs {t2}",
@@ -312,16 +341,16 @@ def auto_update_toss_results_from_telegram() -> int:
     """
     Automatically resolve Pending Confirmation matches using live toss announcements
     from public Telegram channel @KINGTOSSLINE111.
-    
-    Returns the number of matches newly resolved.
     """
     from core.providers.telegram_toss_feed import fetch_telegram_toss_feed, match_team_with_tg_winner
+    from core.providers.toss_load_provider import load_locked_predictions
 
     feed = fetch_telegram_toss_feed(pages=3)
     if not feed:
         return 0
 
     results = load_toss_results()
+    locked_map = load_locked_predictions()
     resolved_count = 0
 
     for r in results:
@@ -329,9 +358,18 @@ def auto_update_toss_results_from_telegram() -> int:
         if r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower():
             continue
 
+        m_id = str(r.get("match_id", ""))
         t1 = r.get("team_a") or ""
         t2 = r.get("team_b") or ""
         rec = r.get("recommended_team")
+        rating = r.get("stake_rating", "NORMAL")
+
+        # Restore recommendation if locked map has PLAY
+        if not rec and m_id in locked_map:
+            l_pred = locked_map[m_id]
+            if l_pred.get("action") == "PLAY":
+                rec = l_pred.get("recommended_team")
+                rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
 
         for tg in feed:
             w_raw = tg.get("winner_raw", "")
@@ -345,7 +383,7 @@ def auto_update_toss_results_from_telegram() -> int:
 
             if winner_name:
                 save_toss_result(
-                    match_id=r.get("match_id"),
+                    match_id=m_id,
                     match_name=r.get("match_name"),
                     tournament=r.get("tournament", "General"),
                     toss_time_ist=r.get("toss_time_ist", ""),
@@ -353,7 +391,7 @@ def auto_update_toss_results_from_telegram() -> int:
                     team_a=t1,
                     team_b=t2,
                     recommended_team=rec,
-                    stake_rating=r.get("stake_rating", "NORMAL"),
+                    stake_rating=rating,
                     actual_winner=winner_name,
                     toss_decision=decision,
                     is_manual=False
@@ -362,7 +400,6 @@ def auto_update_toss_results_from_telegram() -> int:
                 break
 
     return resolved_count
-
 
 
 def get_toss_accuracy_kpis(target_results: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
