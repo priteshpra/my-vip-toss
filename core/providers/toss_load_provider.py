@@ -13,6 +13,7 @@ import os
 import re
 import json
 import time
+import hashlib
 import urllib.request
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -85,6 +86,17 @@ def match_teams_fuzzy(t1: str, t2: str) -> bool:
     if len(n1) >= 4 and len(n2) >= 4 and n1[:4] == n2[:4]:
         return True
     return False
+
+
+def _stable_seed(text: str) -> int:
+    """Cryptographically deterministic hash seed.
+    
+    Guarantees the exact same integer across every Python process,
+    server restart, and code edit (unlike Python's built-in randomized hash()).
+    """
+    raw_bytes = text.strip().lower().encode("utf-8")
+    digest = hashlib.md5(raw_bytes).hexdigest()
+    return int(digest[:8], 16) % 100
 
 
 def get_ground_truth_history(team_a: str, team_b: str) -> Tuple[int, int, int, int, int, int]:
@@ -196,8 +208,8 @@ def compute_multi_source_toss_load(
     if (h2h_a + h2h_b) > 0:
         h2h_edge = ((h2h_a - h2h_b) / (h2h_a + h2h_b)) * 8.0
 
-    # 4. Host Flipping Dynamics & Diaconis Coin Physics
-    hash_seed = abs(hash(f"{t_a}_{t_b}_{tour}")) % 100
+    # 4. Host Flipping Dynamics & Diaconis Coin Physics (Deterministic Stable Seed)
+    hash_seed = _stable_seed(f"{t_a}_{t_b}_{tour}")
     host_bias = ((hash_seed % 11) - 5) * 1.2
 
     # 5. Evening Dew Chasing Index
