@@ -500,7 +500,7 @@ with vip_tabs[0]:
     with col_filter:
         filter_type = st.selectbox(
             "🎯 Filter by Verdict",
-            ["🌟 Sabhi Matches (All)", "🟢 Sirf Play Wale (Actionable)", "💎 Sirf Jackpot Plays", "🟡 Sirf Skips (Pass)"],
+            ["🌟 Sabhi Matches (All)", "💎 Sirf 100% Satik Plays (Actionable)", "🟡 Sirf Skips (Pass)"],
             index=0,
             key="select_punter_filter"
         )
@@ -529,20 +529,17 @@ with vip_tabs[0]:
     total_matches = len(filtered_matches)
     play_matches = [m for m in filtered_matches if m["action_type"] == "PLAY"]
     skip_matches = [m for m in filtered_matches if m["action_type"] == "SKIP"]
-    jackpot_matches = [m for m in play_matches if "JACKPOT" in m.get("stake_rating", "")]
 
     # Apply Verdict Filter
-    if filter_type == "🟢 Sirf Play Wale (Actionable)":
+    if filter_type == "💎 Sirf 100% Satik Plays (Actionable)":
         filtered_list = play_matches
-    elif filter_type == "💎 Sirf Jackpot Plays":
-        filtered_list = jackpot_matches
     elif filter_type == "🟡 Sirf Skips (Pass)":
         filtered_list = skip_matches
     else:
         filtered_list = filtered_matches
 
     # --- KPI Ticker Strip ---
-    k1, k2, k3, k4 = st.columns(4)
+    k1, k2, k3 = st.columns(3)
     with k1:
         st.markdown(f"""
         <div class="kpi-card">
@@ -553,22 +550,15 @@ with vip_tabs[0]:
     with k2:
         st.markdown(f"""
         <div class="kpi-card">
-            <div class="kpi-val" style="color: #f59e0b;">{len(jackpot_matches)}</div>
-            <div class="kpi-lbl">💎 Jackpot High-Stakes Plays</div>
+            <div class="kpi-val" style="color: #10b981;">{len(play_matches)}</div>
+            <div class="kpi-lbl">💎 100% Satik Gold Plays</div>
         </div>
         """, unsafe_allow_html=True)
     with k3:
         st.markdown(f"""
         <div class="kpi-card">
-            <div class="kpi-val" style="color: #10b981;">{len(play_matches)}</div>
-            <div class="kpi-lbl">🟢 Confirmed Actionable Plays</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with k4:
-        st.markdown(f"""
-        <div class="kpi-card">
             <div class="kpi-val" style="color: #ef4444;">{len(skip_matches)}</div>
-            <div class="kpi-lbl">🟡 Skips / 50-50 Traps (Pass)</div>
+            <div class="kpi-lbl">🟡 Strict Skips (Pass / No Bet)</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -652,27 +642,24 @@ with vip_tabs[0]:
 
                 # --- COMPACT ACTION VERDICT BANNER ---
                 if act == "PLAY" and pick:
-                    is_jackpot = "JACKPOT" in rating or "100%" in consensus_badge
-                    badge_bg = "#f59e0b" if is_jackpot else "#065f46"
-                    badge_col = "#000000" if is_jackpot else "#a7f3d0"
                     st.markdown(f"""
-                    <div class="verdict-play">
+                    <div class="verdict-play" style="border: 2px solid #10b981; background: #042419;">
                         <div class="verdict-header">
-                            <span class="verdict-team-name">🟢 TOSS WINNER: {pick.upper()}</span>
-                            <span class="verdict-badge" style="background: {badge_bg}; color: {badge_col}; font-weight: 800;">
+                            <span class="verdict-team-name" style="font-size: 19px; color: #10b981;">🎯 100% SATIK TOSS WINNER: {pick.upper()}</span>
+                            <span class="verdict-badge" style="background: #f59e0b; color: #000000; font-weight: 900; font-size: 13px;">
                                 {consensus_badge} · {conf}% LOAD
                             </span>
                         </div>
                         <div style="display: flex; gap: 8px; margin: 8px 0 6px 0; flex-wrap: wrap;">
-                            <span style="background: #091e17; border: 1px solid #10b981; color: #a7f3d0; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;">
+                            <span style="background: #091e17; border: 1px solid #10b981; color: #a7f3d0; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">
                                 {load_text}
                             </span>
-                            <span style="background: #091e2b; border: 1px solid #38bdf8; color: #bae6fd; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">
+                            <span style="background: #091e2b; border: 1px solid #38bdf8; color: #bae6fd; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
                                 🌐 {clues_text}
                             </span>
                         </div>
-                        <div class="verdict-reason">
-                            💡 <b>Consensus Reason:</b> {rat}
+                        <div class="verdict-reason" style="color: #ffffff; font-size: 14px; font-weight: 600;">
+                            💡 <b>Satik Analysis:</b> {rat}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -680,14 +667,14 @@ with vip_tabs[0]:
                     st.markdown(f"""
                     <div class="verdict-skip">
                         <div class="verdict-header">
-                            <span class="verdict-team-name">🟡 SKIP (50-50 PASS)</span>
+                            <span class="verdict-team-name" style="color: #fbbf24;">🟡 STRICT SKIP (DO NOT BET)</span>
                             <span class="verdict-badge" style="background: #1c1303; color: #fbbf24; border: 1px solid #d97706;">
-                                ⛔ 50-50 TRAP (AVOID)
+                                ⛔ RISK AVOID
                             </span>
                         </div>
                         <div style="margin: 6px 0 4px 0;">
-                            <span style="background: #1c1303; border: 1px solid #d97706; color: #fde68a; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;">
-                                ⚠️ Market Load Split 50-50: Paisa safe rakhne ke liye avoid karein
+                            <span style="background: #1c1303; border: 1px solid #d97706; color: #fde68a; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">
+                                ⚠️ Satik Threshold (70%+) meet nahi hua — Capital safe rakhne ke liye STRICT PASS
                             </span>
                         </div>
                         <div class="verdict-reason">

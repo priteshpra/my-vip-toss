@@ -230,44 +230,40 @@ def compute_multi_source_toss_load(
     favored = t_a if net_score > 0 else t_b
     underdog = t_b if net_score > 0 else t_a
 
-    # High-Opportunity 100% Coverage: Every match gets an actionable winner (ZERO SKIPS)
-    action = "PLAY"
-
     # Calculate Market Load Percentage (60% to 88%)
     load_pct = min(88, max(60, int(56 + abs_score * 1.6)))
 
-    # Determine Multi-Source Consensus Rating
-    if load_pct >= 74:
-        rating = "💎 JACKPOT HIGH-LOAD PLAY"
-        badge = "🔥 100% CONSENSUS LOAD"
+    # Strict Satik Punter Filter:
+    # Only matches with >= 70% load & multi-source convergence qualify as PLAY.
+    # Everything else is STRICTLY SKIPPED to guarantee capital protection and zero loose bets.
+    if load_pct >= 70:
+        action = "PLAY"
+        rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
+        badge = "💎 100% SATIK CALL"
         risk_level = "LOW RISK (HIGH CONVICTION)"
-    elif load_pct >= 66:
-        rating = "🟢 HIGH CONVICTION LOAD PLAY"
-        badge = "🟢 CONFIRMED LOAD"
-        risk_level = "MODERATE RISK"
+        fav_load = f"{load_pct}% Heavy Market Load"
+        if matched_clues:
+            rationale = f"💎 SATIK GOLD PLAY: {fav_load} favors {favored}. CricketClues volume and bookmaker rate movement confirm sharp money on {favored}."
+        elif (tot_a > 0 or tot_b > 0):
+            rationale = f"💎 SATIK GOLD PLAY: {fav_load} favors {favored}. Historical record ({a_w}W-{a_l}L vs {b_w}W-{b_l}L) and calling mechanics heavily tilt to {favored}."
+        else:
+            rationale = f"💎 SATIK GOLD PLAY: {fav_load} favors {favored}. Bookie rate divergence and venue calling rhythm favor {favored}."
     else:
-        rating = "🟢 CONFIRMED VALUE PLAY"
-        badge = "🟢 VALUE LOAD PLAY"
-        risk_level = "REGULAR PLAY"
-
-    # Construct Sharp, Actionable Rationale
-    fav_load = f"{load_pct}% Market Load"
-    if matched_clues:
-        rationale = f"{fav_load} favors {favored}. CricketClues volume and bookmaker rate movement confirm sharp money on {favored}."
-    elif (tot_a > 0 or tot_b > 0):
-        rationale = f"{fav_load} favors {favored}. Historical record ({a_w}W-{a_l}L vs {b_w}W-{b_l}L) and calling mechanics heavily tilt to {favored}."
-    else:
-        rationale = f"{fav_load} favors {favored}. Bookie rate divergence and venue calling rhythm favor {favored}."
+        action = "SKIP"
+        rating = "🟡 STRICT PASS (NO BET)"
+        badge = "🟡 PASS / NOT SATIK"
+        risk_level = "HIGH RISK (AVOID)"
+        rationale = f"⛔ Pass Match: Market load ({load_pct}%) satik threshold (70%+) meet nahi kar raha. Paisa safe rakhne ke liye strict pass karein."
 
     return {
         "action": action,
-        "recommended_team": favored,
-        "underdog_team": underdog,
+        "recommended_team": favored if action == "PLAY" else None,
+        "underdog_team": underdog if action == "PLAY" else None,
         "confidence_pct": load_pct,
         "stake_rating": rating,
         "consensus_badge": badge,
         "risk_level": risk_level,
-        "market_load_text": f"📊 Market Load: {load_pct}% on {favored}",
+        "market_load_text": f"📊 Market Load: {load_pct}% on {favored}" if action == "PLAY" else f"📊 Load: {load_pct}% (Below 70% Satik Threshold)",
         "cricketclues_status": clues_text,
         "punter_rationale": rationale,
         "total_edge": round(abs_score, 1),
