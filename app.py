@@ -584,19 +584,20 @@ with vip_tabs[0]:
             conf = m.get("confidence_pct", 50)
 
             if act == "PLAY" and pick:
-                if "JACKPOT" in m.get("stake_rating", ""):
-                    verdict_str = f"💎 JACKPOT: {pick.upper()} ({conf}%)"
+                if "JACKPOT" in m.get("stake_rating", "") or "100%" in m.get("consensus_badge", ""):
+                    verdict_str = f"💎 100% LOAD: {pick.upper()} ({conf}%)"
                 else:
                     verdict_str = f"🟢 WINNER: {pick.upper()} ({conf}%)"
             elif act == "COMPLETED":
                 verdict_str = f"🏆 TOSS WON: {pick.upper()}"
             else:
-                verdict_str = "🟡 SKIP (50-50 PASS)"
+                verdict_str = "🟡 SKIP (50-50 TRAP)"
 
             summary_rows.append({
                 "🪙 Toss Time (IST)": t_str,
                 "Match": f"{m['team_a_name']} vs {m['team_b_name']}",
                 "Tournament": m.get("tournament_name"),
+                "📊 Toss Load": m.get("market_load_text", f"{conf}% Load"),
                 "🎯 Predicted Toss Winner": verdict_str
             })
 
@@ -625,6 +626,9 @@ with vip_tabs[0]:
             pick = m.get("recommended_team")
             conf = m.get("confidence_pct", 50)
             rating = m.get("stake_rating", "NORMAL")
+            consensus_badge = m.get("consensus_badge", rating)
+            load_text = m.get("market_load_text", f"{conf}% Market Load")
+            clues_text = m.get("cricketclues_status", "Standard Market Line")
             rat = m.get("punter_rationale", "")
 
             with st.container():
@@ -648,7 +652,7 @@ with vip_tabs[0]:
 
                 # --- COMPACT ACTION VERDICT BANNER ---
                 if act == "PLAY" and pick:
-                    is_jackpot = "JACKPOT" in rating
+                    is_jackpot = "JACKPOT" in rating or "100%" in consensus_badge
                     badge_bg = "#f59e0b" if is_jackpot else "#065f46"
                     badge_col = "#000000" if is_jackpot else "#a7f3d0"
                     st.markdown(f"""
@@ -656,11 +660,19 @@ with vip_tabs[0]:
                         <div class="verdict-header">
                             <span class="verdict-team-name">🟢 TOSS WINNER: {pick.upper()}</span>
                             <span class="verdict-badge" style="background: {badge_bg}; color: {badge_col}; font-weight: 800;">
-                                {rating} · {conf}% PROBABILITY
+                                {consensus_badge} · {conf}% LOAD
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin: 8px 0 6px 0; flex-wrap: wrap;">
+                            <span style="background: #091e17; border: 1px solid #10b981; color: #a7f3d0; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;">
+                                {load_text}
+                            </span>
+                            <span style="background: #091e2b; border: 1px solid #38bdf8; color: #bae6fd; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;">
+                                🌐 {clues_text}
                             </span>
                         </div>
                         <div class="verdict-reason">
-                            💡 <b>Prediction Signal:</b> {rat}
+                            💡 <b>Consensus Reason:</b> {rat}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -670,7 +682,12 @@ with vip_tabs[0]:
                         <div class="verdict-header">
                             <span class="verdict-team-name">🟡 SKIP (50-50 PASS)</span>
                             <span class="verdict-badge" style="background: #1c1303; color: #fbbf24; border: 1px solid #d97706;">
-                                ⚖️ PASS
+                                ⛔ 50-50 TRAP (AVOID)
+                            </span>
+                        </div>
+                        <div style="margin: 6px 0 4px 0;">
+                            <span style="background: #1c1303; border: 1px solid #d97706; color: #fde68a; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;">
+                                ⚠️ Market Load Split 50-50: Paisa safe rakhne ke liye avoid karein
                             </span>
                         </div>
                         <div class="verdict-reason">

@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 from core.timezone import now_ist, format_ist
+from core.providers.toss_load_provider import compute_multi_source_toss_load
 
 # Robust unverified SSL context to prevent certificate handshake errors on any cloud OS
 _SSL_CTX = ssl.create_default_context()
@@ -83,6 +84,29 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
     creds = get_stored_credentials()
     auth_token = creds.get("token")
 
+    def _hydrate_cached(cached_list):
+        for m in cached_list:
+            if "consensus_badge" not in m or not m.get("market_load_text"):
+                v = compute_multi_source_toss_load(
+                    team_a=m.get("team_a_name", ""),
+                    team_b=m.get("team_b_name", ""),
+                    odds_a=m.get("odds_a", 98),
+                    odds_b=m.get("odds_b", 80),
+                    tournament=m.get("tournament_name", ""),
+                    match_time=m.get("time_str", "")
+                )
+                m["action_type"] = v["action"]
+                m["recommended_team"] = v["recommended_team"]
+                m["confidence_pct"] = v["confidence_pct"]
+                m["stake_rating"] = v["stake_rating"]
+                m["consensus_badge"] = v.get("consensus_badge", "🟢 CONFIRMED LOAD")
+                m["risk_level"] = v.get("risk_level", "LOW RISK")
+                m["market_load_text"] = v.get("market_load_text", "")
+                m["cricketclues_status"] = v.get("cricketclues_status", "")
+                m["punter_rationale"] = v["punter_rationale"]
+                m["total_edge"] = v.get("total_edge", 0.0)
+        return cached_list
+
     # If no token or forced refresh, log in first
     if not auth_token or force_refresh:
         login_res = login_gaming_helper(creds.get("phone", DEFAULT_PHONE), creds.get("password", DEFAULT_PASS))
@@ -92,7 +116,7 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
             if os.path.exists(CACHE_FILE):
                 try:
                     with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                        return {"success": True, "matches": json.load(f), "cached": True}
+                        return {"success": True, "matches": _hydrate_cached(json.load(f)), "cached": True}
                 except Exception:
                     pass
             return {"success": False, "error": login_res.get("error"), "needs_login": True}
@@ -143,7 +167,7 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
         if os.path.exists(CACHE_FILE):
             try:
                 with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                    return {"success": True, "matches": json.load(f), "cached": True}
+                    return {"success": True, "matches": _hydrate_cached(json.load(f)), "cached": True}
             except Exception:
                 pass
         return {"success": False, "error": f"HTTP {e.code}: {e.read().decode('utf-8', errors='ignore')}", "needs_login": e.code in (401, 440)}
@@ -152,7 +176,7 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
         if os.path.exists(CACHE_FILE):
             try:
                 with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                    return {"success": True, "matches": json.load(f), "cached": True}
+                    return {"success": True, "matches": _hydrate_cached(json.load(f)), "cached": True}
             except Exception:
                 pass
         return {"success": False, "error": str(e)}
@@ -271,8 +295,15 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
         # Extract tournament name
         tournament = _extract_tournament_from_match_name(match_name, team_a, team_b)
 
-        # VIP Punter Toss Engine Verdict
-        vip_verdict = compute_vip_punter_verdict(team_a, team_b, tournament, time_str, odds_a, odds_b)
+        # VIP Multi-Source Toss Load & Consensus Engine Verdict
+        vip_verdict = compute_multi_source_toss_load(
+            team_a=team_a,
+            team_b=team_b,
+            odds_a=odds_a,
+            odds_b=odds_b,
+            tournament=tournament,
+            match_time=time_str
+        )
 
         # Team logos
         logo_a = item.get("team_one_logo")
@@ -294,11 +325,16 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
             "odds_a": odds_a,
             "odds_b": odds_b,
             "action_type": vip_verdict["action"],  # "PLAY", "SKIP"
-            "recommended_team": vip_verdict["pick"],
+            "recommended_team": vip_verdict["recommended_team"],
             "confidence_pct": vip_verdict["confidence_pct"],
             "stake_rating": vip_verdict["stake_rating"],
-            "punter_rationale": vip_verdict["rationale"],
+            "consensus_badge": vip_verdict.get("consensus_badge", "🟢 CONFIRMED LOAD"),
+            "risk_level": vip_verdict.get("risk_level", "LOW RISK"),
+            "market_load_text": vip_verdict.get("market_load_text", ""),
+            "cricketclues_status": vip_verdict.get("cricketclues_status", ""),
+            "punter_rationale": vip_verdict["punter_rationale"],
             "total_edge": vip_verdict.get("total_edge", 0.0),
+            "clues_matched": vip_verdict.get("clues_matched", False),
             "is_live": item.get("isLive", 1),
             "status": "UPCOMING" if item.get("status") == 1 else "LIVE",
             "source": "GamingHelper Online"
@@ -309,139 +345,11 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
 
 
 def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_time: str, odds_a: int = 98, odds_b: int = 80) -> Dict[str, Any]:
-    """
-    VIP High-Precision Multi-Factor Toss Engine:
-    Evaluates:
-    1. Historical ground-truth toss records and H2H data from toss_results_log.json.
-    2. Captain calling psychology & thumb rotation dynamics (Diaconis coin mechanics).
-    3. Day/Night & Evening dew chasing index (matches starting >= 17:30 IST).
-    4. Market odds divergence signal.
-    """
-    t_a_clean = (team_a or "").strip()
-    t_b_clean = (team_b or "").strip()
-    tour_clean = (tournament or "").strip()
-
-    def clean_name(s: str) -> str:
-        return (s or "").strip().lower()
-
-    def match_team(x: str, y: str) -> bool:
-        x, y = clean_name(x), clean_name(y)
-        if not x or not y:
-            return False
-        if x == y:
-            return True
-        if ("women" in x or "wmn" in x) != ("women" in y or "wmn" in y):
-            return False
-        if ("u19" in x or "under-19" in x) != ("u19" in y or "under-19" in y):
-            return False
-        stop_q = {"state bank of", "association", "television", "eastern", "southern", "western", "northern", "central"}
-        if any(q in x for q in stop_q) != any(q in y for q in stop_q):
-            return False
-        return (x in y or y in x) if (len(x) > 4 and len(y) > 4) else False
-
-    # Extract verified ground-truth wins and losses from database
-    a_wins, a_losses = 0, 0
-    b_wins, b_losses = 0, 0
-    h2h_a, h2h_b = 0, 0
-    try:
-        results_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "toss_results_log.json")
-        if os.path.exists(results_file):
-            with open(results_file, "r", encoding="utf-8") as f:
-                history = json.load(f)
-                if isinstance(history, list):
-                    for r in history:
-                        actual = clean_name(r.get("actual_winner") or "")
-                        if not actual or "pending" in actual:
-                            continue
-                        r_ta = r.get("team_a") or ""
-                        r_tb = r.get("team_b") or ""
-                        is_ta_in = match_team(t_a_clean, r_ta) or match_team(t_a_clean, r_tb)
-                        is_tb_in = match_team(t_b_clean, r_ta) or match_team(t_b_clean, r_tb)
-
-                        if is_ta_in and is_tb_in:
-                            if match_team(t_a_clean, actual):
-                                h2h_a += 1
-                            elif match_team(t_b_clean, actual):
-                                h2h_b += 1
-
-                        if is_ta_in:
-                            if match_team(t_a_clean, actual):
-                                a_wins += 1
-                            else:
-                                a_losses += 1
-                        if is_tb_in:
-                            if match_team(t_b_clean, actual):
-                                b_wins += 1
-                            else:
-                                b_losses += 1
-    except Exception:
-        pass
-
-    tot_a = a_wins + a_losses
-    tot_b = b_wins + b_losses
-
-    # Factor 1: Empirical Ground-Truth History Edge (Bayesian Laplace)
-    p_a = (a_wins + 1.0) / (tot_a + 2.0)
-    p_b = (b_wins + 1.0) / (tot_b + 2.0)
-    e_hist = (p_a - p_b) * 26.0
-
-    # Factor 2: Head-to-Head Direct Advantage
-    e_h2h = 0.0
-    if (h2h_a + h2h_b) > 0:
-        e_h2h = ((h2h_a - h2h_b) / (h2h_a + h2h_b)) * 9.0
-
-    # Factor 3: Host Flipping Dynamics & Visiting Calling Pattern (Diaconis Model)
-    hash_seed = abs(hash(f"{t_a_clean}_{t_b_clean}_{tour_clean}")) % 100
-    host_calling_bias = ((hash_seed % 11) - 5) * 1.3
-
-    # Factor 4: Evening Dew Index & Chasing Pressure (matches starting >= 17:30 IST)
-    e_dew = 0.0
-    m_low = (match_time or "").lower()
-    if any(h in m_low for h in ["5:", "6:", "7:", "8:", "9:", "10:", "11:", "17:", "18:", "19:", "20:", "21:", "22:", "23:"]) and ("pm" in m_low or "night" in m_low):
-        e_dew = 3.0 if (hash_seed % 2 == 0) else -3.0
-
-    # Factor 5: Market Odds Signals
-    e_odds = 0.0
-    if abs(odds_a - odds_b) >= 15:
-        e_odds = (odds_a - odds_b) * 0.08
-
-    net_edge = e_hist + e_h2h + host_calling_bias + e_dew + e_odds
-    abs_edge = abs(net_edge)
-
-    # Avoid exact neutral 0 edge
-    if abs_edge < 1.8:
-        net_edge = 3.4 if (hash_seed % 2 == 0) else -3.4
-        abs_edge = abs(net_edge)
-
-    favored = t_a_clean if net_edge > 0 else t_b_clean
-    underdog = t_b_clean if net_edge > 0 else t_a_clean
-
-    # Realistic Confidence Scaling: 60% to 76%
-    conf = min(76, max(60, int(58 + abs_edge * 1.15)))
-
-    if conf >= 68:
-        stake = "💎 JACKPOT HIGH STAKE PLAY"
-    elif conf >= 63:
-        stake = "🟢 HIGH CONVICTION VALUE PLAY"
-    else:
-        stake = "🟢 CONFIRMED PLAY"
-
-    # Crisp, sharp rationale
-    if tot_a > 0 or tot_b > 0:
-        fav_stats = f"{a_wins}W-{a_losses}L" if favored == t_a_clean else f"{b_wins}W-{b_losses}L"
-        und_stats = f"{b_wins}W-{b_losses}L" if favored == t_a_clean else f"{a_wins}W-{a_losses}L"
-        rationale = f"Toss trend heavily favors {favored} ({fav_stats} vs {und_stats}). Calling rhythm & venue trend support {favored}."
-    else:
-        rationale = f"Captain calling momentum & venue toss index favor {favored} in {tour_clean}."
-
-    return {
-        "action": "PLAY",
-        "pick": favored,
-        "confidence_pct": conf,
-        "stake_rating": stake,
-        "total_edge": round(abs_edge, 1),
-        "rationale": rationale
-    }
+    """VIP High-Precision Multi-Source Toss Load & Consensus Engine."""
+    res = compute_multi_source_toss_load(team_a, team_b, odds_a, odds_b, tournament, match_time)
+    res["pick"] = res.get("recommended_team")
+    res["rationale"] = res.get("punter_rationale")
+    return res
 
 
 def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
