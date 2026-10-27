@@ -86,25 +86,24 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
 
     def _hydrate_cached(cached_list):
         for m in cached_list:
-            if "consensus_badge" not in m or not m.get("market_load_text"):
-                v = compute_multi_source_toss_load(
-                    team_a=m.get("team_a_name", ""),
-                    team_b=m.get("team_b_name", ""),
-                    odds_a=m.get("odds_a", 98),
-                    odds_b=m.get("odds_b", 80),
-                    tournament=m.get("tournament_name", ""),
-                    match_time=m.get("time_str", "")
-                )
-                m["action_type"] = v["action"]
-                m["recommended_team"] = v["recommended_team"]
-                m["confidence_pct"] = v["confidence_pct"]
-                m["stake_rating"] = v["stake_rating"]
-                m["consensus_badge"] = v.get("consensus_badge", "🟢 CONFIRMED LOAD")
-                m["risk_level"] = v.get("risk_level", "LOW RISK")
-                m["market_load_text"] = v.get("market_load_text", "")
-                m["cricketclues_status"] = v.get("cricketclues_status", "")
-                m["punter_rationale"] = v["punter_rationale"]
-                m["total_edge"] = v.get("total_edge", 0.0)
+            v = compute_multi_source_toss_load(
+                team_a=m.get("team_a_name", ""),
+                team_b=m.get("team_b_name", ""),
+                odds_a=m.get("odds_a", 98),
+                odds_b=m.get("odds_b", 80),
+                tournament=m.get("tournament_name", ""),
+                match_time=m.get("time_str", "")
+            )
+            m["action_type"] = v["action"]  # 100% PLAY - Zero skips
+            m["recommended_team"] = v["recommended_team"]
+            m["confidence_pct"] = v["confidence_pct"]
+            m["stake_rating"] = v["stake_rating"]
+            m["consensus_badge"] = v.get("consensus_badge", "🟢 CONFIRMED LOAD")
+            m["risk_level"] = v.get("risk_level", "LOW RISK")
+            m["market_load_text"] = v.get("market_load_text", "")
+            m["cricketclues_status"] = v.get("cricketclues_status", "")
+            m["punter_rationale"] = v["punter_rationale"]
+            m["total_edge"] = v.get("total_edge", 0.0)
         return cached_list
 
     # If no token or forced refresh, log in first

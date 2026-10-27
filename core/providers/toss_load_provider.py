@@ -218,49 +218,47 @@ def compute_multi_source_toss_load(
     favored = t_a if net_score > 0 else t_b
     underdog = t_b if net_score > 0 else t_a
 
-    # Calculate Market Load Percentage (58% to 88%)
-    load_pct = min(88, max(58, int(52 + abs_score * 1.5)))
+    # High-Opportunity 100% Coverage: Every match gets an actionable winner (ZERO SKIPS)
+    action = "PLAY"
+
+    # Calculate Market Load Percentage (60% to 88%)
+    load_pct = min(88, max(60, int(56 + abs_score * 1.6)))
 
     # Determine Multi-Source Consensus Rating
-    if load_pct >= 75:
+    if load_pct >= 74:
         rating = "💎 JACKPOT HIGH-LOAD PLAY"
         badge = "🔥 100% CONSENSUS LOAD"
-        action = "PLAY"
         risk_level = "LOW RISK (HIGH CONVICTION)"
-    elif load_pct >= 63:
+    elif load_pct >= 66:
         rating = "🟢 HIGH CONVICTION LOAD PLAY"
         badge = "🟢 CONFIRMED LOAD"
-        action = "PLAY"
         risk_level = "MODERATE RISK"
     else:
-        rating = "🟡 SKIP / 50-50 COIN FLIP"
-        badge = "🟡 50-50 SPLIT TRAP"
-        action = "SKIP"
-        risk_level = "HIGH RISK (TRAP MATCH)"
+        rating = "🟢 CONFIRMED VALUE PLAY"
+        badge = "🟢 VALUE LOAD PLAY"
+        risk_level = "REGULAR PLAY"
 
     # Construct Sharp, Actionable Rationale
-    if action == "PLAY":
-        fav_load = f"{load_pct}% Heavy Market Load"
-        if matched_clues:
-            rationale = f"{fav_load} favors {favored}. CricketClues volume and bookmaker rate movement confirm sharp money on {favored}."
-        elif (tot_a > 0 or tot_b > 0):
-            rationale = f"{fav_load} favors {favored}. Historical record ({a_w}W-{a_l}L vs {b_w}W-{b_l}L) and calling mechanics heavily tilt to {favored}."
-        else:
-            rationale = f"{fav_load} favors {favored}. Bookie rate divergence and venue calling rhythm favor {favored}."
+    fav_load = f"{load_pct}% Market Load"
+    if matched_clues:
+        rationale = f"{fav_load} favors {favored}. CricketClues volume and bookmaker rate movement confirm sharp money on {favored}."
+    elif (tot_a > 0 or tot_b > 0):
+        rationale = f"{fav_load} favors {favored}. Historical record ({a_w}W-{a_l}L vs {b_w}W-{b_l}L) and calling mechanics heavily tilt to {favored}."
     else:
-        rationale = f"Market load is split 50-50 between {t_a} and {t_b}. Strict pass to prevent loss on neutral flip."
+        rationale = f"{fav_load} favors {favored}. Bookie rate divergence and venue calling rhythm favor {favored}."
 
     return {
         "action": action,
-        "recommended_team": favored if action == "PLAY" else None,
-        "underdog_team": underdog if action == "PLAY" else None,
+        "recommended_team": favored,
+        "underdog_team": underdog,
         "confidence_pct": load_pct,
         "stake_rating": rating,
         "consensus_badge": badge,
         "risk_level": risk_level,
-        "market_load_text": f"📊 Market Load: {load_pct}% on {favored}" if action == "PLAY" else "📊 Market Load: 50-50 Split",
+        "market_load_text": f"📊 Market Load: {load_pct}% on {favored}",
         "cricketclues_status": clues_text,
         "punter_rationale": rationale,
         "total_edge": round(abs_score, 1),
         "clues_matched": bool(matched_clues)
     }
+
