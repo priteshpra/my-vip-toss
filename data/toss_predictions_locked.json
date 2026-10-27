@@ -1,0 +1,122 @@
+{
+  "39489": {
+    "action": "SKIP",
+    "recommended_team": null,
+    "underdog_team": "Dairy Boys",
+    "confidence_pct": 60,
+    "stake_rating": "🟡 STRICT PASS (NO BET)",
+    "consensus_badge": "🟡 PASS / NOT SATIK",
+    "risk_level": "HIGH RISK (AVOID)",
+    "market_load_text": "📊 Load: 60% (Below 70% Satik Threshold)",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "⛔ Pass Match: Market load (60%) satik threshold (70%+) meet nahi kar raha. Paisa safe rakhne ke liye strict pass karein."
+  },
+  "39493": {
+    "action": "SKIP",
+    "recommended_team": null,
+    "underdog_team": "Atlanta Force",
+    "confidence_pct": 61,
+    "stake_rating": "🟡 STRICT PASS (NO BET)",
+    "consensus_badge": "🟡 PASS / NOT SATIK",
+    "risk_level": "HIGH RISK (AVOID)",
+    "market_load_text": "📊 Load: 61% (Below 70% Satik Threshold)",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "⛔ Pass Match: Market load (61%) satik threshold (70%+) meet nahi kar raha. Paisa safe rakhne ke liye strict pass karein."
+  },
+  "39497": {
+    "action": "PLAY",
+    "recommended_team": "Atlanta Fire Women",
+    "underdog_team": "Hurricanes Women",
+    "confidence_pct": 70,
+    "stake_rating": "💎 100% SATIK PLAY (GOLDEN LOCK)",
+    "consensus_badge": "💎 100% SATIK CALL",
+    "risk_level": "LOW RISK (HIGH CONVICTION)",
+    "market_load_text": "📊 Market Load: 70% on Atlanta Fire Women",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "💎 SATIK GOLD PLAY: 70% Heavy Market Load favors Atlanta Fire Women. Historical record (0W-1L vs 0W-0L) and calling mechanics heavily tilt to Atlanta Fire Women."
+  },
+  "39494": {
+    "action": "PLAY",
+    "recommended_team": "All Stars Cardinals",
+    "underdog_team": "Atlanta Fire",
+    "confidence_pct": 71,
+    "stake_rating": "💎 100% SATIK PLAY (GOLDEN LOCK)",
+    "consensus_badge": "💎 100% SATIK CALL",
+    "risk_level": "LOW RISK (HIGH CONVICTION)",
+    "market_load_text": "📊 Market Load: 71% on All Stars Cardinals",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "💎 SATIK GOLD PLAY: 71% Heavy Market Load favors All Stars Cardinals. Bookie rate divergence and venue calling rhythm favor All Stars Cardinals."
+  },
+  "39496": {
+    "action": "SKIP",
+    "recommended_team": null,
+    "underdog_team": "Seattle Thunderbolts",
+    "confidence_pct": 63,
+    "stake_rating": "🟡 STRICT PASS (NO BET)",
+    "consensus_badge": "🟡 PASS / NOT SATIK",
+    "risk_level": "HIGH RISK (AVOID)",
+    "market_load_text": "📊 Load: 63% (Below 70% Satik Threshold)",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "⛔ Pass Match: Market load (63%) satik threshold (70%+) meet nahi kar raha. Paisa safe rakhne ke liye strict pass karein."
+  },
+  "40097": {
+    "action": "SKIP",
+    "recommended_team": null,
+    "underdog_team": "Australia",
+    "confidence_pct": 69,
+    "stake_rating": "🟡 STRICT PASS (NO BET)",
+    "consensus_badge": "🟡 PASS / NOT SATIK",
+    "risk_level": "HIGH RISK (AVOID)",
+    "market_load_text": "📊 Load: 69% (Below 70% Satik Threshold)",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "⛔ Pass Match: Market load (69%) satik threshold (70%+) meet nahi kar raha. Paisa safe rakhne ke liye strict pass karein."
+  },
+  "40098": {
+    "action": "SKIP",
+    "recommended_team": null,
+    "underdog_team": "Karnali Yaks",
+    "confidence_pct": 63,
+    "stake_rating": "🟡 STRICT PASS (NO BET)",
+    "consensus_badge": "🟡 PASS / NOT SATIK",
+    "risk_level": "HIGH RISK (AVOID)",
+    "market_load_text": "📊 Load: 63% (Below 70% Satik Threshold)",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "⛔ Pass Match: Market load (63%) satik threshold (70%+) meet nahi kar raha. Paisa safe rakhne ke liye strict pass karein."
+  },
+  "40101": {
+    "action": "PLAY",
+    "recommended_team": "UP Thunderbolts",
+    "underdog_team": "Rajasthan Royalsmen",
+    "confidence_pct": 75,
+    "stake_rating": "💎 100% SATIK PLAY (GOLDEN LOCK)",
+    "consensus_badge": "💎 100% SATIK CALL",
+    "risk_level": "LOW RISK (HIGH CONVICTION)",
+    "market_load_text": "📊 Market Load: 75% on UP Thunderbolts",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "💎 SATIK GOLD PLAY: 75% Heavy Market Load favors UP Thunderbolts. Calling rhythm & venue trend heavily favor UP Thunderbolts."
+  },
+  "40099": {
+    "action": "SKIP",
+    "recommended_team": null,
+    "underdog_team": "Zimbabwe",
+    "confidence_pct": 68,
+    "stake_rating": "🟡 STRICT PASS (NO BET)",
+    "consensus_badge": "🟡 PASS / NOT SATIK",
+    "risk_level": "HIGH RISK (AVOID)",
+    "market_load_text": "📊 Load: 68% (Below 70% Satik Threshold)",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "⛔ Pass Match: Market load (68%) satik threshold (70%+) meet nahi kar raha. Paisa safe rakhne ke liye strict pass karein."
+  },
+  "40100": {
+    "action": "PLAY",
+    "recommended_team": "Gujrat Cc",
+    "underdog_team": "Al Mulla Exchange",
+    "confidence_pct": 73,
+    "stake_rating": "💎 100% SATIK PLAY (GOLDEN LOCK)",
+    "consensus_badge": "💎 100% SATIK CALL",
+    "risk_level": "LOW RISK (HIGH CONVICTION)",
+    "market_load_text": "📊 Market Load: 73% on Gujrat Cc",
+    "cricketclues_status": "Standard Market Line",
+    "punter_rationale": "💎 SATIK GOLD PLAY: 73% Heavy Market Load favors Gujrat Cc. Bookie rate divergence and venue calling rhythm favor Gujrat Cc."
+  }
+}

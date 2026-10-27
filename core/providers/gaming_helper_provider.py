@@ -86,13 +86,15 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
 
     def _hydrate_cached(cached_list):
         for m in cached_list:
+            mid = str(m.get("id", ""))
             v = compute_multi_source_toss_load(
                 team_a=m.get("team_a_name", ""),
                 team_b=m.get("team_b_name", ""),
                 odds_a=m.get("odds_a", 98),
                 odds_b=m.get("odds_b", 80),
                 tournament=m.get("tournament_name", ""),
-                match_time=m.get("time_str", "")
+                match_time=m.get("time_str", ""),
+                match_id=mid
             )
             m["action_type"] = v["action"]  # 100% PLAY - Zero skips
             m["recommended_team"] = v["recommended_team"]
@@ -293,15 +295,17 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
 
         # Extract tournament name
         tournament = _extract_tournament_from_match_name(match_name, team_a, team_b)
+        mid = str(item.get("id") or item.get("encrypted_id"))
 
-        # VIP Multi-Source Toss Load & Consensus Engine Verdict
+        # VIP Multi-Source Toss Load & Consensus Engine Verdict (Locked per match ID)
         vip_verdict = compute_multi_source_toss_load(
             team_a=team_a,
             team_b=team_b,
             odds_a=odds_a,
             odds_b=odds_b,
             tournament=tournament,
-            match_time=time_str
+            match_time=time_str,
+            match_id=mid
         )
 
         # Team logos
@@ -309,7 +313,7 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
         logo_b = item.get("team_two_logo")
 
         normalized.append({
-            "id": str(item.get("id") or item.get("encrypted_id")),
+            "id": mid,
             "team_a_name": team_a,
             "team_a_short": "".join([w[0].upper() for w in team_a.split()[:3]]) or "T1",
             "team_a_logo": f"https://gaminglive.gaminghelperonline.com/uploads/team_logo/{logo_a}" if logo_a else None,

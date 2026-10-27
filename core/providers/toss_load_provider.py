@@ -19,7 +19,33 @@ from typing import Dict, Any, List, Optional, Tuple
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 CLUES_CACHE_FILE = os.path.join(DATA_DIR, "cricketclues_cache.json")
+LOCKED_PREDICTIONS_FILE = os.path.join(DATA_DIR, "toss_predictions_locked.json")
 CLUES_API = "https://www.cricketclues.com/react-api/matches?status=upcoming"
+
+
+def load_locked_predictions() -> Dict[str, Any]:
+    """Load persistent locked predictions from disk to guarantee zero flipping across refreshes."""
+    if os.path.exists(LOCKED_PREDICTIONS_FILE):
+        try:
+            with open(LOCKED_PREDICTIONS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+
+def save_locked_prediction(match_id: str, verdict: Dict[str, Any]) -> None:
+    """Freeze and persist a match prediction permanently."""
+    if not match_id:
+        return
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        locked = load_locked_predictions()
+        locked[str(match_id)] = verdict
+        with open(LOCKED_PREDICTIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(locked, f, indent=2)
+    except Exception:
+        pass
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -151,7 +177,8 @@ def compute_multi_source_toss_load(
     odds_a: int = 98,
     odds_b: int = 80,
     tournament: str = "",
-    match_time: str = ""
+    match_time: str = "",
+    match_id: str = ""
 ) -> Dict[str, Any]:
     """
     VIP Multi-Source Toss Load & Consensus Engine.
@@ -162,6 +189,12 @@ def compute_multi_source_toss_load(
     3. Ground-Truth Bayesian Toss History & H2H Dominance
     4. Diaconis Coin Physics Mechanics & Evening Dew Bias
     """
+    m_id_str = str(match_id or "").strip()
+    # Check if this match is already locked in stone to guarantee zero flipping across refreshes
+    if m_id_str:
+        locked_map = load_locked_predictions()
+        if m_id_str in locked_map:
+            return locked_map[m_id_str]
     t_a = (team_a or "").strip()
     t_b = (team_b or "").strip()
     tour = (tournament or "").strip()
@@ -255,7 +288,7 @@ def compute_multi_source_toss_load(
         risk_level = "HIGH RISK (AVOID)"
         rationale = f"⛔ Pass Match: Market load ({load_pct}%) satik threshold (70%+) meet nahi kar raha. Paisa safe rakhne ke liye strict pass karein."
 
-    return {
+    res = {
         "action": action,
         "recommended_team": favored if action == "PLAY" else None,
         "underdog_team": underdog if action == "PLAY" else None,
@@ -269,4 +302,10 @@ def compute_multi_source_toss_load(
         "total_edge": round(abs_score, 1),
         "clues_matched": bool(matched_clues)
     }
+
+    # Lock prediction permanently so it never changes on refresh
+    if m_id_str:
+        save_locked_prediction(m_id_str, res)
+
+    return res
 
