@@ -355,16 +355,18 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
     .crex-odd-box {
-        background: #ffffff;
-        color: #0f172a;
-        font-weight: 900;
-        font-size: 13.5px;
-        padding: 2px 9px;
-        border-radius: 5px;
-        border: 1px solid #cbd5e1;
-        min-width: 32px;
-        text-align: center;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-weight: 900 !important;
+        font-size: 14.5px !important;
+        padding: 2px 10px !important;
+        border-radius: 5px !important;
+        border: 1.5px solid #94a3b8 !important;
+        min-width: 36px !important;
+        text-align: center !important;
+        display: inline-block !important;
+        line-height: 1.4 !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.25) !important;
     }
     .crex-prob-pct {
         font-size: 12px;
@@ -748,8 +750,8 @@ with vip_tabs[0]:
                         </div>
                         <div class="crex-prob-badges">
                             <span class="crex-fav-pill">{fav_short}</span>
-                            <span class="crex-odd-box">{back_num}</span>
-                            <span class="crex-odd-box">{lay_num}</span>
+                            <span class="crex-odd-box" style="color: #000000 !important; background: #ffffff !important; font-weight: 900 !important;">{back_num}</span>
+                            <span class="crex-odd-box" style="color: #000000 !important; background: #ffffff !important; font-weight: 900 !important;">{lay_num}</span>
                             <span class="crex-prob-pct">📈 {display_win_prob}% Win Prob</span>
                         </div>
                     </div>
