@@ -724,7 +724,10 @@ with vip_tabs[0]:
             if ov_s and ov_s.get("back") and ov_s.get("lay"):
                 crex_bhav_str = f"[{fav_s}] {ov_s['back']}-{ov_s['lay']}"
             else:
-                crex_bhav_str = f"[{fav_s}] {fav_o_s}-{fav_o_s + (1 if fav_o_s < 40 else 2)}"
+                t_prob_s = max(51, min(95, conf or 50))
+                c_bhav_s = int(round((100.0 / t_prob_s - 1.0) * 100))
+                b_s = fav_o_s if fav_o_s not in [80, 98] else c_bhav_s
+                crex_bhav_str = f"[{fav_s}] {b_s}-{b_s + (1 if b_s < 40 else 2)}"
 
             if act == "PLAY" and pick:
                 verdict_str = f"💎 VIP PICK: {pick.upper()} ({conf}%)"
@@ -807,10 +810,21 @@ with vip_tabs[0]:
                 implied_win_pct = int(round(100.0 / (1.0 + (back_num / 100.0)))) if back_num > 0 else 50
                 display_win_prob = conf if (conf and conf > 50) else implied_win_pct
             else:
-                back_num = fav_odds
-                lay_num = fav_odds + (1 if fav_odds < 40 else 2)
-                implied_win_pct = int(round(100.0 / (1.0 + (fav_odds / 100.0)))) if fav_odds > 0 else 50
-                display_win_prob = conf if (conf and conf > 50) else implied_win_pct
+                target_prob = max(51, min(95, conf or 50))
+                calc_bhav = int(round((100.0 / target_prob - 1.0) * 100))
+                if fav_odds not in [80, 98]:
+                    back_num = fav_odds
+                else:
+                    back_num = calc_bhav
+
+                if back_num < 40:
+                    lay_num = back_num + 1
+                elif back_num < 70:
+                    lay_num = back_num + 2
+                else:
+                    lay_num = back_num + (3 if back_num < 80 else 2)
+
+                display_win_prob = target_prob
 
             with st.container():
                 st.markdown(f"""
