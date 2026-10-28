@@ -310,6 +310,73 @@ st.markdown("""
         border-radius: 20px;
     }
 
+    /* CREX-style Win Probability & Market Bhav Bar */
+    .crex-prob-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #060a14;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .crex-prob-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 800;
+        color: #94a3b8;
+    }
+    .crex-prob-source {
+        font-size: 10.5px;
+        color: #64748b;
+        font-weight: 600;
+        background: #0f172a;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #1e293b;
+    }
+    .crex-prob-badges {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .crex-fav-pill {
+        background: #0284c7;
+        color: #ffffff;
+        font-weight: 900;
+        font-size: 13px;
+        padding: 2px 10px;
+        border-radius: 5px;
+        letter-spacing: 0.5px;
+    }
+    .crex-odd-box {
+        background: #ffffff;
+        color: #0f172a;
+        font-weight: 900;
+        font-size: 13.5px;
+        padding: 2px 9px;
+        border-radius: 5px;
+        border: 1px solid #cbd5e1;
+        min-width: 32px;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .crex-prob-pct {
+        font-size: 12px;
+        font-weight: 800;
+        color: #38bdf8;
+        background: #082f49;
+        border: 1px solid #0284c7;
+        padding: 2px 8px;
+        border-radius: 12px;
+        margin-left: 2px;
+    }
+
     /* Punter Action Verdict Boxes - Compact & Short Height */
     .verdict-play {
         background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
@@ -573,11 +640,25 @@ with vip_tabs[0]:
             pick = m.get("recommended_team")
             conf = m.get("confidence_pct", 50)
 
+            # CREX bhav calculation for summary table
+            oa_s = max(10, min(250, int(m.get("odds_a") or 98)))
+            ob_s = max(10, min(250, int(m.get("odds_b") or 80)))
+            if pick and pick.lower() in m['team_a_name'].lower():
+                fav_s = m.get("team_a_short") or m['team_a_name'][:3].upper()
+                fav_o_s = min(oa_s, ob_s)
+            elif pick and pick.lower() in m['team_b_name'].lower():
+                fav_s = m.get("team_b_short") or m['team_b_name'][:3].upper()
+                fav_o_s = min(oa_s, ob_s)
+            elif oa_s < ob_s:
+                fav_s = m.get("team_a_short") or m['team_a_name'][:3].upper()
+                fav_o_s = oa_s
+            else:
+                fav_s = m.get("team_b_short") or m['team_b_name'][:3].upper()
+                fav_o_s = ob_s
+            crex_bhav_str = f"[{fav_s}] {fav_o_s}-{fav_o_s + (1 if fav_o_s < 40 else 2)}"
+
             if act == "PLAY" and pick:
-                if "JACKPOT" in m.get("stake_rating", "") or "100%" in m.get("consensus_badge", ""):
-                    verdict_str = f"💎 100% LOAD: {pick.upper()} ({conf}%)"
-                else:
-                    verdict_str = f"🟢 WINNER: {pick.upper()} ({conf}%)"
+                verdict_str = f"💎 VIP PICK: {pick.upper()} ({conf}%)"
             elif act == "COMPLETED":
                 verdict_str = f"🏆 TOSS WON: {pick.upper()}"
             else:
@@ -587,6 +668,7 @@ with vip_tabs[0]:
                 "🪙 Toss Time (IST)": t_str,
                 "Match": f"{m['team_a_name']} vs {m['team_b_name']}",
                 "Tournament": m.get("tournament_name"),
+                "📊 CREX Bhav": crex_bhav_str,
                 "📊 Toss Load": m.get("market_load_text", f"{conf}% Load"),
                 "🎯 Predicted Toss Winner": verdict_str
             })
@@ -621,6 +703,27 @@ with vip_tabs[0]:
             clues_text = m.get("cricketclues_status", "Standard Market Line")
             rat = m.get("punter_rationale", "")
 
+            # Calculate CREX-style Win Probability & [Fav] [Back] [Lay] boxes
+            oa = max(10, min(250, int(odds_a or 98)))
+            ob = max(10, min(250, int(odds_b or 80)))
+            if pick and pick.lower() in t_a.lower():
+                fav_short = short_a
+                fav_odds = min(oa, ob)
+            elif pick and pick.lower() in t_b.lower():
+                fav_short = short_b
+                fav_odds = min(oa, ob)
+            elif oa < ob:
+                fav_short = short_a
+                fav_odds = oa
+            else:
+                fav_short = short_b
+                fav_odds = ob
+
+            back_num = fav_odds
+            lay_num = fav_odds + (1 if fav_odds < 40 else 2)
+            implied_win_pct = int(round(100.0 / (1.0 + (fav_odds / 100.0)))) if fav_odds > 0 else 50
+            display_win_prob = conf if (conf and conf > 50) else implied_win_pct
+
             with st.container():
                 st.markdown(f"""
                 <div class="vip-match-card">
@@ -638,6 +741,18 @@ with vip_tabs[0]:
                         <div class="vs-emblem">VS</div>
                         <div class="team-title" style="text-align:right;"><span style="font-size:14px; color:#38bdf8;">({short_b})</span> {t_b}</div>
                     </div>
+                    <div class="crex-prob-bar">
+                        <div class="crex-prob-label">
+                            <span>📊 Win Probability</span>
+                            <span class="crex-prob-source">CREX / Live Market</span>
+                        </div>
+                        <div class="crex-prob-badges">
+                            <span class="crex-fav-pill">{fav_short}</span>
+                            <span class="crex-odd-box">{back_num}</span>
+                            <span class="crex-odd-box">{lay_num}</span>
+                            <span class="crex-prob-pct">📈 {display_win_prob}% Win Prob</span>
+                        </div>
+                    </div>
                 """, unsafe_allow_html=True)
 
                 # --- COMPACT ACTION VERDICT BANNER ---
@@ -645,7 +760,7 @@ with vip_tabs[0]:
                     st.markdown(f"""
                     <div class="verdict-play" style="border: 2px solid #10b981; background: #042419;">
                         <div class="verdict-header">
-                            <span class="verdict-team-name" style="font-size: 19px; color: #10b981;">🎯 100% SATIK TOSS WINNER: {pick.upper()}</span>
+                            <span class="verdict-team-name" style="font-size: 19px; color: #10b981;">🎯 VIP TOSS WINNER: {pick.upper()}</span>
                             <span class="verdict-badge" style="background: #f59e0b; color: #000000; font-weight: 900; font-size: 13px;">
                                 {consensus_badge} · {conf}% LOAD
                             </span>
