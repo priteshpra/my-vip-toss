@@ -43,6 +43,38 @@ except ImportError:
     def delete_toss_result(match_id: str) -> bool:
         return False
 
+# --- CREX Market Bhav Overrides Storage ---
+CREX_OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), "data", "crex_overrides.json")
+
+def load_crex_overrides() -> dict:
+    if os.path.exists(CREX_OVERRIDES_FILE):
+        try:
+            with open(CREX_OVERRIDES_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_crex_override(match_id: str, back_val: int, lay_val: int, team_name: str = "") -> None:
+    try:
+        os.makedirs(os.path.dirname(CREX_OVERRIDES_FILE), exist_ok=True)
+        data = load_crex_overrides()
+        data[str(match_id)] = {
+            "back": int(back_val),
+            "lay": int(lay_val),
+            "fav_team": team_name
+        }
+        if team_name:
+            data[team_name] = {
+                "back": int(back_val),
+                "lay": int(lay_val),
+                "fav_team": team_name
+            }
+        with open(CREX_OVERRIDES_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
 # --- Page Configuration ---
 st.set_page_config(
     page_title="TossIQ VIP — Paid Punter Toss Intelligence",
@@ -681,7 +713,18 @@ with vip_tabs[0]:
             else:
                 fav_s = m.get("team_b_short") or m['team_b_name'][:3].upper()
                 fav_o_s = ob_s
-            crex_bhav_str = f"[{fav_s}] {fav_o_s}-{fav_o_s + (1 if fav_o_s < 40 else 2)}"
+
+            crex_s_map = load_crex_overrides()
+            ov_s = crex_s_map.get(str(m.get("id")))
+            if not ov_s:
+                for k_name, ov in crex_s_map.items():
+                    if k_name.lower() in m['team_a_name'].lower() or k_name.lower() in m['team_b_name'].lower() or m['team_a_name'].lower() in k_name.lower() or m['team_b_name'].lower() in k_name.lower():
+                        ov_s = ov
+                        break
+            if ov_s and ov_s.get("back") and ov_s.get("lay"):
+                crex_bhav_str = f"[{fav_s}] {ov_s['back']}-{ov_s['lay']}"
+            else:
+                crex_bhav_str = f"[{fav_s}] {fav_o_s}-{fav_o_s + (1 if fav_o_s < 40 else 2)}"
 
             if act == "PLAY" and pick:
                 verdict_str = f"💎 VIP PICK: {pick.upper()} ({conf}%)"
@@ -733,22 +776,41 @@ with vip_tabs[0]:
             oa = max(10, min(250, int(odds_a or 98)))
             ob = max(10, min(250, int(odds_b or 80)))
             if pick and pick.lower() in t_a.lower():
+                fav_name = t_a
                 fav_short = short_a
                 fav_odds = min(oa, ob)
             elif pick and pick.lower() in t_b.lower():
+                fav_name = t_b
                 fav_short = short_b
                 fav_odds = min(oa, ob)
             elif oa < ob:
+                fav_name = t_a
                 fav_short = short_a
                 fav_odds = oa
             else:
+                fav_name = t_b
                 fav_short = short_b
                 fav_odds = ob
 
-            back_num = fav_odds
-            lay_num = fav_odds + (1 if fav_odds < 40 else 2)
-            implied_win_pct = int(round(100.0 / (1.0 + (fav_odds / 100.0)))) if fav_odds > 0 else 50
-            display_win_prob = conf if (conf and conf > 50) else implied_win_pct
+            # Check CREX live bhav overrides
+            crex_map = load_crex_overrides()
+            override = crex_map.get(str(mid))
+            if not override:
+                for k_name, ov in crex_map.items():
+                    if k_name.lower() in t_a.lower() or k_name.lower() in t_b.lower() or t_a.lower() in k_name.lower() or t_b.lower() in k_name.lower():
+                        override = ov
+                        break
+
+            if override and override.get("back") and override.get("lay"):
+                back_num = override["back"]
+                lay_num = override["lay"]
+                implied_win_pct = int(round(100.0 / (1.0 + (back_num / 100.0)))) if back_num > 0 else 50
+                display_win_prob = conf if (conf and conf > 50) else implied_win_pct
+            else:
+                back_num = fav_odds
+                lay_num = fav_odds + (1 if fav_odds < 40 else 2)
+                implied_win_pct = int(round(100.0 / (1.0 + (fav_odds / 100.0)))) if fav_odds > 0 else 50
+                display_win_prob = conf if (conf and conf > 50) else implied_win_pct
 
             with st.container():
                 st.markdown(f"""
@@ -895,6 +957,21 @@ with vip_tabs[0]:
                                 delete_toss_result(mid)
                                 st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
                                 st.rerun()
+
+                with st.expander(f"📊 CREX Live Bhav ({back_num} - {lay_num}) Badlein / Sync Karein", expanded=False):
+                    st.caption(f"GamingHelper default ({fav_odds}) ke bajaye CREX ka exact live bhav ({back_num} : {lay_num}) set karein:")
+                    cr1, cr2, cr3 = st.columns([1.5, 1.5, 1.5])
+                    with cr1:
+                        nb = st.number_input("CREX Lagai (Back)", min_value=1, max_value=250, value=int(back_num), key=f"cr_b_{mid}")
+                    with cr2:
+                        nl = st.number_input("CREX Khai (Lay)", min_value=1, max_value=250, value=int(lay_num), key=f"cr_l_{mid}")
+                    with cr3:
+                        st.write("")
+                        st.write("")
+                        if st.button("💾 Apply CREX Bhav", key=f"btn_cr_{mid}", type="primary", use_container_width=True):
+                            save_crex_override(mid, nb, nl, fav_name)
+                            st.success(f"✅ CREX Bhav Set: [{nb}] [{nl}]!")
+                            st.rerun()
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
