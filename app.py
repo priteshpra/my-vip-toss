@@ -35,6 +35,10 @@ from core.engine.toss_results_manager import (
     sync_completed_tosses_from_gaming_helper,
     auto_update_toss_results_from_telegram
 )
+from core.providers.crex_provider import (
+    fetch_crex_fixtures,
+    get_crex_live_bhav
+)
 
 # Safe import with fallback for zero-downtime hot reloading
 try:
@@ -74,6 +78,26 @@ def save_crex_override(match_id: str, back_val: int, lay_val: int, team_name: st
             json.dump(data, f, indent=2)
     except Exception:
         pass
+
+def delete_crex_override(match_id: str, team_name: str = "") -> bool:
+    try:
+        data = load_crex_overrides()
+        changed = False
+        if str(match_id) in data:
+            del data[str(match_id)]
+            changed = True
+        if team_name:
+            for k in list(data.keys()):
+                if team_name.lower() in k.lower():
+                    del data[k]
+                    changed = True
+        if changed:
+            with open(CREX_OVERRIDES_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            return True
+    except Exception:
+        pass
+    return False
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -574,17 +598,18 @@ if is_gh_connected:
 col_st1, col_st2 = st.columns([3, 1])
 with col_st1:
     if is_gh_connected:
-        st.success(f"🟢 **GamingHelper Online Connected:** Demo Account `{creds.get('phone', '7028163937')}` active · **{len(all_matches)} Live Bets Active**")
+        st.success(f"🟢 **GamingHelper Connected:** Demo `{creds.get('phone', '7028163937')}` · **{len(all_matches)} Live Bets** · 📡 **CREX Live Scraper: Active**")
     else:
-        st.warning("🟡 **GamingHelper Online:** Demo Account connection in progress...")
+        st.warning("🟡 **GamingHelper:** Connection in progress... · 📡 **CREX Live Scraper: Active**")
 
 with col_st2:
-    if st.button("🔄 Sync Live Bets & Results", type="primary", use_container_width=True, key="btn_sync_gh_now"):
-        with st.spinner("Syncing latest live matches & completed tosses from GamingHelper..."):
+    if st.button("🔄 Sync Live Bets & CREX", type="primary", use_container_width=True, key="btn_sync_gh_now"):
+        with st.spinner("Syncing latest live matches from GamingHelper & real-time CREX rates..."):
             punter_data = get_active_punter_matches(force_refresh=True)
             all_matches = punter_data.get("matches", [])
+            fetch_crex_fixtures(force_refresh=True)
             sync_completed_tosses_from_gaming_helper()
-            st.success("Synced live bets & completed tosses successfully!")
+            st.success("Synced live bets & CREX bhav successfully!")
             st.rerun()
 
 # --- 2 Clear Simple Tabs ---
@@ -795,7 +820,8 @@ with vip_tabs[0]:
                 fav_short = short_b
                 fav_odds = ob
 
-            # Check CREX live bhav overrides
+            # Bhav Resolution Hierarchy:
+            # 1. Manual User Override (if saved by user)
             crex_map = load_crex_overrides()
             override = crex_map.get(str(mid))
             if not override:
@@ -804,11 +830,32 @@ with vip_tabs[0]:
                         override = ov
                         break
 
+            # 2. Real-time Automated CREX Live Scraper
+            crex_live = get_crex_live_bhav(t_a, t_b, match_id=str(mid))
+
             if override and override.get("back") and override.get("lay"):
                 back_num = override["back"]
                 lay_num = override["lay"]
+                if override.get("fav_team"):
+                    fav_name = override["fav_team"]
+                    fav_short = short_a if fav_name == t_a else (short_b if fav_name == t_b else fav_name[:3].upper())
                 implied_win_pct = int(round(100.0 / (1.0 + (back_num / 100.0)))) if back_num > 0 else 50
                 display_win_prob = conf if (conf and conf > 50) else implied_win_pct
+                bhav_badge = "CREX (Manual Override)"
+                bhav_badge_color = "#f59e0b"
+                bhav_badge_bg = "#451a03"
+                bhav_badge_border = "#b45309"
+            elif crex_live and crex_live.get("back") and crex_live.get("lay"):
+                back_num = crex_live["back"]
+                lay_num = crex_live["lay"]
+                if crex_live.get("fav_team"):
+                    fav_name = crex_live["fav_team"]
+                    fav_short = crex_live.get("fav_short") or (short_a if fav_name == t_a else (short_b if fav_name == t_b else fav_name[:3].upper()))
+                display_win_prob = crex_live.get("win_prob") or (conf if (conf and conf > 50) else 50)
+                bhav_badge = "🟢 CREX Live (Auto)"
+                bhav_badge_color = "#34d399"
+                bhav_badge_bg = "#064e3b"
+                bhav_badge_border = "#059669"
             else:
                 target_prob = max(51, min(95, conf or 50))
                 calc_bhav = int(round((100.0 / target_prob - 1.0) * 100))
@@ -825,6 +872,10 @@ with vip_tabs[0]:
                     lay_num = back_num + (3 if back_num < 80 else 2)
 
                 display_win_prob = target_prob
+                bhav_badge = "⚡ CREX Market Model"
+                bhav_badge_color = "#38bdf8"
+                bhav_badge_bg = "#082f49"
+                bhav_badge_border = "#0284c7"
 
             with st.container():
                 st.markdown(f"""
@@ -846,7 +897,7 @@ with vip_tabs[0]:
                     <div class="crex-prob-bar">
                         <div class="crex-prob-label">
                             <span>📊 Win Probability</span>
-                            <span class="crex-prob-source">CREX / Live Market</span>
+                            <span class="crex-prob-source" style="color: {bhav_badge_color} !important; background: {bhav_badge_bg} !important; border-color: {bhav_badge_border} !important;">{bhav_badge}</span>
                         </div>
                         <div class="crex-prob-badges">
                             <span class="crex-fav-pill">{fav_short}</span>
@@ -972,9 +1023,15 @@ with vip_tabs[0]:
                                 st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
                                 st.rerun()
 
-                with st.expander(f"📊 CREX Live Bhav ({back_num} - {lay_num}) Badlein / Sync Karein", expanded=False):
-                    st.caption(f"GamingHelper default ({fav_odds}) ke bajaye CREX ka exact live bhav ({back_num} : {lay_num}) set karein:")
-                    cr1, cr2, cr3 = st.columns([1.5, 1.5, 1.5])
+                with st.expander(f"📊 CREX Bhav ({back_num} - {lay_num}) · {bhav_badge}", expanded=False):
+                    if override:
+                        st.info(f"✏️ **Manual Override Active:** Is match ke liye aapne manual rates `[{back_num}] [{lay_num}]` set kiye hue hain.")
+                    elif crex_live:
+                        st.success(f"🟢 **Live Auto-Scraped from CREX:** Real-time rate `[{back_num}] [{lay_num}]` on **{fav_name}**.")
+                    else:
+                        st.caption(f"⚡ **Market Model Rate:** CREX par abhi market open nahi hui hai, isliye realistic exchange model se `[{back_num}] [{lay_num}]` set hai.")
+
+                    cr1, cr2, cr3, cr4 = st.columns([1.2, 1.2, 1.4, 1.2])
                     with cr1:
                         nb = st.number_input("CREX Lagai (Back)", min_value=1, max_value=250, value=int(back_num), key=f"cr_b_{mid}")
                     with cr2:
@@ -982,10 +1039,18 @@ with vip_tabs[0]:
                     with cr3:
                         st.write("")
                         st.write("")
-                        if st.button("💾 Apply CREX Bhav", key=f"btn_cr_{mid}", type="primary", use_container_width=True):
+                        if st.button("💾 Apply Manual", key=f"btn_cr_{mid}", type="primary", use_container_width=True):
                             save_crex_override(mid, nb, nl, fav_name)
                             st.success(f"✅ CREX Bhav Set: [{nb}] [{nl}]!")
                             st.rerun()
+                    with cr4:
+                        if override:
+                            st.write("")
+                            st.write("")
+                            if st.button("🔄 Auto Reset", key=f"btn_rst_{mid}", use_container_width=True):
+                                delete_crex_override(mid, fav_name)
+                                st.success("🔄 Reset to CREX Live Auto!")
+                                st.rerun()
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
