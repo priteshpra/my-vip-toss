@@ -67,9 +67,33 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    /* Universal Pure White Text Overrides */
-    .stMarkdown p, .stMarkdown span, .stMarkdown div, .stMarkdown li {
+    /* Universal Pure White Text Overrides (Excluding CREX black-text number boxes) */
+    .stMarkdown p:not(.crex-odd-box), 
+    .stMarkdown span:not(.crex-odd-box), 
+    .stMarkdown div:not(.crex-odd-box), 
+    .stMarkdown li {
         color: #ffffff !important;
+    }
+
+    /* Force Pitch Black Bold Numbers in CREX Boxes */
+    .stMarkdown span.crex-odd-box,
+    .stMarkdown .crex-odd-box,
+    span.crex-odd-box,
+    .crex-odd-box {
+        background-color: #ffffff !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important;
+        font-weight: 900 !important;
+        font-size: 15px !important;
+        padding: 2px 10px !important;
+        border-radius: 6px !important;
+        border: 1.5px solid #94a3b8 !important;
+        min-width: 36px !important;
+        text-align: center !important;
+        display: inline-block !important;
+        line-height: 1.4 !important;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
     }
 
     .stCaption, .stCaption p, [data-testid="stCaptionContainer"] p {
@@ -750,8 +774,8 @@ with vip_tabs[0]:
                         </div>
                         <div class="crex-prob-badges">
                             <span class="crex-fav-pill">{fav_short}</span>
-                            <span class="crex-odd-box" style="color: #000000 !important; background: #ffffff !important; font-weight: 900 !important;">{back_num}</span>
-                            <span class="crex-odd-box" style="color: #000000 !important; background: #ffffff !important; font-weight: 900 !important;">{lay_num}</span>
+                            <span class="crex-odd-box" style="color: #000000 !important; -webkit-text-fill-color: #000000 !important; background: #ffffff !important; font-weight: 900 !important; font-size: 15px !important;">{back_num}</span>
+                            <span class="crex-odd-box" style="color: #000000 !important; -webkit-text-fill-color: #000000 !important; background: #ffffff !important; font-weight: 900 !important; font-size: 15px !important;">{lay_num}</span>
                             <span class="crex-prob-pct">📈 {display_win_prob}% Win Prob</span>
                         </div>
                     </div>
