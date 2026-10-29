@@ -168,6 +168,7 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
     )
     from core.providers.toss_load_provider import (
         load_locked_predictions,
+        get_locked_prediction,
         compute_multi_source_toss_load,
     )
 
@@ -263,9 +264,9 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
 
         # 1. First priority: Check frozen locked prediction map (Guarantees PLAY verdict is preserved)
         rec_team = None
-        rating = "🟡 SKIP / 50-50 COIN FLIP"
-        if m_id in locked_map:
-            l_pred = locked_map[m_id]
+        rating = "🟡 STRICT PASS (NO BET)"
+        l_pred = get_locked_prediction(m_id, t1, t2)
+        if l_pred:
             if l_pred.get("action") == "PLAY":
                 rec_team = l_pred.get("recommended_team")
                 rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
