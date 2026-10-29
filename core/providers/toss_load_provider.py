@@ -250,30 +250,57 @@ def compute_multi_source_toss_load(
         underdog_team = t_b if fav_team_resolved == t_a else t_a
 
         if c_prob >= 65 or (c_back > 0 and c_back <= 55):
-            action = "PLAY"
-            favored = fav_team_resolved
-            underdog = underdog_team
-            
-            # If Pattern Rule ALSO confirms the CREX favorite, super-charge confidence!
-            if pat_fav and match_teams_fuzzy(pat_fav, favored):
-                confidence = max(76, min(92, c_prob + 5))
+            # Only trigger PLAY if Tipper Pattern Engine or Ground Truth ALSO confirms this team!
+            # Match winner odds on CREX do NOT guarantee coin toss wins (Coin flips are physical 50-50).
+            if pat_fav and match_teams_fuzzy(pat_fav, fav_team_resolved):
+                action = "PLAY"
+                favored = fav_team_resolved
+                underdog = underdog_team
+                confidence = max(78, min(92, c_prob + 5))
                 badge = "💎 UNANIMOUS CREX + PATTERN LOCK"
                 rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
                 risk_level = "VERY LOW RISK (MAX CONVICTION)"
                 source_summary = f"CREX [{c_back}-{c_lay}] + Pattern ({pat['rule_name']})"
                 rationale = (
-                    f"💎 UNANIMOUS SUPER CONVERGENCE: CREX Live Market ({c_prob}%, Bhav {c_back}-{c_lay}) "
-                    f"+ Tipper Pattern Rule ({pat_badge}) both 100% confirm {favored}. Extreme statistical edge."
+                    f"💎 UNANIMOUS SUPER CONVERGENCE: CREX Market Sentiment ({c_prob}%, Bhav {c_back}-{c_lay}) "
+                    f"+ Tipper Pattern Rule ({pat_badge}) both 100% confirm {favored}. High statistical edge."
                 )
-            else:
-                confidence = max(70, min(88, c_prob))
+            elif h2h_fav and match_teams_fuzzy(h2h_fav, fav_team_resolved) and tot_h2h >= 3:
+                action = "PLAY"
+                favored = fav_team_resolved
+                underdog = underdog_team
+                confidence = max(75, min(88, int(round((h2h_a if h2h_fav == t_a else h2h_b) / tot_h2h * 100))))
+                badge = "💎 CREX + H2H DOMINANCE LOCK"
                 rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-                badge = "💎 100% SATIK CALL"
                 risk_level = "LOW RISK (HIGH CONVICTION)"
-                source_summary = f"CREX Live Bhav [{c_back}-{c_lay}] ({c_prob}% Conviction)"
+                source_summary = f"CREX [{c_back}-{c_lay}] + Ground-Truth H2H"
                 rationale = (
-                    f"💎 100% SATIK CONVERGENCE: CREX Live Market ({c_prob}%, Bhav {c_back}-{c_lay}) "
-                    f"heavily favors {favored}. Clear statistical market edge over 50-50 coin flip trap."
+                    f"💎 SATIK GOLD PLAY: CREX Market Sentiment ({c_prob}%) and historical H2H toss dominance "
+                    f"both converge on {favored}."
+                )
+            elif pat_fav and abs(pat_edge) >= 12:
+                # Pattern engine detected a strong streak break / bounce-back on the OTHER team
+                action = "PLAY"
+                favored = pat_fav
+                underdog = t_b if favored == t_a else t_a
+                confidence = 74
+                rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
+                badge = f"🔄 {pat_badge}"
+                risk_level = "LOW RISK (PATTERN BREAKOUT)"
+                source_summary = f"Tipper Pattern Rule: {pat['rule_name']}"
+                rationale = f"💎 PATTERN BREAKOUT PLAY: {pat_rat} Tipper pattern triggers high conviction reversal."
+            else:
+                # Match winner odds exist, but toss pattern is neutral 50-50!
+                # STRICT PASS to protect user capital from coin flip traps!
+                action = "SKIP"
+                confidence = 50
+                rating = "🟡 STRICT PASS (NO BET)"
+                badge = "🟡 PASS / 50-50 TRAP"
+                risk_level = "HIGH RISK (AVOID)"
+                source_summary = f"CREX Match Rate [{c_back}-{c_lay}] (Toss Pattern Neutral)"
+                rationale = (
+                    f"⛔ STRICT PASS (50-50 COIN FLIP TRAP): Match odds favor {fav_team_resolved}, lekin coin toss me koi statistical edge nahi hai "
+                    f"({pat_badge}). Match favorite hone se coin toss jeetna zaroori nahi hota — Paisa safe rakhne ke liye strict pass karein."
                 )
         else:
             # CREX rate is close to 50-50 (e.g. 52-64%)

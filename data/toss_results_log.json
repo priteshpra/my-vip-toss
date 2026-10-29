@@ -43,12 +43,12 @@
     "team_b": "Zimbabwe",
     "recommended_team": "Afghanistan",
     "stake_rating": "\ud83d\udc8e 100% SATIK PLAY (GOLDEN LOCK)",
-    "actual_winner": "Pending Confirmation",
-    "toss_decision": "Pending",
-    "outcome": "PENDING",
-    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
-    "is_manual": false,
-    "recorded_at": "2026-10-29 05:18 PM IST"
+    "actual_winner": "Zimbabwe",
+    "toss_decision": "Bowl",
+    "outcome": "FAIL",
+    "outcome_label": "\u274c FAIL (MISSED)",
+    "is_manual": true,
+    "recorded_at": "2026-10-29 08:20 PM IST"
   },
   {
     "match_id": "40159",
