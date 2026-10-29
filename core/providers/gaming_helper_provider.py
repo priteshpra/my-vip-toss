@@ -106,6 +106,15 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
             m["cricketclues_status"] = v.get("cricketclues_status", "")
             m["punter_rationale"] = v["punter_rationale"]
             m["total_edge"] = v.get("total_edge", 0.0)
+            m["pattern_badge"] = v.get("pattern_badge", "⚖️ Neutral Toss Rotation")
+            m["pattern_rule_name"] = v.get("pattern_rule_name", "NEUTRAL")
+            m["pattern_rationale"] = v.get("pattern_rationale", "")
+            m["a_streak_str"] = v.get("a_streak_str", "Even")
+            m["b_streak_str"] = v.get("b_streak_str", "Even")
+            m["a_last5_str"] = v.get("a_last5_str", "None")
+            m["b_last5_str"] = v.get("b_last5_str", "None")
+            if not m.get("match_date"):
+                m["match_date"] = format_ist(now_ist(), "%Y-%m-%d")
         return cached_list
 
     # If no token or forced refresh, log in first
@@ -312,8 +321,12 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
         logo_a = item.get("team_one_logo")
         logo_b = item.get("team_two_logo")
 
+        # Extract match date
+        m_date_val = str(item.get("match_date")).split("T")[0].strip() if item.get("match_date") else format_ist(now_ist(), "%Y-%m-%d")
+
         normalized.append({
             "id": mid,
+            "match_date": m_date_val,
             "team_a_name": team_a,
             "team_a_short": "".join([w[0].upper() for w in team_a.split()[:3]]) or "T1",
             "team_a_logo": f"https://gaminglive.gaminghelperonline.com/uploads/team_logo/{logo_a}" if logo_a else None,
@@ -338,6 +351,13 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
             "punter_rationale": vip_verdict["punter_rationale"],
             "total_edge": vip_verdict.get("total_edge", 0.0),
             "clues_matched": vip_verdict.get("clues_matched", False),
+            "pattern_badge": vip_verdict.get("pattern_badge", "⚖️ Neutral Toss Rotation"),
+            "pattern_rule_name": vip_verdict.get("pattern_rule_name", "NEUTRAL"),
+            "pattern_rationale": vip_verdict.get("pattern_rationale", ""),
+            "a_streak_str": vip_verdict.get("a_streak_str", "Even"),
+            "b_streak_str": vip_verdict.get("b_streak_str", "Even"),
+            "a_last5_str": vip_verdict.get("a_last5_str", "None"),
+            "b_last5_str": vip_verdict.get("b_last5_str", "None"),
             "is_live": item.get("isLive", 1),
             "status": "UPCOMING" if item.get("status") == 1 else "LIVE",
             "source": "GamingHelper Online"

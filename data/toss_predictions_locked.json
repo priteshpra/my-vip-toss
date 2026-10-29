@@ -121,7 +121,14 @@
     "cricketclues_status": "CREX Live Bhav [30-31] (77% Conviction)",
     "punter_rationale": "\ud83d\udc8e 100% SATIK CONVERGENCE: CREX Live Market (77%, Bhav 30-31) heavily favors Afghanistan. Clear statistical market edge over 50-50 coin flip trap.",
     "total_edge": 27.0,
-    "clues_matched": true
+    "clues_matched": true,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "+1W",
+    "b_streak_str": "Even",
+    "a_last5_str": "W",
+    "b_last5_str": "None"
   },
   "afghanistan__vs__zimbabwe": {
     "action": "PLAY",
@@ -135,7 +142,14 @@
     "cricketclues_status": "CREX Live Bhav [30-31] (77% Conviction)",
     "punter_rationale": "\ud83d\udc8e 100% SATIK CONVERGENCE: CREX Live Market (77%, Bhav 30-31) heavily favors Afghanistan. Clear statistical market edge over 50-50 coin flip trap.",
     "total_edge": 27.0,
-    "clues_matched": true
+    "clues_matched": true,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "+1W",
+    "b_streak_str": "Even",
+    "a_last5_str": "W",
+    "b_last5_str": "None"
   },
   "pair:montrealarriors__vancouverguardians": {
     "action": "SKIP",
@@ -149,7 +163,14 @@
     "cricketclues_status": "CREX Market Line [58-99] (50-50 Neutral)",
     "punter_rationale": "\u26d4 STRICT PASS: CREX live market (63%, Bhav 58-99) indicates a balanced 50-50 line. Koi clear edge nahi hai \u2014 bankroll safe rakhne ke liye strict pass karein.",
     "total_edge": 13.0,
-    "clues_matched": true
+    "clues_matched": true,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "Even",
+    "b_streak_str": "Even",
+    "a_last5_str": "None",
+    "b_last5_str": "None"
   },
   "vancouver guardians__vs__montreal warriors": {
     "action": "SKIP",
@@ -233,7 +254,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "1L",
+    "b_streak_str": "+1W",
+    "a_last5_str": "L",
+    "b_last5_str": "W"
   },
   "pair:colombia__restoftheorld": {
     "action": "SKIP",
@@ -247,7 +275,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "1L",
+    "b_streak_str": "+1W",
+    "a_last5_str": "L",
+    "b_last5_str": "W"
   },
   "colombia__vs__rest of the world": {
     "action": "SKIP",
@@ -261,7 +296,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "1L",
+    "b_streak_str": "+1W",
+    "a_last5_str": "L",
+    "b_last5_str": "W"
   },
   "40162": {
     "action": "SKIP",
@@ -275,7 +317,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "2L",
+    "b_streak_str": "1L",
+    "a_last5_str": "L-W-W-L-L",
+    "b_last5_str": "W-L"
   },
   "pair:australia__southafrica": {
     "action": "SKIP",
@@ -289,7 +338,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "2L",
+    "b_streak_str": "1L",
+    "a_last5_str": "L-W-W-L-L",
+    "b_last5_str": "W-L"
   },
   "australia__vs__south africa": {
     "action": "SKIP",
@@ -303,7 +359,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "2L",
+    "b_streak_str": "1L",
+    "a_last5_str": "L-W-W-L-L",
+    "b_last5_str": "W-L"
   },
   "40165": {
     "action": "SKIP",
@@ -317,7 +380,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "+1W",
+    "b_streak_str": "Even",
+    "a_last5_str": "W",
+    "b_last5_str": "None"
   },
   "pair:apex__artechcc": {
     "action": "SKIP",
@@ -331,7 +401,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "+1W",
+    "b_streak_str": "Even",
+    "a_last5_str": "W",
+    "b_last5_str": "None"
   },
   "apex xi__vs__artech cc": {
     "action": "SKIP",
@@ -345,7 +422,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "+1W",
+    "b_streak_str": "Even",
+    "a_last5_str": "W",
+    "b_last5_str": "None"
   },
   "40164": {
     "action": "PLAY",
@@ -359,7 +443,14 @@
     "cricketclues_status": "CREX Live Bhav [40-51] (71% Conviction)",
     "punter_rationale": "\ud83d\udc8e 100% SATIK CONVERGENCE: CREX Live Market (71%, Bhav 40-51) heavily favors Dubai. Clear statistical market edge over 50-50 coin flip trap.",
     "total_edge": 21.0,
-    "clues_matched": true
+    "clues_matched": true,
+    "pattern_badge": "\ud83d\udcc8 Bounce-Back Due: Dubai (3L)",
+    "pattern_rule_name": "BOUNCE_BACK",
+    "pattern_rationale": "\ud83d\udcc8 Bounce-Back Rule: Dubai lagaatar 3 toss haar chuki hai. Rebound probability favors Dubai to snap streak.",
+    "a_streak_str": "1L",
+    "b_streak_str": "3L",
+    "a_last5_str": "L",
+    "b_last5_str": "L-L-L"
   },
   "pair:dubai__emiratesred": {
     "action": "PLAY",
@@ -373,7 +464,14 @@
     "cricketclues_status": "CREX Live Bhav [40-51] (71% Conviction)",
     "punter_rationale": "\ud83d\udc8e 100% SATIK CONVERGENCE: CREX Live Market (71%, Bhav 40-51) heavily favors Dubai. Clear statistical market edge over 50-50 coin flip trap.",
     "total_edge": 21.0,
-    "clues_matched": true
+    "clues_matched": true,
+    "pattern_badge": "\ud83d\udcc8 Bounce-Back Due: Dubai (3L)",
+    "pattern_rule_name": "BOUNCE_BACK",
+    "pattern_rationale": "\ud83d\udcc8 Bounce-Back Rule: Dubai lagaatar 3 toss haar chuki hai. Rebound probability favors Dubai to snap streak.",
+    "a_streak_str": "1L",
+    "b_streak_str": "3L",
+    "a_last5_str": "L",
+    "b_last5_str": "L-L-L"
   },
   "emirates red__vs__dubai": {
     "action": "PLAY",
@@ -387,7 +485,14 @@
     "cricketclues_status": "CREX Live Bhav [40-51] (71% Conviction)",
     "punter_rationale": "\ud83d\udc8e 100% SATIK CONVERGENCE: CREX Live Market (71%, Bhav 40-51) heavily favors Dubai. Clear statistical market edge over 50-50 coin flip trap.",
     "total_edge": 21.0,
-    "clues_matched": true
+    "clues_matched": true,
+    "pattern_badge": "\ud83d\udcc8 Bounce-Back Due: Dubai (3L)",
+    "pattern_rule_name": "BOUNCE_BACK",
+    "pattern_rationale": "\ud83d\udcc8 Bounce-Back Rule: Dubai lagaatar 3 toss haar chuki hai. Rebound probability favors Dubai to snap streak.",
+    "a_streak_str": "1L",
+    "b_streak_str": "3L",
+    "a_last5_str": "L",
+    "b_last5_str": "L-L-L"
   },
   "40166": {
     "action": "SKIP",
@@ -401,7 +506,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "+1W",
+    "b_streak_str": "+2W",
+    "a_last5_str": "L-W",
+    "b_last5_str": "L-W-W"
   },
   "pair:marafiebengaltigers__royalchallengerskuait": {
     "action": "SKIP",
@@ -415,7 +527,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "+1W",
+    "b_streak_str": "+2W",
+    "a_last5_str": "L-W",
+    "b_last5_str": "L-W-W"
   },
   "royal challengers kuwait__vs__marafie bengal tigers": {
     "action": "SKIP",
@@ -429,7 +548,14 @@
     "cricketclues_status": "Flat Market Line (50-50 Neutral)",
     "punter_rationale": "\u26d4 Pass Match: Market load satik threshold (70%+) meet nahi kar raha. Zero statistical edge \u2014 capital safe rakhne ke liye strict pass karein.",
     "total_edge": 0.0,
-    "clues_matched": false
+    "clues_matched": false,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "+1W",
+    "b_streak_str": "+2W",
+    "a_last5_str": "L-W",
+    "b_last5_str": "L-W-W"
   },
   "40137": {
     "action": "SKIP",
@@ -1522,5 +1648,68 @@
     "punter_rationale": "\u26d4 STRICT PASS: CREX live market (58%, Bhav 71-77) indicates a balanced 50-50 line. Koi clear edge nahi hai \u2014 bankroll safe rakhne ke liye strict pass karein.",
     "total_edge": 8.0,
     "clues_matched": true
+  },
+  "40159": {
+    "action": "SKIP",
+    "recommended_team": null,
+    "underdog_team": null,
+    "confidence_pct": 63,
+    "stake_rating": "\ud83d\udfe1 STRICT PASS (NO BET)",
+    "consensus_badge": "\ud83d\udfe1 PASS / 50-50 TRAP",
+    "risk_level": "HIGH RISK (AVOID)",
+    "market_load_text": "\ud83d\udcca Load: 63% (Below 70% Satik Threshold)",
+    "cricketclues_status": "CREX Market Line [58-99] (50-50 Neutral)",
+    "punter_rationale": "\u26d4 STRICT PASS: CREX live market (63%, Bhav 58-99) indicates a balanced 50-50 line. Koi clear edge nahi hai \u2014 bankroll safe rakhne ke liye strict pass karein.",
+    "total_edge": 13.0,
+    "clues_matched": true,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "Even",
+    "b_streak_str": "Even",
+    "a_last5_str": "None",
+    "b_last5_str": "None"
+  },
+  "montreal warriors__vs__vancouver guardians": {
+    "action": "SKIP",
+    "recommended_team": null,
+    "underdog_team": null,
+    "confidence_pct": 63,
+    "stake_rating": "\ud83d\udfe1 STRICT PASS (NO BET)",
+    "consensus_badge": "\ud83d\udfe1 PASS / 50-50 TRAP",
+    "risk_level": "HIGH RISK (AVOID)",
+    "market_load_text": "\ud83d\udcca Load: 63% (Below 70% Satik Threshold)",
+    "cricketclues_status": "CREX Market Line [58-99] (50-50 Neutral)",
+    "punter_rationale": "\u26d4 STRICT PASS: CREX live market (63%, Bhav 58-99) indicates a balanced 50-50 line. Koi clear edge nahi hai \u2014 bankroll safe rakhne ke liye strict pass karein.",
+    "total_edge": 13.0,
+    "clues_matched": true,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "Even",
+    "b_streak_str": "Even",
+    "a_last5_str": "None",
+    "b_last5_str": "None"
+  },
+  "40160": {
+    "action": "PLAY",
+    "recommended_team": "Afghanistan",
+    "underdog_team": "Zimbabwe",
+    "confidence_pct": 77,
+    "stake_rating": "\ud83d\udc8e 100% SATIK PLAY (GOLDEN LOCK)",
+    "consensus_badge": "\ud83d\udc8e 100% SATIK CALL",
+    "risk_level": "LOW RISK (HIGH CONVICTION)",
+    "market_load_text": "\ud83d\udcca Market Load: 77% on Afghanistan",
+    "cricketclues_status": "CREX Live Bhav [30-31] (77% Conviction)",
+    "punter_rationale": "\ud83d\udc8e 100% SATIK CONVERGENCE: CREX Live Market (77%, Bhav 30-31) heavily favors Afghanistan. Clear statistical market edge over 50-50 coin flip trap.",
+    "total_edge": 27.0,
+    "clues_matched": true,
+    "pattern_badge": "\u2696\ufe0f Neutral Toss Rotation",
+    "pattern_rule_name": "BALANCED_ROTATION",
+    "pattern_rationale": "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai.",
+    "a_streak_str": "+1W",
+    "b_streak_str": "Even",
+    "a_last5_str": "W",
+    "b_last5_str": "None"
   }
 }

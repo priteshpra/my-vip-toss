@@ -879,15 +879,72 @@ with vip_tabs[0]:
                 bhav_badge_bg = "#082f49"
                 bhav_badge_border = "#0284c7"
 
+            # Check if this match was already marked done
+            all_done_list = load_toss_results()
+            is_already_done = False
+            prev_r = {}
+            for r in all_done_list:
+                r_mid = str(r.get("match_id", "")).strip()
+                id_matches = bool(r_mid and (r_mid == str(mid).strip()))
+                r_ta = r.get("team_a", "")
+                r_tb = r.get("team_b", "")
+                names_match = (
+                    (match_teams_fuzzy(t_a, r_ta) and match_teams_fuzzy(t_b, r_tb)) or
+                    (match_teams_fuzzy(t_a, r_tb) and match_teams_fuzzy(t_b, r_ta))
+                )
+                if id_matches or names_match:
+                    act_win = str(r.get("actual_winner", "")).strip()
+                    if act_win and "pending" not in act_win.lower():
+                        is_already_done = True
+                        prev_r = r
+                        break
+                    elif not prev_r:
+                        prev_r = r
+
+            if is_already_done:
+                prev_win = prev_r.get("actual_winner", t_a)
+                prev_dec = prev_r.get("toss_decision", "Bowl")
+                prev_out = prev_r.get("outcome_label", "PASS")
+                exp_title = f"✏️ रिजल्ट बदलें / सुधारें: {t_a} vs {t_b} (वर्तमान: 🏆 {prev_win})"
+                btn_text = "🔄 रिजल्ट अपडेट करें (Update Result)"
+                toss_status_pill = f"""<span style="background: #064e3b; color: #34d399; border: 1px solid #10b981; padding: 4px 12px; border-radius: 12px; font-weight: 900; font-size: 12px;">🏆 TOSS DONE: {prev_win}</span>"""
+            else:
+                prev_win = t_a
+                prev_dec = "Bowl"
+                prev_out = "PENDING"
+                exp_title = f"🪙 Mark Toss Done: {t_a} vs {t_b}"
+                btn_text = "💾 Save Toss Done"
+                toss_status_pill = f"""<span class="toss-time-pill">🪙 TOSS TIME: {toss_str}</span>"""
+
+            # Tipper Pattern Engine stats & streaks
+            pattern_badge = m.get("pattern_badge")
+            a_strk = m.get("a_streak_str")
+            b_strk = m.get("b_streak_str")
+            a_last5 = m.get("a_last5_str")
+            b_last5 = m.get("b_last5_str")
+            if not pattern_badge or not a_strk:
+                try:
+                    from core.engine.pattern_engine import evaluate_toss_pattern_rule
+                    pat_e = evaluate_toss_pattern_rule(t_a, t_b, tour)
+                    pattern_badge = pat_e.get("pattern_badge", "⚖️ Neutral Toss Rotation")
+                    a_strk = pat_e.get("a_streak_str", "Even")
+                    b_strk = pat_e.get("b_streak_str", "Even")
+                    a_last5 = pat_e.get("a_last5_str", "None")
+                    b_last5 = pat_e.get("b_last5_str", "None")
+                except Exception:
+                    pattern_badge = "⚖️ Neutral Toss Rotation"
+                    a_strk = "Even"
+                    b_strk = "Even"
+                    a_last5 = "None"
+                    b_last5 = "None"
+
             with st.container():
                 st.markdown(f"""
                 <div class="vip-match-card">
                     <div class="card-top-row">
                         <span class="tour-pill">🏏 {tour}</span>
                         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                            <span class="toss-time-pill">
-                                🪙 TOSS TIME: {toss_str}
-                            </span>
+                            {toss_status_pill}
                             <span class="match-time-pill">⏰ Match Start: {time_str}</span>
                         </div>
                     </div>
@@ -908,10 +965,45 @@ with vip_tabs[0]:
                             <span class="crex-prob-pct">📈 {display_win_prob}% Win Prob</span>
                         </div>
                     </div>
+                    <div style="background: #090e1a; border: 1px solid #1e293b; border-radius: 8px; padding: 10px 14px; margin: 10px 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 13px; font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                                <span>🔄</span> <b>Tipper Pattern Rule:</b> <span style="background: #1e293b; color: #f8fafc; padding: 2px 8px; border-radius: 6px; font-size: 12px; border: 1px solid #334155;">{pattern_badge}</span>
+                            </span>
+                            <span style="font-size: 11px; color: #94a3b8; font-weight: 700;">Ground-Truth & Streak Math</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div style="background: #0d1527; border: 1px solid #1e2d4a; padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 12px; color: #cbd5e1; font-weight: 700;">{short_a} Toss Streak:</span>
+                                <span style="font-size: 12px; font-weight: 900; color: #f59e0b;">{a_strk} <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">({a_last5})</span></span>
+                            </div>
+                            <div style="background: #0d1527; border: 1px solid #1e2d4a; padding: 6px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 12px; color: #cbd5e1; font-weight: 700;">{short_b} Toss Streak:</span>
+                                <span style="font-size: 12px; font-weight: 900; color: #f59e0b;">{b_strk} <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">({b_last5})</span></span>
+                            </div>
+                        </div>
+                    </div>
                 """, unsafe_allow_html=True)
 
                 # --- COMPACT ACTION VERDICT BANNER ---
-                if act == "PLAY" and pick:
+                if is_already_done:
+                    outcome_c = "#34d399" if prev_r.get("outcome") == "PASS" else ("#f87171" if prev_r.get("outcome") == "FAIL" else "#fbbf24")
+                    outcome_bg = "#064e3b" if prev_r.get("outcome") == "PASS" else ("#450a0a" if prev_r.get("outcome") == "FAIL" else "#451a03")
+                    outcome_bd = "#10b981" if prev_r.get("outcome") == "PASS" else ("#ef4444" if prev_r.get("outcome") == "FAIL" else "#d97706")
+                    st.markdown(f"""
+                    <div style="background: #042419; border: 2px solid {outcome_bd}; border-radius: 10px; padding: 14px 18px; margin: 10px 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                            <span style="font-size: 18px; font-weight: 900; color: {outcome_c};">🏆 TOSS COMPLETED: {prev_win.upper()} ({prev_dec.upper()})</span>
+                            <span style="background: {outcome_bg}; color: {outcome_c}; border: 1px solid {outcome_bd}; padding: 4px 14px; border-radius: 12px; font-weight: 900; font-size: 13px;">
+                                {prev_r.get('outcome_label')}
+                            </span>
+                        </div>
+                        <div style="font-size: 13px; color: #ffffff; margin-top: 8px; font-weight: 600;">
+                            🎯 <b>Pre-Match Prediction:</b> <b>{prev_r.get('recommended_team') or 'SKIP (50-50)'}</b> · 📜 Verified in Tab 2 (Toss Done Audit Log)
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif act == "PLAY" and pick:
                     st.markdown(f"""
                     <div class="verdict-play" style="border: 2px solid #10b981; background: #042419;">
                         <div class="verdict-header">
@@ -952,23 +1044,6 @@ with vip_tabs[0]:
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-
-                # Check if this match was already marked done
-                all_done_list = load_toss_results()
-                done_map = {str(r.get("match_id")): r for r in all_done_list}
-                is_already_done = str(mid) in done_map
-                prev_r = done_map.get(str(mid), {})
-
-                if is_already_done:
-                    prev_win = prev_r.get("actual_winner", t_a)
-                    prev_dec = prev_r.get("toss_decision", "Bowl")
-                    exp_title = f"✏️ रिजल्ट बदलें / सुधारें: {t_a} vs {t_b} (वर्तमान: 🏆 {prev_win})"
-                    btn_text = "🔄 रिजल्ट अपडेट करें (Update Result)"
-                else:
-                    prev_win = t_a
-                    prev_dec = "Bowl"
-                    exp_title = f"🪙 Mark Toss Done: {t_a} vs {t_b}"
-                    btn_text = "💾 Save Toss Done"
 
                 # --- INTERACTIVE 1-CLICK TOSS DONE ACTION EXPANDER ---
                 with st.expander(exp_title, expanded=False):

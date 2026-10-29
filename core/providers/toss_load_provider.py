@@ -1,11 +1,12 @@
 """
-Multi-Platform Toss Intelligence & Real-World Consensus Engine.
+Multi-Platform Toss Intelligence & Real-World Consensus Engine with Tipper Pattern Engine.
 
 Integrates:
 1. CREX Live Market Rates, Asian Exchange Bhav & Implied Win Probability (crex.com)
-2. Bookmaker Rate Liability & Divergence (GamingHelper Online)
-3. Verified Empirical Ground-Truth Toss History (toss_results_log.json)
-4. Immutable Dual-Key Lock Vault (Zero-flicker guarantee across page refreshes and tab changes)
+2. Professional Tipper Pattern Engine (Streak Exhaustion, Zig-Zag Alternation & Bounce-Back)
+3. Bookmaker Rate Liability & Divergence (GamingHelper Online)
+4. Verified Empirical Ground-Truth Toss History (toss_results_log.json)
+5. Immutable Dual-Key Lock Vault (Zero-flicker guarantee across page refreshes and tab changes)
 """
 
 import os
@@ -69,7 +70,6 @@ def save_locked_prediction(match_id: str, verdict: Dict[str, Any], team_a: str =
         if team_a and team_b:
             pkey = _make_pair_key(team_a, team_b)
             locked[pkey] = verdict
-            # Also store with team names directly
             locked[f"{team_a.strip().lower()}__vs__{team_b.strip().lower()}"] = verdict
         with open(LOCKED_PREDICTIONS_FILE, "w", encoding="utf-8") as f:
             json.dump(locked, f, indent=2)
@@ -86,7 +86,6 @@ def get_locked_prediction(match_id: str = "", team_a: str = "", team_b: str = ""
         pkey = _make_pair_key(team_a, team_b)
         if pkey in locked:
             return locked[pkey]
-        # Also check fuzzy keys
         for k, v in locked.items():
             if "__vs__" in k:
                 parts = k.split("__vs__")
@@ -152,24 +151,39 @@ def compute_multi_source_toss_load(
     match_id: str = ""
 ) -> Dict[str, Any]:
     """
-    VIP Multi-Platform Toss Consensus & Convergence Engine.
+    VIP Multi-Platform Toss Consensus & Pattern Convergence Engine.
 
-    Zero Fake Hashes. Real-World Multi-Source Analysis:
-    1. CREX Real-Time Live Bhav, Favorite Team & Implied Win Probability
-    2. Bookmaker Liability / Exchange Rate Divergence (Odds A vs Odds B)
-    3. Ground-Truth Empirical Head-to-Head & Toss Win Records
-    4. Consensus Convergence Gate:
-       - If multi-sources converge on a team (Confidence >= 70%): 💎 100% SATIK PLAY
-       - If sources are split, conflicted, or flat 50-50 neutral: 🟡 STRICT PASS (Capital Safe)
+    Combines:
+    1. CREX Real-Time Live Bhav & Implied Win Probability
+    2. Tipper Pattern Rule Engine (Streak Exhaustion, Bounce-Back & Zig-Zag)
+    3. Bookmaker Liability / Exchange Rate Divergence (Odds A vs Odds B)
+    4. Ground-Truth Empirical Head-to-Head & Toss Win Records
+    5. Consensus Convergence Gate:
+       - Multi-Source Convergence (Confidence >= 70%): 💎 100% SATIK PLAY
+       - Split / 50-50 Traps: 🟡 STRICT PASS (Capital Safe)
     """
     m_id_str = str(match_id or "").strip()
     t_a = (team_a or "").strip()
     t_b = (team_b or "").strip()
 
     # Step 1: Check Immutable Lock Vault First
-    # Guarantees that once a verdict is issued, it NEVER flips to SKIP on refresh or tab change
     locked_verdict = get_locked_prediction(m_id_str, t_a, t_b)
     if locked_verdict:
+        # Guarantee pattern fields are always present even for legacy locked predictions
+        if not locked_verdict.get("pattern_badge") or not locked_verdict.get("a_streak_str"):
+            try:
+                from core.engine.pattern_engine import evaluate_toss_pattern_rule
+                pat = evaluate_toss_pattern_rule(t_a, t_b, tournament)
+                locked_verdict["pattern_badge"] = pat.get("pattern_badge", "⚖️ Neutral Toss Rotation")
+                locked_verdict["pattern_rule_name"] = pat.get("rule_name", "NEUTRAL")
+                locked_verdict["pattern_rationale"] = pat.get("pattern_rationale", "")
+                locked_verdict["a_streak_str"] = pat.get("a_streak_str", "Even")
+                locked_verdict["b_streak_str"] = pat.get("b_streak_str", "Even")
+                locked_verdict["a_last5_str"] = pat.get("a_last5_str", "None")
+                locked_verdict["b_last5_str"] = pat.get("b_last5_str", "None")
+                save_locked_prediction(m_id_str, locked_verdict, t_a, t_b)
+            except Exception:
+                pass
         return locked_verdict
 
     # Step 2: Query CREX Real-Time Live Market Data
@@ -180,7 +194,15 @@ def compute_multi_source_toss_load(
     except Exception:
         pass
 
-    # Step 3: Analyze Bookmaker Rate Divergence (Asian Odds)
+    # Step 3: Query Tipper Pattern Rule & Streak Engine
+    from core.engine.pattern_engine import evaluate_toss_pattern_rule
+    pat = evaluate_toss_pattern_rule(t_a, t_b, tournament)
+    pat_fav = pat.get("favored_team")
+    pat_edge = pat.get("pattern_edge", 0.0)
+    pat_badge = pat.get("pattern_badge", "⚖️ Neutral Rotation")
+    pat_rat = pat.get("pattern_rationale", "")
+
+    # Step 4: Analyze Bookmaker Rate Divergence (Asian Odds)
     oa = max(20, min(250, odds_a))
     ob = max(20, min(250, odds_b))
     rate_diff = abs(oa - ob)
@@ -196,7 +218,7 @@ def compute_multi_source_toss_load(
             bookie_fav = t_b
             bookie_load = int(round((oa / (oa + ob)) * 100))
 
-    # Step 4: Empirical Ground-Truth History
+    # Step 5: Empirical Ground-Truth History
     a_w, a_l, b_w, b_l, h2h_a, h2h_b = get_ground_truth_history(t_a, t_b)
     tot_h2h = h2h_a + h2h_b
     h2h_fav = None
@@ -206,7 +228,7 @@ def compute_multi_source_toss_load(
         elif h2h_b > h2h_a and (h2h_b / tot_h2h) >= 0.65:
             h2h_fav = t_b
 
-    # Step 5: Multi-Platform Consensus Evaluation
+    # Step 6: Multi-Platform Consensus Evaluation
     action = "SKIP"
     favored = None
     underdog = None
@@ -224,28 +246,49 @@ def compute_multi_source_toss_load(
         c_back = crex_data.get("back", 0)
         c_lay = crex_data.get("lay", 0)
 
-        # Match CREX favorite to our Team A or Team B
         fav_team_resolved = t_a if match_teams_fuzzy(c_fav, t_a) else (t_b if match_teams_fuzzy(c_fav, t_b) else c_fav)
         underdog_team = t_b if fav_team_resolved == t_a else t_a
 
         if c_prob >= 65 or (c_back > 0 and c_back <= 55):
-            # Heavy Real-World Market Consensus on favorite!
             action = "PLAY"
             favored = fav_team_resolved
             underdog = underdog_team
-            confidence = max(70, min(88, c_prob))
-            rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-            badge = "💎 100% SATIK CALL"
-            risk_level = "LOW RISK (HIGH CONVICTION)"
-            source_summary = f"CREX Live Bhav [{c_back}-{c_lay}] ({c_prob}% Conviction)"
-            rationale = (
-                f"💎 100% SATIK CONVERGENCE: CREX Live Market ({c_prob}%, Bhav {c_back}-{c_lay}) "
-                f"heavily favors {favored}. Clear statistical market edge over 50-50 coin flip trap."
-            )
+            
+            # If Pattern Rule ALSO confirms the CREX favorite, super-charge confidence!
+            if pat_fav and match_teams_fuzzy(pat_fav, favored):
+                confidence = max(76, min(92, c_prob + 5))
+                badge = "💎 UNANIMOUS CREX + PATTERN LOCK"
+                rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
+                risk_level = "VERY LOW RISK (MAX CONVICTION)"
+                source_summary = f"CREX [{c_back}-{c_lay}] + Pattern ({pat['rule_name']})"
+                rationale = (
+                    f"💎 UNANIMOUS SUPER CONVERGENCE: CREX Live Market ({c_prob}%, Bhav {c_back}-{c_lay}) "
+                    f"+ Tipper Pattern Rule ({pat_badge}) both 100% confirm {favored}. Extreme statistical edge."
+                )
+            else:
+                confidence = max(70, min(88, c_prob))
+                rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
+                badge = "💎 100% SATIK CALL"
+                risk_level = "LOW RISK (HIGH CONVICTION)"
+                source_summary = f"CREX Live Bhav [{c_back}-{c_lay}] ({c_prob}% Conviction)"
+                rationale = (
+                    f"💎 100% SATIK CONVERGENCE: CREX Live Market ({c_prob}%, Bhav {c_back}-{c_lay}) "
+                    f"heavily favors {favored}. Clear statistical market edge over 50-50 coin flip trap."
+                )
         else:
             # CREX rate is close to 50-50 (e.g. 52-64%)
-            # Check if bookmaker line or ground truth creates a genuine breakout
-            if bookie_fav and match_teams_fuzzy(bookie_fav, fav_team_resolved) and bookie_load >= 70:
+            # Check if Pattern Engine detects a strong Streak Exhaustion or Rebound!
+            if pat_fav and abs(pat_edge) >= 12:
+                action = "PLAY"
+                favored = pat_fav
+                underdog = t_b if favored == t_a else t_a
+                confidence = 74
+                rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
+                badge = f"🔄 {pat_badge}"
+                risk_level = "LOW RISK (PATTERN BREAKOUT)"
+                source_summary = f"Tipper Pattern Rule: {pat['rule_name']}"
+                rationale = f"💎 PATTERN BREAKOUT PLAY: {pat_rat} Tipper pattern triggers high conviction reversal."
+            elif bookie_fav and match_teams_fuzzy(bookie_fav, fav_team_resolved) and bookie_load >= 70:
                 action = "PLAY"
                 favored = fav_team_resolved
                 underdog = underdog_team
@@ -254,10 +297,7 @@ def compute_multi_source_toss_load(
                 badge = "💎 100% SATIK CALL"
                 risk_level = "LOW RISK (HIGH CONVICTION)"
                 source_summary = f"CREX [{c_back}-{c_lay}] + Bookie Liability ({bookie_load}%)"
-                rationale = (
-                    f"💎 SATIK GOLD PLAY: Both CREX Market and Asian Bookmaker line converge on {favored}. "
-                    f"Heavy liability protects against coin flip variance."
-                )
+                rationale = f"💎 SATIK GOLD PLAY: Both CREX Market and Asian Bookmaker line converge on {favored}."
             else:
                 action = "SKIP"
                 confidence = max(55, c_prob)
@@ -265,12 +305,20 @@ def compute_multi_source_toss_load(
                 badge = "🟡 PASS / 50-50 TRAP"
                 risk_level = "HIGH RISK (AVOID)"
                 source_summary = f"CREX Market Line [{c_back}-{c_lay}] (50-50 Neutral)"
-                rationale = (
-                    f"⛔ STRICT PASS: CREX live market ({c_prob}%, Bhav {c_back}-{c_lay}) indicates a balanced 50-50 line. "
-                    f"Koi clear edge nahi hai — bankroll safe rakhne ke liye strict pass karein."
-                )
+                rationale = f"⛔ STRICT PASS: CREX live market ({c_prob}%, Bhav {c_back}-{c_lay}) indicates a balanced 50-50 line. Bankroll safe rakhne ke liye strict pass karein."
 
-    # Scenario B: CREX market not open yet — rely on Bookmaker Divergence & Ground Truth
+    # Scenario B: CREX market not open yet — rely on Pattern Engine or Bookmaker Divergence
+    elif pat_fav and abs(pat_edge) >= 14:
+        action = "PLAY"
+        favored = pat_fav
+        underdog = t_b if favored == t_a else t_a
+        confidence = 75
+        rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
+        badge = f"🔄 {pat_badge}"
+        risk_level = "LOW RISK (PATTERN BREAKOUT)"
+        source_summary = f"Tipper Pattern Rule: {pat['rule_name']}"
+        rationale = f"💎 PATTERN BREAKOUT PLAY: {pat_rat} Tipper pattern triggers high conviction reversal."
+
     elif bookie_fav and bookie_load >= 70:
         action = "PLAY"
         favored = bookie_fav
@@ -280,12 +328,8 @@ def compute_multi_source_toss_load(
         badge = "💎 100% SATIK CALL"
         risk_level = "LOW RISK (HIGH CONVICTION)"
         source_summary = f"Bookmaker Liability Divergence ({oa}:{ob})"
-        rationale = (
-            f"💎 SATIK GOLD PLAY: Heavy bookmaker rate divergence ({min(oa, ob)} vs {max(oa, ob)}) favors {favored}. "
-            f"Market volume ({bookie_load}%) gives strong non-random edge."
-        )
+        rationale = f"💎 SATIK GOLD PLAY: Heavy bookmaker rate divergence ({min(oa, ob)} vs {max(oa, ob)}) favors {favored}."
 
-    # Scenario C: Real Historical Head-to-Head Dominance
     elif h2h_fav and tot_h2h >= 3:
         h2h_win_cnt = h2h_a if h2h_fav == t_a else h2h_b
         action = "PLAY"
@@ -296,13 +340,9 @@ def compute_multi_source_toss_load(
         badge = "💎 100% SATIK CALL"
         risk_level = "LOW RISK (HIGH CONVICTION)"
         source_summary = f"Ground-Truth H2H Dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L)"
-        rationale = (
-            f"💎 SATIK GOLD PLAY: Proven historical toss dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L) "
-            f"gives {favored} heavy calling rhythm advantage."
-        )
+        rationale = f"💎 SATIK GOLD PLAY: Proven historical toss dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L) gives {favored} heavy calling rhythm advantage."
 
     else:
-        # Balanced 50-50 trap: Protect Capital
         action = "SKIP"
         confidence = 50
         rating = "🟡 STRICT PASS (NO BET)"
@@ -323,7 +363,15 @@ def compute_multi_source_toss_load(
         "cricketclues_status": source_summary,
         "punter_rationale": rationale,
         "total_edge": round(float(confidence - 50), 1),
-        "clues_matched": bool(crex_data)
+        "clues_matched": bool(crex_data),
+        # Dedicated Pattern Fields for UI Display
+        "pattern_badge": pat.get("pattern_badge", "⚖️ Neutral Rotation"),
+        "pattern_rule_name": pat.get("rule_name", "NEUTRAL"),
+        "pattern_rationale": pat.get("pattern_rationale", ""),
+        "a_streak_str": pat.get("a_streak_str", "Even"),
+        "b_streak_str": pat.get("b_streak_str", "Even"),
+        "a_last5_str": pat.get("a_last5_str", "None"),
+        "b_last5_str": pat.get("b_last5_str", "None")
     }
 
     # Lock prediction permanently so it NEVER flips or changes on refresh
