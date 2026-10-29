@@ -214,16 +214,13 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         except Exception:
             break
 
-    if not raw_closed:
-        return load_toss_results()
-
     today_str = format_ist(now_ist(), "%Y-%m-%d")
     existing_results = load_toss_results()
     existing_map = {str(r.get("match_id")): r for r in existing_results}
     locked_map = load_locked_predictions()
 
-    # Process all closed matches
-    for m in raw_closed:
+    # Process all closed matches from API
+    for m in (raw_closed or []):
         m_id = str(m.get("id"))
         m_name = m.get("match_name") or ""
         t1 = m.get("team_one_name") or ""
@@ -327,6 +324,40 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             toss_decision="Pending",
             is_manual=False
         )
+
+    # Also archive past matches from gaming_helper_matches.json if not already present
+    live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
+    if os.path.exists(live_cache_file):
+        try:
+            with open(live_cache_file, "r", encoding="utf-8") as f:
+                cached_matches = json.load(f)
+                for cm in cached_matches:
+                    cm_id = str(cm.get("id"))
+                    if cm_id and cm_id not in existing_map:
+                        t1 = cm.get("team_a_name", "")
+                        t2 = cm.get("team_b_name", "")
+                        tour = cm.get("tournament_name", "Cricket League")
+                        toss_ist = cm.get("toss_time_str", "10:00 AM IST")
+                        m_date = cm.get("match_date") or today_str
+                        rec_team = cm.get("recommended_team") if cm.get("action_type") == "PLAY" else None
+                        rating = cm.get("stake_rating", "🟡 STRICT PASS (NO BET)")
+                        save_toss_result(
+                            match_id=cm_id,
+                            match_name=f"{t1} vs {t2}",
+                            tournament=tour,
+                            toss_time_ist=toss_ist,
+                            match_date=m_date,
+                            team_a=t1,
+                            team_b=t2,
+                            recommended_team=rec_team,
+                            stake_rating=rating,
+                            actual_winner="Pending Confirmation",
+                            toss_decision="Pending",
+                            is_manual=False
+                        )
+                        existing_map[cm_id] = True
+        except Exception:
+            pass
 
     # Automatically resolve freshly closed matches using Telegram live feed @KINGTOSSLINE111
     try:
