@@ -213,3 +213,4 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
         "a_total": tot_a,
         "b_total": tot_b
     }
+

@@ -437,7 +437,6 @@ def auto_update_toss_results_from_telegram() -> int:
 def get_toss_accuracy_kpis(target_results: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Calculate aggregate pass/fail KPIs strictly across confirmed completed tosses."""
     results = target_results if target_results is not None else load_toss_results()
-    total = len(results)
     played = 0
     passed = 0
     failed = 0
@@ -446,21 +445,23 @@ def get_toss_accuracy_kpis(target_results: Optional[List[Dict[str, Any]]] = None
 
     for r in results:
         out = r.get("outcome")
+        act_win = str(r.get("actual_winner", "")).lower()
         if out == "PASS":
             played += 1
             passed += 1
         elif out == "FAIL":
             played += 1
             failed += 1
-        elif out == "PENDING":
+        elif out == "PENDING" or "pending" in act_win:
             pending += 1
         else:
             skipped += 1
 
     pass_rate = (passed / played * 100) if played > 0 else 0.0
+    confirmed_completed = played + skipped
 
     return {
-        "total_completed": total,
+        "total_completed": confirmed_completed,
         "played_count": played,
         "passed_count": passed,
         "failed_count": failed,

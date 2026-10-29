@@ -39,6 +39,11 @@ from core.providers.crex_provider import (
     fetch_crex_fixtures,
     get_crex_live_bhav
 )
+from core.providers.toss_load_provider import (
+    match_teams_fuzzy,
+    compute_multi_source_toss_load,
+    get_locked_prediction
+)
 
 # Safe import with fallback for zero-downtime hot reloading
 try:
@@ -1164,10 +1169,10 @@ with vip_tabs[1]:
         </div>
         """, unsafe_allow_html=True)
     else:
-        # Clean Date Filter: Today only + Yesterday + All Dates + Custom Date Picker
-        today_done_count = sum(1 for r in completed_results if r.get("match_date") == today_iso)
-        yesterday_done_count = sum(1 for r in completed_results if r.get("match_date") == yesterday_iso)
-        total_done_count = len(completed_results)
+        # Clean Date Filter: Strictly count confirmed completed tosses
+        today_done_count = sum(1 for r in completed_results if r.get("match_date") == today_iso and r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
+        yesterday_done_count = sum(1 for r in completed_results if r.get("match_date") == yesterday_iso and r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
+        total_done_count = sum(1 for r in completed_results if r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
 
         # Smart default: If today has 0 matches yet, default to Yesterday or All Dates
         if today_done_count > 0:
@@ -1205,22 +1210,22 @@ with vip_tabs[1]:
         if date_filter_mode and "सभी" in date_filter_mode:
             selected_date_val = "ALL"
             kpi_title_ctx = "सभी तारीखें"
-        # 2. If user picked a custom date in the date picker widget
-        elif custom_picked_iso != today_iso and ("Custom Date" in str(date_filter_mode) or "आज" not in str(date_filter_mode)):
-            selected_date_val = custom_picked_iso
-            kpi_title_ctx = f"तारीख: {custom_picked_iso}"
-        # 3. If user clicked Yesterday
+        # 2. If user clicked Yesterday
         elif date_filter_mode and "कल (Yesterday)" in date_filter_mode:
             selected_date_val = yesterday_iso
             kpi_title_ctx = f"कल ({yesterday_iso})"
-        # 4. If user clicked Today
+        # 3. If user clicked Today
         elif date_filter_mode and "आज (Today)" in date_filter_mode:
             selected_date_val = today_iso
             kpi_title_ctx = f"आज ({today_iso})"
-        # 5. Fallback to custom picked date
-        else:
+        # 4. If user picked a custom date in the date picker widget
+        elif custom_picked_iso != today_iso:
             selected_date_val = custom_picked_iso
             kpi_title_ctx = f"तारीख: {custom_picked_iso}"
+        # 5. Fallback to Today
+        else:
+            selected_date_val = today_iso
+            kpi_title_ctx = f"आज ({today_iso})"
 
         # Dynamically compute KPIs strictly for the SELECTED DATE!
         if selected_date_val != "ALL":
@@ -1304,10 +1309,26 @@ with vip_tabs[1]:
                 key="input_search_done"
             )
 
+        # Count outcomes for the selected date
+        pending_in_active = sum(1 for r in active_date_results if r.get("outcome") == "PENDING" or "pending" in str(r.get("actual_winner", "")).lower())
+        done_in_active = sum(1 for r in active_date_results if r.get("outcome") in ["PASS", "FAIL", "SKIPPED"] and "pending" not in str(r.get("actual_winner", "")).lower())
+        pass_in_active = sum(1 for r in active_date_results if r.get("outcome") == "PASS")
+        fail_in_active = sum(1 for r in active_date_results if r.get("outcome") == "FAIL")
+        skip_in_active = sum(1 for r in active_date_results if r.get("outcome") == "SKIPPED" and "pending" not in str(r.get("actual_winner", "")).lower())
+
+        done_filter_options = [
+            f"🏆 Sabhi Toss Done ({done_in_active})",
+            f"✅ Sirf Pass ({pass_in_active})",
+            f"❌ Sirf Fail ({fail_in_active})",
+            f"🟡 Sirf Skipped ({skip_in_active})"
+        ]
+        if pending_in_active > 0:
+            done_filter_options.append(f"⏳ Pending Result ({pending_in_active})")
+
         done_filter = st.pills(
             "Filter by Toss Outcome",
-            options=["🌟 Sabhi Completed", "✅ Sirf Pass (Wins)", "❌ Sirf Fail (Losses)", "⏳ Pending Result", "🟡 Sirf Skipped"],
-            default="🌟 Sabhi Completed",
+            options=done_filter_options,
+            default=done_filter_options[0],
             key="pills_done_filter"
         )
 
@@ -1318,15 +1339,18 @@ with vip_tabs[1]:
         if selected_done_tour != "🌟 Sabhi Tournaments (All)":
             filtered_done = [r for r in filtered_done if r.get("tournament") == selected_done_tour]
 
-        # 2. Outcome Filter
-        if done_filter == "✅ Sirf Pass (Wins)":
+        # 2. Outcome Filter: STRICTLY SHOW COMPLETED TOSSES by default!
+        if done_filter and "Pass" in done_filter:
             filtered_done = [r for r in filtered_done if r.get("outcome") == "PASS"]
-        elif done_filter == "❌ Sirf Fail (Losses)":
+        elif done_filter and "Fail" in done_filter:
             filtered_done = [r for r in filtered_done if r.get("outcome") == "FAIL"]
-        elif done_filter == "⏳ Pending Result":
-            filtered_done = [r for r in filtered_done if r.get("outcome") == "PENDING"]
-        elif done_filter == "🟡 Sirf Skipped":
-            filtered_done = [r for r in filtered_done if r.get("outcome") == "SKIPPED"]
+        elif done_filter and "Pending" in done_filter:
+            filtered_done = [r for r in filtered_done if r.get("outcome") == "PENDING" or "pending" in str(r.get("actual_winner", "")).lower()]
+        elif done_filter and "Skipped" in done_filter:
+            filtered_done = [r for r in filtered_done if r.get("outcome") == "SKIPPED" and "pending" not in str(r.get("actual_winner", "")).lower()]
+        else:
+            # Default "🏆 Sabhi Toss Done": ONLY SHOW MATCHES WHOSE TOSS HAS ACTUALLY HAPPENED!
+            filtered_done = [r for r in filtered_done if r.get("outcome") in ["PASS", "FAIL", "SKIPPED"] and "pending" not in str(r.get("actual_winner", "")).lower()]
 
         # 3. Search Filter
         if search_done.strip():
