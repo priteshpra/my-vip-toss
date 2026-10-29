@@ -112,6 +112,8 @@ cur_ist = now_ist()
 ist_time_display = format_ist(cur_ist, "%I:%M:%S %p IST")
 ist_date_display = format_ist(cur_ist, "%A, %d %B %Y")
 today_iso = format_ist(cur_ist, "%Y-%m-%d")
+yesterday_ist = cur_ist - timedelta(days=1)
+yesterday_iso = format_ist(yesterday_ist, "%Y-%m-%d")
 
 # --- Elite VIP Sportsbook Theme CSS ---
 st.markdown("""
