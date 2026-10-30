@@ -11,6 +11,7 @@ Built for serious punters: zero clutter, zero academic formulas, 100% actionable
 import os
 import sys
 import json
+import importlib
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta
@@ -19,6 +20,21 @@ from datetime import datetime, timedelta
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
+
+# Force-reload core submodules so Streamlit Cloud worker never executes stale cached memory
+import core.engine.pattern_engine
+import core.providers.toss_load_provider
+import core.engine.toss_results_manager
+import core.providers.crex_provider
+import core.providers.gaming_helper_provider
+try:
+    importlib.reload(core.engine.pattern_engine)
+    importlib.reload(core.providers.toss_load_provider)
+    importlib.reload(core.engine.toss_results_manager)
+    importlib.reload(core.providers.crex_provider)
+    importlib.reload(core.providers.gaming_helper_provider)
+except Exception:
+    pass
 
 from core.timezone import now_ist, format_ist
 from core.providers.gaming_helper_provider import (
@@ -591,15 +607,22 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Fetch Live Matches from GamingHelper Online
-punter_data = get_active_punter_matches(force_refresh=False)
-all_matches = punter_data.get("matches", [])
-is_gh_connected = punter_data.get("connected", False)
+# Session-state backed live matches: guarantees widget interaction (filters, tabs, inputs)
+# NEVER re-triggers network fetches or recalculates verdicts, eliminating all flickering
+if "live_punter_matches" not in st.session_state or st.session_state.get("need_live_refresh", False):
+    punter_data = get_active_punter_matches(force_refresh=False)
+    st.session_state["live_punter_matches"] = punter_data.get("matches", [])
+    st.session_state["live_gh_connected"] = punter_data.get("connected", False)
+    st.session_state["need_live_refresh"] = False
+
+all_matches = st.session_state.get("live_punter_matches", [])
+is_gh_connected = st.session_state.get("live_gh_connected", False)
 creds = get_stored_credentials()
 
-# Automatically sync completed/closed matches from GamingHelper so Tab 2 is always up-to-date
-if is_gh_connected:
+# Automatically sync completed/closed matches once per session
+if is_gh_connected and not st.session_state.get("has_synced_closed"):
     sync_completed_tosses_from_gaming_helper()
+    st.session_state["has_synced_closed"] = True
 
 # Account Status Bar
 col_st1, col_st2 = st.columns([3, 1])
@@ -613,7 +636,8 @@ with col_st2:
     if st.button("🔄 Sync Live Bets & CREX", type="primary", use_container_width=True, key="btn_sync_gh_now"):
         with st.spinner("Syncing latest live matches from GamingHelper & real-time CREX rates..."):
             punter_data = get_active_punter_matches(force_refresh=True)
-            all_matches = punter_data.get("matches", [])
+            st.session_state["live_punter_matches"] = punter_data.get("matches", [])
+            st.session_state["live_gh_connected"] = punter_data.get("connected", False)
             fetch_crex_fixtures(force_refresh=True)
             sync_completed_tosses_from_gaming_helper()
             st.success("Synced live bets & CREX bhav successfully!")
@@ -689,13 +713,13 @@ with vip_tabs[0]:
 
     # Calculate Counts
     total_matches = len(filtered_matches)
-    play_matches = [m for m in filtered_matches if m["action_type"] == "PLAY"]
-    skip_matches = [m for m in filtered_matches if m["action_type"] == "SKIP"]
+    play_matches = [m for m in filtered_matches if m.get("action_type") == "PLAY"]
+    skip_matches = [m for m in filtered_matches if m.get("action_type") != "PLAY"]
 
     # Apply Verdict Filter
-    if filter_type == "💎 Sirf 100% Satik Plays (Actionable)":
+    if "100%" in filter_type or "Satik" in filter_type or "Play" in filter_type:
         filtered_list = play_matches
-    elif filter_type == "🟡 Sirf Skips (Pass)":
+    elif "Skip" in filter_type or "Pass" in filter_type:
         filtered_list = skip_matches
     else:
         filtered_list = filtered_matches
@@ -789,7 +813,10 @@ with vip_tabs[0]:
     st.markdown(f"### 🪙 Live Fixtures ({len(filtered_list)} Matches)")
 
     if not filtered_list:
-        st.info("Selected filters ke hisab se koi match nahi mila. 'Sabhi Matches' select karein.")
+        if "100%" in filter_type or "Satik" in filter_type:
+            st.info("ℹ️ Is filter/tournament me filhal koi 100% Satik Play nahi hai (teams 50-50 neutral coin flip rotation me hain). Sabhi matches dekhne ke liye '🌟 Sabhi Matches (All)' select karein.")
+        else:
+            st.info("Selected filters ke hisab se koi match nahi mila. 'Sabhi Matches' select karein.")
     else:
         for m in filtered_list:
             mid = m["id"]
