@@ -43,16 +43,19 @@ def fetch_telegram_toss_feed(pages: int = 3) -> List[Dict[str, str]]:
         r'([A-Za-z0-9\s\-\&]+?)\s+WON\s+THE\s+TOSS\s+AND\s+DECIDED\s+TO\s+(BAT|BOWL)',
         re.IGNORECASE
     )
+    block_pattern = re.compile(
+        r'<div class="tgme_widget_message_wrap[^"]*".*?<time[^>]*datetime="([^"]+)".*?<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>',
+        re.DOTALL
+    )
 
     results = []
     seen = set()
 
     for h in all_html:
-        messages = re.findall(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', h, re.DOTALL)
-        for m in messages:
+        matches = block_pattern.findall(h)
+        for dt_iso, m in matches:
             # Strip html tags
             clean = re.sub(r'<[^>]+>', ' ', m)
-            # Strip non-alphanumeric except hyphen, ampersand, space
             clean = re.sub(r'[^\w\s\-\&]', '', clean).strip()
             clean = re.sub(r'\s+', ' ', clean)
 
@@ -62,12 +65,13 @@ def fetch_telegram_toss_feed(pages: int = 3) -> List[Dict[str, str]]:
                 decision = match.group(2).strip().capitalize()
                 # Clean winner name flags / icons
                 winner_clean = re.sub(r'^(🇮🇳|🇱🇰|🇿🇲|📺|🇦🇺|🇲🇳|🇹🇭|🇰🇼)\s*', '', raw_winner).strip()
-                key = f"{winner_clean.lower()}_{decision.lower()}"
+                key = f"{winner_clean.lower()}_{decision.lower()}_{dt_iso}"
                 if key not in seen:
                     seen.add(key)
                     results.append({
                         "winner_raw": winner_clean,
-                        "decision": decision
+                        "decision": decision,
+                        "post_iso": dt_iso
                     })
 
     return results

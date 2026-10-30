@@ -11,7 +11,7 @@ import os
 import json
 import ssl
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 from core.timezone import now_ist, format_ist
@@ -33,6 +33,20 @@ def _parse_toss_time_key(record: Dict[str, Any]) -> str:
         return dt.strftime("%Y-%m-%d %H:%M")
     except Exception:
         return f"{d_str} 00:00"
+
+
+def parse_toss_datetime(record: Dict[str, Any]) -> Optional[datetime]:
+    """Parse match_date and toss_time_ist into an IST datetime object."""
+    t_str = record.get("toss_time_ist", "")
+    d_str = record.get("match_date", "")
+    if not t_str or not d_str:
+        return None
+    try:
+        clean_t = t_str.replace(" IST", "").strip()
+        dt = datetime.strptime(f"{d_str} {clean_t}", "%Y-%m-%d %I:%M %p")
+        return dt.replace(tzinfo=now_ist().tzinfo)
+    except Exception:
+        return None
 
 
 def load_toss_results() -> List[Dict[str, Any]]:
@@ -86,10 +100,15 @@ def save_toss_result(
     # Determine PASS / FAIL / SKIPPED / PENDING outcome
     rec_clean = (recommended_team or "").strip().lower()
     win_clean = (actual_winner or "").strip().lower()
+    rating_clean = (stake_rating or "").strip().lower()
 
     if not actual_winner or "pending" in win_clean:
         outcome = "PENDING"
         outcome_label = "⏳ PENDING (Awaiting Result)"
+    elif "skip" in rating_clean or "pass" in rating_clean or not rec_clean or rec_clean in ["none", "skip"]:
+        outcome = "SKIPPED"
+        outcome_label = "🟡 SKIPPED (50-50 NEUTRAL)"
+        recommended_team = None
     elif rec_clean and win_clean:
         if rec_clean in win_clean or win_clean in rec_clean:
             outcome = "PASS"
@@ -310,6 +329,19 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         else:
             m_date = today_str
 
+        # STRICT TIME GATE: Do NOT record a match from close-bet if its toss time is in the future!
+        # GamingHelper closes betting 10-15 min before toss, but the toss hasn't happened yet!
+        toss_dt = None
+        try:
+            clean_t = toss_ist.replace(" IST", "").strip()
+            toss_dt = datetime.strptime(f"{m_date} {clean_t}", "%Y-%m-%d %I:%M %p").replace(tzinfo=now_ist().tzinfo)
+        except Exception:
+            pass
+
+        if toss_dt and toss_dt > now_ist():
+            # Scheduled toss is in the future; cannot be recorded as completed yet
+            continue
+
         # Mark as Pending Confirmation for genuine user or telegram confirmation
         save_toss_result(
             match_id=m_id,
@@ -325,40 +357,6 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             toss_decision="Pending",
             is_manual=False
         )
-
-    # Also archive past matches from gaming_helper_matches.json if not already present
-    live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
-    if os.path.exists(live_cache_file):
-        try:
-            with open(live_cache_file, "r", encoding="utf-8") as f:
-                cached_matches = json.load(f)
-                for cm in cached_matches:
-                    cm_id = str(cm.get("id"))
-                    if cm_id and cm_id not in existing_map:
-                        t1 = cm.get("team_a_name", "")
-                        t2 = cm.get("team_b_name", "")
-                        tour = cm.get("tournament_name", "Cricket League")
-                        toss_ist = cm.get("toss_time_str", "10:00 AM IST")
-                        m_date = cm.get("match_date") or today_str
-                        rec_team = cm.get("recommended_team") if cm.get("action_type") == "PLAY" else None
-                        rating = cm.get("stake_rating", "🟡 STRICT PASS (NO BET)")
-                        save_toss_result(
-                            match_id=cm_id,
-                            match_name=f"{t1} vs {t2}",
-                            tournament=tour,
-                            toss_time_ist=toss_ist,
-                            match_date=m_date,
-                            team_a=t1,
-                            team_b=t2,
-                            recommended_team=rec_team,
-                            stake_rating=rating,
-                            actual_winner="Pending Confirmation",
-                            toss_decision="Pending",
-                            is_manual=False
-                        )
-                        existing_map[cm_id] = True
-        except Exception:
-            pass
 
     # Automatically resolve freshly closed matches using Telegram live feed @KINGTOSSLINE111
     try:
@@ -384,10 +382,16 @@ def auto_update_toss_results_from_telegram() -> int:
     results = load_toss_results()
     locked_map = load_locked_predictions()
     resolved_count = 0
+    cur_time = now_ist()
 
     for r in results:
         # Only resolve pending matches
         if r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower():
+            continue
+
+        # STRICT TIME GATE: Cannot resolve a match whose toss time is still in the future!
+        toss_dt = parse_toss_datetime(r)
+        if toss_dt and toss_dt > cur_time:
             continue
 
         m_id = str(r.get("match_id", ""))
@@ -406,6 +410,20 @@ def auto_update_toss_results_from_telegram() -> int:
         for tg in feed:
             w_raw = tg.get("winner_raw", "")
             decision = tg.get("decision", "Bowl")
+            post_iso = tg.get("post_iso", "")
+
+            # If message timestamp is available, verify it was posted in the valid window of this match
+            if post_iso and toss_dt:
+                try:
+                    p_dt = datetime.fromisoformat(post_iso.replace("Z", "+00:00"))
+                    p_ist = p_dt.astimezone(cur_time.tzinfo)
+                    # Window: within [-15 min, +3.5 hours] of match toss time
+                    min_allowed = toss_dt - timedelta(minutes=15)
+                    max_allowed = toss_dt + timedelta(hours=3, minutes=30)
+                    if not (min_allowed <= p_ist <= max_allowed):
+                        continue
+                except Exception:
+                    pass
 
             winner_name = None
             if match_team_with_tg_winner(t1, w_raw):

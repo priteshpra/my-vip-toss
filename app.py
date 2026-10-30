@@ -890,6 +890,16 @@ with vip_tabs[0]:
             prev_r = {}
             m_target_date = str(m.get("match_date")).split("T")[0].strip() if m.get("match_date") else today_iso
 
+            # Check if scheduled toss time is still in the future
+            is_toss_in_future = False
+            try:
+                t_clean = toss_str.replace(" IST", "").strip()
+                m_toss_dt = datetime.strptime(f"{m_target_date} {t_clean}", "%Y-%m-%d %I:%M %p").replace(tzinfo=cur_ist.tzinfo)
+                if m_toss_dt > cur_ist:
+                    is_toss_in_future = True
+            except Exception:
+                pass
+
             for r in all_done_list:
                 r_mid = str(r.get("match_id", "")).strip()
                 r_date = str(r.get("match_date", "")).strip()
@@ -906,6 +916,9 @@ with vip_tabs[0]:
                 )
 
                 if id_matches or (same_date and names_match):
+                    # Guard against premature resolutions: If scheduled toss is in future and not manually confirmed, ignore
+                    if is_toss_in_future and not r.get("is_manual"):
+                        continue
                     act_win = str(r.get("actual_winner", "")).strip()
                     if act_win and "pending" not in act_win.lower():
                         is_already_done = True
