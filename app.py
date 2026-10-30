@@ -672,7 +672,12 @@ with vip_tabs[0]:
     # Filter by Tournament
     filtered_matches = all_matches
     if selected_live_tour != "🌟 Sabhi Tournaments (All)":
-        filtered_matches = [m for m in filtered_matches if m.get("tournament_name") == selected_live_tour]
+        filtered_matches = [
+            m for m in filtered_matches
+            if (m.get("tournament_name") or "").strip().lower() == selected_live_tour.strip().lower()
+            or selected_live_tour.strip().lower() in (m.get("tournament_name") or "").strip().lower()
+            or (m.get("tournament_name") or "").strip().lower() in selected_live_tour.strip().lower()
+        ]
 
     # Filter by Search Query
     if search_q.strip():
@@ -1017,7 +1022,7 @@ with vip_tabs[0]:
                     outcome_bg = "#064e3b" if prev_r.get("outcome") == "PASS" else ("#450a0a" if prev_r.get("outcome") == "FAIL" else "#451a03")
                     outcome_bd = "#10b981" if prev_r.get("outcome") == "PASS" else ("#ef4444" if prev_r.get("outcome") == "FAIL" else "#d97706")
                     st.markdown(f"""
-                    <div style="background: #042419; border: 2px solid {outcome_bd}; border-radius: 10px; padding: 14px 18px; margin: 10px 0;">
+                    <div style="background: {outcome_bg}; border: 2px solid {outcome_bd}; border-radius: 10px; padding: 14px 18px; margin: 10px 0;">
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                             <span style="font-size: 18px; font-weight: 900; color: {outcome_c};">🏆 TOSS COMPLETED: {prev_win.upper()} ({prev_dec.upper()})</span>
                             <span style="background: {outcome_bg}; color: {outcome_c}; border: 1px solid {outcome_bd}; padding: 4px 14px; border-radius: 12px; font-weight: 900; font-size: 13px;">
@@ -1025,7 +1030,7 @@ with vip_tabs[0]:
                             </span>
                         </div>
                         <div style="font-size: 13px; color: #ffffff; margin-top: 8px; font-weight: 600;">
-                            🎯 <b>Pre-Match Prediction:</b> <b>{prev_r.get('recommended_team') or 'SKIP (50-50)'}</b> · 📜 Verified in Tab 2 (Toss Done Audit Log)
+                            🎯 <b>Pre-Match Prediction:</b> <b>{('🟢 PLAY: ' + prev_r['recommended_team']) if prev_r.get('recommended_team') else '🟡 STRICT SKIP (50-50 NEUTRAL)'}</b> · 📜 Verified in Tab 2 (Toss Done Audit Log)
                         </div>
                     </div>
                     """, unsafe_allow_html=True)

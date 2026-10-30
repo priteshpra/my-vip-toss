@@ -159,32 +159,13 @@ def compute_multi_source_toss_load(
     # Step 1: Check Immutable Lock Vault First
     locked_verdict = get_locked_prediction(m_id_str, t_a, t_b)
     if locked_verdict:
-        # Protect user capital: If a legacy lock was PLAY but pattern/H2H does not support it under strict rules, invalidate it
-        if locked_verdict.get("action") == "PLAY":
+        # If lock was SKIP, check if a genuine pattern was discovered (e.g. after series history sync)
+        if locked_verdict.get("action") == "SKIP":
             try:
                 from core.engine.pattern_engine import evaluate_toss_pattern_rule
-                pat = evaluate_toss_pattern_rule(t_a, t_b, tournament)
-                pat_rule = locked_verdict.get("pattern_rule_name")
-                # If old lock relied on a fake pattern that is no longer found, reject lock
-                if pat_rule in ["STREAK_EXHAUSTION", "BOUNCE_BACK", "ZIG_ZAG_ALTERNATION"] and not pat.get("pattern_found"):
-                    locked_verdict = None
-                # If old lock was a PLAY on neutral toss pattern without 3+ H2H matches, reject lock
-                elif pat_rule in ["BALANCED_ROTATION", "NEUTRAL", None]:
-                    _, _, _, _, h2h_a, h2h_b = get_ground_truth_history(t_a, t_b)
-                    if (h2h_a + h2h_b) < 3:
-                        locked_verdict = None
-            except Exception:
-                pass
-        elif locked_verdict.get("action") == "SKIP":
-            # If CREX live market rates are now active with high conviction OR pattern engine found streak exhaustion/rebound
-            try:
-                from core.providers.crex_provider import get_crex_live_bhav
-                from core.engine.pattern_engine import evaluate_toss_pattern_rule
-                crex_check = get_crex_live_bhav(t_a, t_b, match_id=m_id_str)
                 pat_check = evaluate_toss_pattern_rule(t_a, t_b, tournament)
-                if (crex_check and (crex_check.get("win_prob", 0) >= 60 or (crex_check.get("back") and crex_check.get("back") <= 62))) or \
-                   (pat_check and pat_check.get("pattern_found") and abs(pat_check.get("pattern_edge", 0)) >= 12):
-                    locked_verdict = None
+                if pat_check and pat_check.get("pattern_found") and abs(pat_check.get("pattern_edge", 0)) >= 12:
+                    locked_verdict = None  # Allow genuine streak exhaustion / bounce-back to upgrade
             except Exception:
                 pass
 
@@ -309,18 +290,27 @@ def compute_multi_source_toss_load(
                 risk_level = "LOW RISK (PATTERN BREAKOUT)"
                 source_summary = f"Tipper Pattern Rule: {pat['rule_name']}"
                 rationale = f"💎 PATTERN BREAKOUT PLAY: {pat_rat} Tipper pattern triggers high conviction reversal."
-            else:
+            elif bookie_fav and match_teams_fuzzy(bookie_fav, fav_team_resolved) and bookie_load >= 70:
                 action = "PLAY"
                 favored = fav_team_resolved
                 underdog = underdog_team
-                confidence = min(85, max(70, c_prob))
-                rating = "💎 100% SATIK PLAY (MARKET MOMENTUM)"
-                badge = f"💎 CREX LIVE BHAV [{c_back}-{c_lay}]"
-                risk_level = "LOW RISK (MARKET BACKED)"
-                source_summary = f"CREX Live Bhav [{c_back}-{c_lay}] ({c_prob}%)"
+                confidence = bookie_load
+                rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
+                badge = "💎 100% SATIK CALL"
+                risk_level = "LOW RISK (HIGH CONVICTION)"
+                source_summary = f"CREX [{c_back}-{c_lay}] + Bookie Liability ({bookie_load}%)"
+                rationale = f"💎 SATIK GOLD PLAY: Both CREX Market and Asian Bookmaker line converge on {favored}."
+            else:
+                action = "SKIP"
+                confidence = max(50, c_prob)
+                rating = "🟡 STRICT PASS (NO BET)"
+                badge = "🟡 PASS / 50-50 TRAP"
+                risk_level = "HIGH RISK (AVOID)"
+                source_summary = f"CREX Market Line [{c_back}-{c_lay}] (Toss Pattern Neutral)"
                 rationale = (
-                    f"💎 SATIK MARKET PLAY: Live Asian Exchange Bhav ({c_back}-{c_lay}, {c_prob}% win probability) "
-                    f"indicates strong market conviction favoring {favored}. Neutral toss rotation gives a clear runway."
+                    f"⛔ STRICT PASS (50-50 COIN FLIP TRAP): Match odds favor {fav_team_resolved}, "
+                    f"lekin coin toss me koi statistical edge nahi hai ({pat_badge}). "
+                    f"Match favorite hone se coin toss jeetna zaroori nahi hota — Paisa safe rakhne ke liye strict pass karein."
                 )
         else:
             # CREX rate is close to 50-50 (e.g. 52-64%)

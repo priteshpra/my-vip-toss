@@ -18,6 +18,11 @@ from typing import Dict, Any, List, Tuple, Optional
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 LOG_FILE = os.path.join(DATA_DIR, "toss_results_log.json")
 
+STATE_MODIFIERS = {
+    'south', 'western', 'northern', 'eastern', 'central', 'north', 'west', 'east',
+    'state', 'province', 'city', 'county', 'district', 'districts', 'governor', 'generals'
+}
+
 KNOWN_ACRONYMS = {
     'uae': {'united', 'arab', 'emirates'},
     'wi': {'west', 'indies'},
@@ -81,13 +86,16 @@ def match_teams(t1: str, t2: str) -> bool:
         return False
     if p1['is_a_team'] != p2['is_a_team']:
         return False
-    # Explicit Men vs Explicit Women never match
-    if p1['is_women'] and p2['is_men']:
-        return False
-    if p1['is_men'] and p2['is_women']:
+    # Explicit Women vs Men strict isolation (Australia vs Australia Women must NEVER match)
+    if p1['is_women'] != p2['is_women']:
         return False
     s1, s2 = p1['core'], p2['core']
     if not s1 or not s2:
+        return False
+    # State / Geographic adjectives must strictly match (South Australia is NOT Australia, Western Australia is NOT Australia)
+    mod1 = s1.intersection(STATE_MODIFIERS)
+    mod2 = s2.intersection(STATE_MODIFIERS)
+    if mod1 != mod2:
         return False
     if s1 == s2:
         return True
@@ -97,17 +105,18 @@ def match_teams(t1: str, t2: str) -> bool:
         return True
     if p1['core_str'] and p1['core_str'] == p2['core_str']:
         return True
-    # Subset matching for geographic or extra qualifiers (e.g. 'Hong Kong' in 'Hong Kong China', 'Centurions United' in 'Centurions United - Spartans')
-    if s1.issubset(s2) or s2.issubset(s1):
+    # Subset matching ONLY if both sets have >= 2 core tokens (e.g. 'Hong Kong' in 'Hong Kong China')
+    if len(s1) >= 2 and len(s2) >= 2 and (s1.issubset(s2) or s2.issubset(s1)):
         return True
     return False
 
 
-def get_team_toss_history(team_name: str) -> Tuple[int, List[str], int]:
+def get_team_toss_history(team_name: str, tournament: str = "") -> Tuple[int, List[str], int]:
     """
     Returns (trailing_streak, last_5_list, total_matches).
     trailing_streak: positive for consecutive wins (e.g. +3), negative for losses (-3).
     Requires a minimum of 3 historical matches to consider any streak valid.
+    Prioritizes in-tournament history when available.
     """
     if not os.path.exists(LOG_FILE):
         return 0, [], 0
@@ -118,9 +127,21 @@ def get_team_toss_history(team_name: str) -> Tuple[int, List[str], int]:
     except Exception:
         return 0, [], 0
 
+    # First attempt: Scope to current tournament if specified
+    in_tour_records = []
+    if tournament:
+        tour_clean = tournament.lower().strip()
+        for r in records:
+            r_tour = (r.get("tournament") or "").lower()
+            if tour_clean in r_tour or r_tour in tour_clean or any(k in tour_clean and k in r_tour for k in ["emirates d20", "sixes", "global t20", "bbl", "wbbl", "ipl"]):
+                in_tour_records.append(r)
+
+    # Use tournament-scoped records if found, else general
+    target_records = in_tour_records if in_tour_records else records
+
     history = []
     # Process chronologically (from oldest to newest)
-    for r in reversed(records):
+    for r in reversed(target_records):
         actual = r.get("actual_winner")
         if not actual or actual.lower() in ["pending", "pending confirmation", "none", ""]:
             continue
@@ -129,8 +150,20 @@ def get_team_toss_history(team_name: str) -> Tuple[int, List[str], int]:
         if match_teams(team_name, ta) or match_teams(team_name, tb):
             history.append(1 if match_teams(team_name, actual) else 0)
 
-    if not history:
-        return 0, [], 0
+    # If scoped tournament had < 3 matches and we had filtered, fall back to global with strict team matching
+    if len(history) < 3 and in_tour_records:
+        history = []
+        for r in reversed(records):
+            actual = r.get("actual_winner")
+            if not actual or actual.lower() in ["pending", "pending confirmation", "none", ""]:
+                continue
+            ta = r.get("team_a", "")
+            tb = r.get("team_b", "")
+            if match_teams(team_name, ta) or match_teams(team_name, tb):
+                history.append(1 if match_teams(team_name, actual) else 0)
+
+    if len(history) < 3:
+        return 0, [], len(history)
 
     last_outcome = history[-1]
     streak = 0
@@ -177,8 +210,8 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
     t_a = team_a.strip()
     t_b = team_b.strip()
 
-    s_a, last5_a, tot_a = get_team_toss_history(t_a)
-    s_b, last5_b, tot_b = get_team_toss_history(t_b)
+    s_a, last5_a, tot_a = get_team_toss_history(t_a, tournament)
+    s_b, last5_b, tot_b = get_team_toss_history(t_b, tournament)
     h2h_seq = get_h2h_toss_sequence(t_a, t_b)
 
     # String formatters
