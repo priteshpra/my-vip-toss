@@ -1,5 +1,107 @@
 [
   {
+    "match_id": "40218",
+    "match_name": "Pak I Care Badaloona vs Costa Del Sol",
+    "tournament": "ECN Spanish Championship Weekend T10 Match 2 from Sporting Alfas Cricket Club",
+    "toss_time_ist": "02:35 PM IST",
+    "match_date": "2026-10-30",
+    "team_a": "Pak I Care Badaloona",
+    "team_b": "Costa Del Sol",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "Pending Confirmation",
+    "toss_decision": "Pending",
+    "outcome": "PENDING",
+    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
+    "is_manual": false,
+    "recorded_at": "2026-10-30 03:30 PM IST"
+  },
+  {
+    "match_id": "40224",
+    "match_name": "RAMMBROS CC vs Asian Brothers",
+    "tournament": "T20 / T10 Cricket League",
+    "toss_time_ist": "02:20 PM IST",
+    "match_date": "2026-10-30",
+    "team_a": "RAMMBROS CC",
+    "team_b": "Asian Brothers",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "Pending Confirmation",
+    "toss_decision": "Pending",
+    "outcome": "PENDING",
+    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
+    "is_manual": false,
+    "recorded_at": "2026-10-30 03:30 PM IST"
+  },
+  {
+    "match_id": "40223",
+    "match_name": "Kuwait Under - 19 vs Royal Masters Cc",
+    "tournament": "BCCI Under-19s Trophy",
+    "toss_time_ist": "02:20 PM IST",
+    "match_date": "2026-10-30",
+    "team_a": "Kuwait Under - 19",
+    "team_b": "Royal Masters Cc",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "Pending Confirmation",
+    "toss_decision": "Pending",
+    "outcome": "PENDING",
+    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
+    "is_manual": false,
+    "recorded_at": "2026-10-30 03:30 PM IST"
+  },
+  {
+    "match_id": "40222",
+    "match_name": "Riggae Challengers vs Gulf Cable",
+    "tournament": "T20 / T10 Cricket League",
+    "toss_time_ist": "02:20 PM IST",
+    "match_date": "2026-10-30",
+    "team_a": "Riggae Challengers",
+    "team_b": "Gulf Cable",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "Pending Confirmation",
+    "toss_decision": "Pending",
+    "outcome": "PENDING",
+    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
+    "is_manual": false,
+    "recorded_at": "2026-10-30 03:30 PM IST"
+  },
+  {
+    "match_id": "40221",
+    "match_name": "Evergreen CC vs Challengers CC",
+    "tournament": "Challengers Riggae",
+    "toss_time_ist": "02:20 PM IST",
+    "match_date": "2026-10-30",
+    "team_a": "Evergreen CC",
+    "team_b": "Challengers CC",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "Pending Confirmation",
+    "toss_decision": "Pending",
+    "outcome": "PENDING",
+    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
+    "is_manual": false,
+    "recorded_at": "2026-10-30 03:30 PM IST"
+  },
+  {
+    "match_id": "40220",
+    "match_name": "Cochin Hurricanes vs ALMULLA EXCHANGE CC",
+    "tournament": "ALMULLA EXCHANGE B",
+    "toss_time_ist": "02:20 PM IST",
+    "match_date": "2026-10-30",
+    "team_a": "Cochin Hurricanes",
+    "team_b": "ALMULLA EXCHANGE CC",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "Pending Confirmation",
+    "toss_decision": "Pending",
+    "outcome": "PENDING",
+    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
+    "is_manual": false,
+    "recorded_at": "2026-10-30 03:30 PM IST"
+  },
+  {
     "match_id": "40217",
     "match_name": "Sporting Alfas CC vs Madrid United",
     "tournament": "ECN Spanish Championship Weekend T10 Match 1 from Sporting Alfas Cricket Club",
@@ -14,7 +116,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40188",
@@ -35,11 +137,11 @@
   },
   {
     "match_id": "40181",
-    "match_name": "Brisbane Heat vs Sydney Sixers Women",
-    "tournament": "T20 / T10 Cricket League",
+    "match_name": "Brisbane Heat Women vs Sydney Sixers Women",
+    "tournament": "Womens Big Bash League 2026",
     "toss_time_ist": "12:50 PM IST",
     "match_date": "2026-10-30",
-    "team_a": "Brisbane Heat",
+    "team_a": "Brisbane Heat Women",
     "team_b": "Sydney Sixers Women",
     "recommended_team": null,
     "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
@@ -48,7 +150,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40226",
@@ -87,7 +189,7 @@
   {
     "match_id": "40185",
     "match_name": "Mashonaland eagles vs Matabeleland tuskers",
-    "tournament": "2026 Pro50 Championship 1:00 PM",
+    "tournament": "Harare",
     "toss_time_ist": "12:25 PM IST",
     "match_date": "2026-10-30",
     "team_a": "Mashonaland eagles",
@@ -99,7 +201,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40176",
@@ -235,7 +337,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40193",
@@ -252,7 +354,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40211",
@@ -580,7 +682,7 @@
   {
     "match_id": "40205",
     "match_name": "BENGAL AVENGER CC vs Sri Lankan Challangers Cc",
-    "tournament": "T20 / T10 Cricket League",
+    "tournament": "Sri Lankan Challengers CC",
     "toss_time_ist": "07:50 AM IST",
     "match_date": "2026-10-30",
     "team_a": "BENGAL AVENGER CC",
@@ -592,7 +694,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40204",
@@ -626,7 +728,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40202",
@@ -706,12 +808,12 @@
     "team_b": "PULAU PINANG",
     "recommended_team": null,
     "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
-    "actual_winner": "Pending Confirmation",
-    "toss_decision": "Pending",
-    "outcome": "PENDING",
-    "outcome_label": "\u23f3 PENDING (Awaiting Result)",
+    "actual_winner": "Johor",
+    "toss_decision": "Bowl",
+    "outcome": "SKIPPED",
+    "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40191",
@@ -728,7 +830,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40190",
@@ -745,7 +847,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40189",
@@ -762,7 +864,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40169",
@@ -779,7 +881,7 @@
     "outcome": "PENDING",
     "outcome_label": "\u23f3 PENDING (Awaiting Result)",
     "is_manual": false,
-    "recorded_at": "2026-10-30 01:24 PM IST"
+    "recorded_at": "2026-10-30 03:30 PM IST"
   },
   {
     "match_id": "40168",

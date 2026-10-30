@@ -209,12 +209,47 @@ def _format_time_24_to_ist(t_str: str) -> str:
 
 
 def _extract_tournament_from_match_name(match_name: str, team_a: str, team_b: str) -> str:
-    """Extract clean tournament name from match_name."""
-    name = match_name.strip()
-    low = name.lower()
+    """Extract clean tournament name from match_name and live provider feeds."""
+    name = (match_name or "").strip()
 
-    if "emirates d10" in low or ("emirates" in low and "d10" in low):
+    # 1. First, check if CREX provider has this match with official series name
+    try:
+        from core.providers.crex_provider import fetch_crex_fixtures, is_match_pair
+        fixtures = fetch_crex_fixtures()
+        for f in fixtures:
+            if is_match_pair(team_a, team_b, f.get("t1_name", ""), f.get("t2_name", "")):
+                ser = (f.get("series") or "").strip()
+                if ser:
+                    return ser
+    except Exception:
+        pass
+
+    # 2. Dynamic extraction from comma-delimited match_name (e.g. "<Teams>, <Tournament>, <Venue>")
+    if "," in name:
+        parts = [p.strip() for p in name.split(",") if p.strip()]
+        # Filter out trailing venue tags (e.g. "from Sulabiya Ground", "at Melbourne Cricket Ground")
+        candidate_parts = [p for p in parts[1:] if not re.search(r"^(from\s+|at\s+|venue\s+)", p, re.IGNORECASE)]
+        if candidate_parts:
+            if len(candidate_parts) >= 2 and re.match(r"^\d{4}", candidate_parts[1]):
+                return f"{candidate_parts[0]}, {candidate_parts[1]}"
+            return candidate_parts[0]
+
+    # 3. Known signature mappings for leagues where comma was omitted
+    low = name.lower()
+    if "sixes" in low:
+        return "Hong Kong International Sixes"
+    elif "wbbl" in low or "women's big bash" in low or "womens big bash" in low:
+        return "Women's Big Bash League"
+    elif "bbl" in low or "big bash" in low:
+        return "Big Bash League"
+    elif "super smash" in low:
+        return "Super Smash"
+    elif "emirates d10" in low or ("emirates" in low and "d10" in low):
         return "Emirates D10"
+    elif "emirates d20" in low or ("emirates" in low and "d20" in low):
+        return "Emirates D20 League"
+    elif "gt20" in low or "global t20" in low:
+        return "Global T20 Canada"
     elif "summer cup" in low or "i10x" in low or re.search(r"\bicca\b", low):
         return "ICCA i10x Summer Cup"
     elif "world championship of legends" in low or re.search(r"\bwcl\b", low):
@@ -240,13 +275,13 @@ def _extract_tournament_from_match_name(match_name: str, team_a: str, team_b: st
     elif "burnside" in low or "riccarton" in low or "canterbury" in low or "st albans" in low:
         return "New Zealand Club Cricket"
 
-    if "," in name:
-        parts = [p.strip() for p in name.split(",")]
-        tour = parts[-1]
-        if any(w in tour.lower() for w in ["league", "series", "d10", "t20", "cup", "championship", "trophy", "premier"]):
-            return tour
-        elif len(parts) >= 2:
-            return parts[1]
+    # 4. Strip team names from match_name to extract remaining tournament token
+    rem = name
+    for t in [team_a, team_b, " vs ", " v ", " - "]:
+        rem = re.sub(re.escape(t), " ", rem, flags=re.IGNORECASE)
+    rem = re.sub(r"\s+", " ", rem).strip(" ,-")
+    if len(rem) >= 3:
+        return rem
 
     return "T20 / T10 Cricket League"
 
@@ -304,6 +339,16 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
 
         # Extract tournament name
         tournament = _extract_tournament_from_match_name(match_name, team_a, team_b)
+
+        # Gender / Category normalization: If tournament is a Women's league, guarantee team names have 'Women'
+        is_women_tour = bool(re.search(r"\b(women|womens|wbbl|wpl|wt20)\b", tournament, re.IGNORECASE)) or \
+                        bool(re.search(r"\b(women|womens|wbbl|wpl|wt20)\b", match_name, re.IGNORECASE))
+        if is_women_tour:
+            if "women" not in team_a.lower():
+                team_a = f"{team_a} Women"
+            if "women" not in team_b.lower():
+                team_b = f"{team_b} Women"
+
         mid = str(item.get("id") or item.get("encrypted_id"))
 
         # VIP Multi-Source Toss Load & Consensus Engine Verdict (Locked per match ID)

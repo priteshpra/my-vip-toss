@@ -29,7 +29,13 @@ def _word_match(w1: str, w2: str) -> bool:
     return False
 
 def _team_match(t_src: str, t_target: str) -> bool:
-    stop_words = {"women", "mens", "the", "and", "team", "club", "cricket"}
+    try:
+        from core.engine.pattern_engine import match_teams
+        if match_teams(t_src, t_target):
+            return True
+    except Exception:
+        pass
+    stop_words = {"women", "womens", "wmn", "mens", "the", "and", "team", "club", "cricket", "sixes", "6s", "masters", "legends", "champions"}
     w1 = [w for w in re.findall(r'[a-zA-Z]{3,}', t_src.lower()) if w not in stop_words]
     w2 = [w for w in re.findall(r'[a-zA-Z]{3,}', t_target.lower()) if w not in stop_words]
     for a in w1:

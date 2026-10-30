@@ -88,6 +88,13 @@ def match_team_with_tg_winner(team_name: str, tg_winner: str) -> bool:
     if t_clean == w_clean:
         return True
 
+    try:
+        from core.engine.pattern_engine import match_teams
+        if match_teams(team_name, tg_winner):
+            return True
+    except Exception:
+        pass
+
     # 1. Gender check
     is_t_wmn = bool(re.search(r'\b(women|wmn|w)\b', t_clean))
     is_w_wmn = bool(re.search(r'\b(women|wmn|w)\b', w_clean))
@@ -104,7 +111,7 @@ def match_team_with_tg_winner(team_name: str, tg_winner: str) -> bool:
         return False
 
     # Stop words
-    stop = {"under-19s", "under-19", "u19", "under-23s", "under-23", "u23", "women", "wmn", "w", "cricket", "club", "cc", "vs", "the"}
+    stop = {"under-19s", "under-19", "u19", "under-23s", "under-23", "u23", "women", "wmn", "w", "cricket", "club", "cc", "vs", "the", "sixes", "6s"}
     t_toks = {w for w in re.split(r'[\s\-_]+', t_clean) if w and w not in stop and len(w) > 2}
     w_toks = {w for w in re.split(r'[\s\-_]+', w_clean) if w and w not in stop and len(w) > 2}
 

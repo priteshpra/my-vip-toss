@@ -38,6 +38,9 @@ KNOWN_ACRONYMS = {
     'nam': {'namibia'},
     'nep': {'nepal'},
     'oma': {'oman'},
+    'hk': {'hong', 'kong'},
+    'png': {'papua', 'new', 'guinea'},
+    'drc': {'rest', 'caribbean'},
 }
 
 
@@ -46,16 +49,22 @@ def _parse_team(name: str) -> Dict[str, Any]:
     raw_clean = re.sub(r'[^a-z0-9\s]', ' ', raw)
     tokens = [t for t in raw_clean.split() if t]
     is_women = any(t in tokens for t in ['women', 'wmn', 'womens'])
+    is_men = any(t in tokens for t in ['men', 'mens'])
     is_u19 = 'u19' in tokens or 'under19' in tokens or ('under' in tokens and '19' in tokens)
     is_u23 = 'u23' in tokens or 'under23' in tokens or ('under' in tokens and '23' in tokens)
-    noise = {'team', 'cricket', 'xi', 'the', 'and', 'national', 'mens', 'men', 'under', '19', '23', 'u19', 'u23', 'women', 'wmn', 'womens'}
-    core = [t for t in tokens if t not in noise]
+    is_a_team = 'a' in tokens
+    noise = {'team', 'cricket', 'xi', 'the', 'and', 'national', 'under', '19', '23', 'u19', 'u23', 'sixes', '6s', 'masters', 'legends', 'champions'}
+    core = [t for t in tokens if t not in noise and t not in {'women', 'wmn', 'womens', 'men', 'mens'}]
+    if not core:
+        core = [t for t in tokens if t not in {'the', 'and', 'team', 'cricket', 'xi'}]
     return {
         'core': set(core),
         'core_str': ''.join(core),
         'is_women': is_women,
+        'is_men': is_men,
         'is_u19': is_u19,
         'is_u23': is_u23,
+        'is_a_team': is_a_team,
     }
 
 
@@ -65,12 +74,17 @@ def match_teams(t1: str, t2: str) -> bool:
         return False
     p1 = _parse_team(t1)
     p2 = _parse_team(t2)
-    # Category / Gender must strictly align (prevent Women/U19 bleed into Men Senior)
-    if p1['is_women'] != p2['is_women']:
-        return False
+    # Tier must strictly align (prevent Under-19 or Reserve A bleed into Senior Men)
     if p1['is_u19'] != p2['is_u19']:
         return False
     if p1['is_u23'] != p2['is_u23']:
+        return False
+    if p1['is_a_team'] != p2['is_a_team']:
+        return False
+    # Explicit Men vs Explicit Women never match
+    if p1['is_women'] and p2['is_men']:
+        return False
+    if p1['is_men'] and p2['is_women']:
         return False
     s1, s2 = p1['core'], p2['core']
     if not s1 or not s2:
@@ -82,6 +96,9 @@ def match_teams(t1: str, t2: str) -> bool:
     if len(s2) == 1 and list(s2)[0] in KNOWN_ACRONYMS and KNOWN_ACRONYMS[list(s2)[0]] == s1:
         return True
     if p1['core_str'] and p1['core_str'] == p2['core_str']:
+        return True
+    # Subset matching for geographic or extra qualifiers (e.g. 'Hong Kong' in 'Hong Kong China', 'Centurions United' in 'Centurions United - Spartans')
+    if s1.issubset(s2) or s2.issubset(s1):
         return True
     return False
 

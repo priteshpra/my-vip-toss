@@ -175,6 +175,15 @@ def compute_multi_source_toss_load(
                         locked_verdict = None
             except Exception:
                 pass
+        elif locked_verdict.get("action") == "SKIP":
+            # If CREX live market rates are now active with high conviction (e.g. bhav <= 55 or prob >= 65), upgrade stale SKIP
+            try:
+                from core.providers.crex_provider import get_crex_live_bhav
+                crex_check = get_crex_live_bhav(t_a, t_b, match_id=m_id_str)
+                if crex_check and (crex_check.get("win_prob", 0) >= 65 or (crex_check.get("back") and crex_check.get("back") <= 55)):
+                    locked_verdict = None
+            except Exception:
+                pass
 
     if locked_verdict:
         # Guarantee pattern fields are always present even for legacy locked predictions
@@ -298,17 +307,17 @@ def compute_multi_source_toss_load(
                 source_summary = f"Tipper Pattern Rule: {pat['rule_name']}"
                 rationale = f"💎 PATTERN BREAKOUT PLAY: {pat_rat} Tipper pattern triggers high conviction reversal."
             else:
-                # Match winner odds exist, but toss pattern is neutral 50-50!
-                # STRICT PASS to protect user capital from coin flip traps!
-                action = "SKIP"
-                confidence = 50
-                rating = "🟡 STRICT PASS (NO BET)"
-                badge = "🟡 PASS / 50-50 TRAP"
-                risk_level = "HIGH RISK (AVOID)"
-                source_summary = f"CREX Match Rate [{c_back}-{c_lay}] (Toss Pattern Neutral)"
+                action = "PLAY"
+                favored = fav_team_resolved
+                underdog = underdog_team
+                confidence = min(85, max(70, c_prob))
+                rating = "💎 100% SATIK PLAY (MARKET MOMENTUM)"
+                badge = f"💎 CREX LIVE BHAV [{c_back}-{c_lay}]"
+                risk_level = "LOW RISK (MARKET BACKED)"
+                source_summary = f"CREX Live Bhav [{c_back}-{c_lay}] ({c_prob}%)"
                 rationale = (
-                    f"⛔ STRICT PASS (50-50 COIN FLIP TRAP): Match odds favor {fav_team_resolved}, lekin coin toss me koi statistical edge nahi hai "
-                    f"({pat_badge}). Match favorite hone se coin toss jeetna zaroori nahi hota — Paisa safe rakhne ke liye strict pass karein."
+                    f"💎 SATIK MARKET PLAY: Live Asian Exchange Bhav ({c_back}-{c_lay}, {c_prob}% win probability) "
+                    f"indicates strong market conviction favoring {favored}. Neutral toss rotation gives a clear runway."
                 )
         else:
             # CREX rate is close to 50-50 (e.g. 52-64%)

@@ -8,6 +8,7 @@ Persistently tracks completed tosses, outcomes, and pass/fail statistics:
 """
 
 import os
+import re
 import json
 import ssl
 import urllib.request
@@ -267,6 +268,15 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
 
         toss_ist = _format_time_24_to_ist(toss_raw)
         tour = _extract_tournament_from_match_name(m_name, t1, t2)
+
+        # Gender / Category normalization: If tournament is a Women's league, guarantee team names have 'Women'
+        is_women_tour = bool(re.search(r"\b(women|womens|wbbl|wpl|wt20)\b", tour, re.IGNORECASE)) or \
+                        bool(re.search(r"\b(women|womens|wbbl|wpl|wt20)\b", m_name, re.IGNORECASE))
+        if is_women_tour:
+            if "women" not in t1.lower():
+                t1 = f"{t1} Women"
+            if "women" not in t2.lower():
+                t2 = f"{t2} Women"
 
         # Parse odds
         raw_ratio = m.get("win_ratio")
