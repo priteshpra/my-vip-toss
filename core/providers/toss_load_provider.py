@@ -14,6 +14,7 @@ import re
 import json
 import time
 from typing import Dict, Any, List, Optional, Tuple
+from core.engine.pattern_engine import match_teams as match_teams_strict
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 LOCKED_PREDICTIONS_FILE = os.path.join(DATA_DIR, "toss_predictions_locked.json")
@@ -21,11 +22,8 @@ LOG_FILE = os.path.join(DATA_DIR, "toss_results_log.json")
 
 
 def _normalize_name(name: str) -> str:
-    """Normalize team name for fuzzy matching."""
-    s = re.sub(r'[^a-z0-9]', '', (name or "").lower())
-    for stop in ['women', 'wmn', 'w', 'u19', 'u23', 'team', 'cricket', 'club', 'xi', 'super', 'kings']:
-        s = s.replace(stop, '')
-    return s.strip()
+    """Normalize team name keeping full identity intact (no stripping of categories)."""
+    return re.sub(r'[^a-z0-9]', '', (name or "").lower()).strip()
 
 
 def _make_pair_key(team_a: str, team_b: str) -> str:
@@ -37,16 +35,8 @@ def _make_pair_key(team_a: str, team_b: str) -> str:
 
 
 def match_teams_fuzzy(t1: str, t2: str) -> bool:
-    """Check if two team names refer to the same team."""
-    n1 = _normalize_name(t1)
-    n2 = _normalize_name(t2)
-    if not n1 or not n2:
-        return False
-    if n1 == n2 or n1 in n2 or n2 in n1:
-        return True
-    if len(n1) >= 4 and len(n2) >= 4 and n1[:4] == n2[:4]:
-        return True
-    return False
+    """Check if two team names refer to the same team using strict category-aware matching."""
+    return match_teams_strict(t1, t2)
 
 
 def load_locked_predictions() -> Dict[str, Any]:
@@ -168,6 +158,24 @@ def compute_multi_source_toss_load(
 
     # Step 1: Check Immutable Lock Vault First
     locked_verdict = get_locked_prediction(m_id_str, t_a, t_b)
+    if locked_verdict:
+        # Protect user capital: If a legacy lock was PLAY but pattern/H2H does not support it under strict rules, invalidate it
+        if locked_verdict.get("action") == "PLAY":
+            try:
+                from core.engine.pattern_engine import evaluate_toss_pattern_rule
+                pat = evaluate_toss_pattern_rule(t_a, t_b, tournament)
+                pat_rule = locked_verdict.get("pattern_rule_name")
+                # If old lock relied on a fake pattern that is no longer found, reject lock
+                if pat_rule in ["STREAK_EXHAUSTION", "BOUNCE_BACK", "ZIG_ZAG_ALTERNATION"] and not pat.get("pattern_found"):
+                    locked_verdict = None
+                # If old lock was a PLAY on neutral toss pattern without 3+ H2H matches, reject lock
+                elif pat_rule in ["BALANCED_ROTATION", "NEUTRAL", None]:
+                    _, _, _, _, h2h_a, h2h_b = get_ground_truth_history(t_a, t_b)
+                    if (h2h_a + h2h_b) < 3:
+                        locked_verdict = None
+            except Exception:
+                pass
+
     if locked_verdict:
         # Guarantee pattern fields are always present even for legacy locked predictions
         if not locked_verdict.get("pattern_badge") or not locked_verdict.get("a_streak_str"):
