@@ -112,8 +112,8 @@ def get_team_toss_history(team_name: str) -> Tuple[int, List[str], int]:
         if match_teams(team_name, ta) or match_teams(team_name, tb):
             history.append(1 if match_teams(team_name, actual) else 0)
 
-    if not history or len(history) < 3:
-        return 0, ['W' if x == 1 else 'L' for x in history[-5:]], len(history)
+    if not history:
+        return 0, [], 0
 
     last_outcome = history[-1]
     streak = 0
@@ -177,46 +177,6 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
     a_last5_txt = "-".join(last5_a) if last5_a else "None"
     b_last5_txt = "-".join(last5_b) if last5_b else "None"
 
-    # Rule 0A: Exhibition / Sixes Tournament Protection
-    t_low = (tournament or "").lower()
-    is_exhibition = any(k in t_low for k in ['sixes', 'hong kong', 'exhibition', 'charity', 'legends', 'masters', 'celebrity', 't10'])
-    if is_exhibition:
-        return {
-            "pattern_found": False,
-            "favored_team": None,
-            "pattern_edge": 0.0,
-            "rule_name": "EXHIBITION_NEUTRAL",
-            "pattern_badge": "⚖️ Exhibition / 6s Neutral Toss",
-            "pattern_rationale": "Exhibition / Sixes matches me bilateral historical toss pattern apply nahi hota. Pure 50-50 neutral coin flip.",
-            "a_streak_num": 0,
-            "b_streak_num": 0,
-            "a_streak_str": "Even",
-            "b_streak_str": "Even",
-            "a_last5_str": a_last5_txt,
-            "b_last5_str": b_last5_txt,
-            "a_total": tot_a,
-            "b_total": tot_b
-        }
-
-    # Rule 0B: Minimum Data Sufficiency Check (Both teams must have >= 3 verified matches)
-    if tot_a < 3 or tot_b < 3:
-        return {
-            "pattern_found": False,
-            "favored_team": None,
-            "pattern_edge": 0.0,
-            "rule_name": "BALANCED_ROTATION",
-            "pattern_badge": "⚖️ Neutral Toss Rotation",
-            "pattern_rationale": f"Dono teams ka sufficient toss history (minimum 3 matches each) available nahi hai ({t_a}: {tot_a}, {t_b}: {tot_b}). 50-50 neutral rotation.",
-            "a_streak_num": s_a,
-            "b_streak_num": s_b,
-            "a_streak_str": a_strk_txt,
-            "b_streak_str": b_strk_txt,
-            "a_last5_str": a_last5_txt,
-            "b_last5_str": b_last5_txt,
-            "a_total": tot_a,
-            "b_total": tot_b
-        }
-
     pattern_found = False
     favored = None
     pattern_edge = 0.0  # Positive favors Team A, Negative favors Team B
@@ -224,7 +184,7 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
     badge = "⚖️ Neutral Toss Rotation"
     rationale = "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai."
 
-    # Pattern 1: Team A on Extreme Win Streak (Exhaustion -> Edge to Team B)
+    # Pattern 1: Team A on Extreme Win Streak (3+ wins -> Exhaustion -> Edge to Team B)
     if s_a >= 3:
         pattern_found = True
         favored = t_b
@@ -233,7 +193,7 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
         badge = f"🔄 Streak Break: {t_a} ({s_a}W) Due to Lose"
         rationale = f"⚠️ Streak Exhaustion Rule: {t_a} lagaatar {s_a} toss jeet chuki hai (93%+ break zone). Mean reversion heavily favors {t_b}."
 
-    # Pattern 2: Team B on Extreme Win Streak (Exhaustion -> Edge to Team A)
+    # Pattern 2: Team B on Extreme Win Streak (3+ wins -> Exhaustion -> Edge to Team A)
     elif s_b >= 3:
         pattern_found = True
         favored = t_a
@@ -242,8 +202,8 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
         badge = f"🔄 Streak Break: {t_b} ({s_b}W) Due to Lose"
         rationale = f"⚠️ Streak Exhaustion Rule: {t_b} lagaatar {s_b} toss jeet chuki hai (93%+ break zone). Mean reversion heavily favors {t_a}."
 
-    # Pattern 3: Team A on Extreme Loss Streak (Bounce-Back Due -> Edge to Team A)
-    elif s_a <= -3:
+    # Pattern 3: Team A on Loss Streak (2+ losses -> Bounce-Back Due -> Edge to Team A)
+    elif s_a <= -2 and s_b >= 0:
         pattern_found = True
         favored = t_a
         pattern_edge = 14.0
@@ -251,8 +211,8 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
         badge = f"📈 Bounce-Back Due: {t_a} ({abs(s_a)}L)"
         rationale = f"📈 Bounce-Back Rule: {t_a} lagaatar {abs(s_a)} toss haar chuki hai. Rebound probability favors {t_a} to snap streak."
 
-    # Pattern 4: Team B on Extreme Loss Streak (Bounce-Back Due -> Edge to Team B)
-    elif s_b <= -3:
+    # Pattern 4: Team B on Loss Streak (2+ losses -> Bounce-Back Due -> Edge to Team B)
+    elif s_b <= -2 and s_a >= 0:
         pattern_found = True
         favored = t_b
         pattern_edge = -14.0
@@ -274,14 +234,14 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
     elif s_a == 2 and s_b <= -1:
         pattern_found = True
         favored = t_b
-        pattern_edge = -7.0
+        pattern_edge = -10.0
         rule_name = "MOMENTUM_CHECK"
         badge = f"🔄 2W Streak Lean: {t_b} Rebound"
         rationale = f"Pattern lean favors {t_b} as {t_a} approaches streak resistance (2W)."
     elif s_b == 2 and s_a <= -1:
         pattern_found = True
         favored = t_a
-        pattern_edge = 7.0
+        pattern_edge = 10.0
         rule_name = "MOMENTUM_CHECK"
         badge = f"🔄 2W Streak Lean: {t_a} Rebound"
         rationale = f"Pattern lean favors {t_a} as {t_b} approaches streak resistance (2W)."
