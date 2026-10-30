@@ -884,20 +884,28 @@ with vip_tabs[0]:
                 bhav_badge_bg = "#082f49"
                 bhav_badge_border = "#0284c7"
 
-            # Check if this match was already marked done
+            # Check if this match was already marked done (Strictly for THIS match ID or THIS DATE)
             all_done_list = load_toss_results()
             is_already_done = False
             prev_r = {}
+            m_target_date = str(m.get("match_date")).split("T")[0].strip() if m.get("match_date") else today_iso
+
             for r in all_done_list:
                 r_mid = str(r.get("match_id", "")).strip()
+                r_date = str(r.get("match_date", "")).strip()
+
+                # Must match exact ID OR (must be same date AND matching teams)
                 id_matches = bool(r_mid and (r_mid == str(mid).strip()))
+                same_date = bool(r_date and (r_date == m_target_date))
+
                 r_ta = r.get("team_a", "")
                 r_tb = r.get("team_b", "")
                 names_match = (
                     (match_teams_fuzzy(t_a, r_ta) and match_teams_fuzzy(t_b, r_tb)) or
                     (match_teams_fuzzy(t_a, r_tb) and match_teams_fuzzy(t_b, r_ta))
                 )
-                if id_matches or names_match:
+
+                if id_matches or (same_date and names_match):
                     act_win = str(r.get("actual_winner", "")).strip()
                     if act_win and "pending" not in act_win.lower():
                         is_already_done = True
@@ -1174,13 +1182,8 @@ with vip_tabs[1]:
         yesterday_done_count = sum(1 for r in completed_results if r.get("match_date") == yesterday_iso and r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
         total_done_count = sum(1 for r in completed_results if r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
 
-        # Smart default: If today has 0 matches yet, default to Yesterday or All Dates
-        if today_done_count > 0:
-            def_pill = f"📅 आज (Today) · {today_done_count}"
-        elif yesterday_done_count > 0:
-            def_pill = f"📅 कल (Yesterday) · {yesterday_done_count}"
-        else:
-            def_pill = f"🌟 सभी तारीखें ({total_done_count})"
+        # Smart default: ALWAYS default to Today so punters are never confused by past dates
+        def_pill = f"📅 आज (Today) · {today_done_count}"
 
         col_df1, col_df2 = st.columns([2.4, 1.2])
         with col_df1:
@@ -1198,7 +1201,7 @@ with vip_tabs[1]:
         with col_df2:
             custom_picked_date = st.date_input(
                 "🗓️ Date Picker",
-                value=cur_ist.date() if today_done_count > 0 else (cur_ist.date() - timedelta(days=1)),
+                value=cur_ist.date(),
                 key="input_custom_done_date",
                 label_visibility="collapsed"
             )
@@ -1214,15 +1217,19 @@ with vip_tabs[1]:
         elif date_filter_mode and "कल (Yesterday)" in date_filter_mode:
             selected_date_val = yesterday_iso
             kpi_title_ctx = f"कल ({yesterday_iso})"
-        # 3. If user clicked Today
+        # 3. If user clicked Custom Date
+        elif date_filter_mode and "Custom" in date_filter_mode:
+            selected_date_val = custom_picked_iso
+            kpi_title_ctx = f"तारीख: {custom_picked_iso}"
+        # 4. If user clicked Today
         elif date_filter_mode and "आज (Today)" in date_filter_mode:
             selected_date_val = today_iso
             kpi_title_ctx = f"आज ({today_iso})"
-        # 4. If user picked a custom date in the date picker widget
+        # 5. If date picker was changed to another date
         elif custom_picked_iso != today_iso:
             selected_date_val = custom_picked_iso
             kpi_title_ctx = f"तारीख: {custom_picked_iso}"
-        # 5. Fallback to Today
+        # 6. Fallback to Today
         else:
             selected_date_val = today_iso
             kpi_title_ctx = f"आज ({today_iso})"
@@ -1606,4 +1613,15 @@ with vip_tabs[1]:
                                 st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
                                 st.rerun()
         else:
-            st.info("No completed tosses match the selected filter. As matches finish, all toss results and pass/fail audit will appear here.")
+            if selected_date_val == today_iso:
+                st.markdown(f"""
+                <div style="background: #0f172a; border: 1px dashed #38bdf8; border-radius: 14px; padding: 24px; text-align: center; margin: 16px 0;">
+                    <div style="font-size: 32px; margin-bottom: 8px;">🪙</div>
+                    <h3 style="color: #38bdf8; margin: 0 0 6px 0; font-size: 18px;">आज ({today_iso}) के टॉस अभी शुरू होने बाकी हैं (Upcoming)</h3>
+                    <p style="color: #94a3b8; font-size: 14px; margin: 0 auto; max-width: 600px;">
+                        आज के लाइव टॉस <b>09:20 AM</b> / <b>10:15 AM (Bangladesh vs Sri Lanka)</b> से शुरू होंगे। जैसे ही किसी मैच का टॉस संपन्न होगा, उसका 100% वेरिफाइड रिज़ल्ट यहाँ तुरंत दर्ज हो जाएगा!
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.info("चुने गए फ़िल्टर के अनुसार कोई टॉस रिज़ल्ट नहीं मिला।")
