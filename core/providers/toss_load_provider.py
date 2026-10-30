@@ -176,11 +176,14 @@ def compute_multi_source_toss_load(
             except Exception:
                 pass
         elif locked_verdict.get("action") == "SKIP":
-            # If CREX live market rates are now active with high conviction (e.g. bhav <= 55 or prob >= 65), upgrade stale SKIP
+            # If CREX live market rates are now active with high conviction OR pattern engine found streak exhaustion/rebound
             try:
                 from core.providers.crex_provider import get_crex_live_bhav
+                from core.engine.pattern_engine import evaluate_toss_pattern_rule
                 crex_check = get_crex_live_bhav(t_a, t_b, match_id=m_id_str)
-                if crex_check and (crex_check.get("win_prob", 0) >= 65 or (crex_check.get("back") and crex_check.get("back") <= 55)):
+                pat_check = evaluate_toss_pattern_rule(t_a, t_b, tournament)
+                if (crex_check and (crex_check.get("win_prob", 0) >= 65 or (crex_check.get("back") and crex_check.get("back") <= 55))) or \
+                   (pat_check and pat_check.get("pattern_found") and abs(pat_check.get("pattern_edge", 0)) >= 12):
                     locked_verdict = None
             except Exception:
                 pass

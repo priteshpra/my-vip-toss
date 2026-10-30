@@ -81,6 +81,12 @@ def login_gaming_helper(phone: str = DEFAULT_PHONE, password: str = DEFAULT_PASS
 
 def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]:
     """Fetch live bets from gaminglive.gaminghelperonline.com/api/live-bet."""
+    try:
+        from core.providers.crex_provider import sync_active_series_history_from_crex
+        sync_active_series_history_from_crex()
+    except Exception:
+        pass
+
     creds = get_stored_credentials()
     auth_token = creds.get("token")
 

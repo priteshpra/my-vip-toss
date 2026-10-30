@@ -220,7 +220,7 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
         rationale = f"⚠️ Streak Exhaustion Rule: {t_b} lagaatar {s_b} toss jeet chuki hai (93%+ break zone). Mean reversion heavily favors {t_a}."
 
     # Pattern 3: Team A on Loss Streak (2+ losses -> Bounce-Back Due -> Edge to Team A)
-    elif s_a <= -2 and s_b >= 0:
+    elif s_a <= -2 and (s_b >= 0 or (s_a <= -3 and s_b > s_a)):
         pattern_found = True
         favored = t_a
         pattern_edge = 14.0
@@ -229,7 +229,7 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
         rationale = f"📈 Bounce-Back Rule: {t_a} lagaatar {abs(s_a)} toss haar chuki hai. Rebound probability favors {t_a} to snap streak."
 
     # Pattern 4: Team B on Loss Streak (2+ losses -> Bounce-Back Due -> Edge to Team B)
-    elif s_b <= -2 and s_a >= 0:
+    elif s_b <= -2 and (s_a >= 0 or (s_b <= -3 and s_a > s_b)):
         pattern_found = True
         favored = t_b
         pattern_edge = -14.0
