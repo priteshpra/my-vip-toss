@@ -182,7 +182,7 @@ def compute_multi_source_toss_load(
                 from core.engine.pattern_engine import evaluate_toss_pattern_rule
                 crex_check = get_crex_live_bhav(t_a, t_b, match_id=m_id_str)
                 pat_check = evaluate_toss_pattern_rule(t_a, t_b, tournament)
-                if (crex_check and (crex_check.get("win_prob", 0) >= 65 or (crex_check.get("back") and crex_check.get("back") <= 55))) or \
+                if (crex_check and (crex_check.get("win_prob", 0) >= 60 or (crex_check.get("back") and crex_check.get("back") <= 62))) or \
                    (pat_check and pat_check.get("pattern_found") and abs(pat_check.get("pattern_edge", 0)) >= 12):
                     locked_verdict = None
             except Exception:
@@ -269,7 +269,7 @@ def compute_multi_source_toss_load(
         fav_team_resolved = t_a if match_teams_fuzzy(c_fav, t_a) else (t_b if match_teams_fuzzy(c_fav, t_b) else c_fav)
         underdog_team = t_b if fav_team_resolved == t_a else t_a
 
-        if c_prob >= 65 or (c_back > 0 and c_back <= 55):
+        if c_prob >= 60 or (c_back > 0 and c_back <= 62):
             # Only trigger PLAY if Tipper Pattern Engine or Ground Truth ALSO confirms this team!
             # Match winner odds on CREX do NOT guarantee coin toss wins (Coin flips are physical 50-50).
             if pat_fav and match_teams_fuzzy(pat_fav, fav_team_resolved):

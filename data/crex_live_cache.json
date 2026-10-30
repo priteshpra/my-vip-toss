@@ -1,21 +1,6 @@
 {
-  "timestamp": 1793358329.0040424,
+  "timestamp": 1793360886.4310718,
   "fixtures": [
-    {
-      "t1_name": "India Sixes",
-      "t2_name": "Pakistan Sixes",
-      "t1_sn": "IND-S",
-      "t2_sn": "PAK-S",
-      "series": "Hong Kong Sixes 2026",
-      "sf": "2GV",
-      "fav_team": "Pakistan Sixes",
-      "back": null,
-      "lay": 1,
-      "win_prob": 50,
-      "status_text": "",
-      "date": "10/30/2026",
-      "time": "6:15 AM"
-    },
     {
       "t1_name": "Papua New Guinea",
       "t2_name": "Kuwait",
@@ -39,9 +24,9 @@
       "series": "Men&s;s CWC Challenge League A 2024-26",
       "sf": "1WE",
       "fav_team": "Jersey",
-      "back": 29,
-      "lay": 35,
-      "win_prob": 78,
+      "back": 36,
+      "lay": 41,
+      "win_prob": 74,
       "status_text": "Live",
       "date": "10/30/2026",
       "time": "6:45 AM"
@@ -84,10 +69,10 @@
       "series": "Ireland tour of Namibia 2026",
       "sf": "2NU",
       "fav_team": "Ireland",
-      "back": 79,
-      "lay": 80,
-      "win_prob": 56,
-      "status_text": "Innings Break",
+      "back": 50,
+      "lay": 51,
+      "win_prob": 67,
+      "status_text": "Live",
       "date": "10/30/2026",
       "time": "7:30 AM"
     },
@@ -114,10 +99,10 @@
       "series": "Womens Big Bash League 2026",
       "sf": "2KG",
       "fav_team": "Sydney Sixers Women",
-      "back": 3,
-      "lay": 4,
-      "win_prob": 97,
-      "status_text": "Live",
+      "back": null,
+      "lay": 1,
+      "win_prob": 50,
+      "status_text": "",
       "date": "10/30/2026",
       "time": "8:10 AM"
     },
@@ -129,9 +114,9 @@
       "series": "Emirates D20 League 2026",
       "sf": "2O6",
       "fav_team": "Abu Dhabi",
-      "back": 53,
-      "lay": 54,
-      "win_prob": 65,
+      "back": 45,
+      "lay": 50,
+      "win_prob": 69,
       "status_text": "",
       "date": "10/30/2026",
       "time": "12:30 PM"
@@ -144,9 +129,9 @@
       "series": "Global T20 Canada 2026",
       "sf": "2O5",
       "fav_team": "Brampton Blazers",
-      "back": 57,
-      "lay": 88,
-      "win_prob": 64,
+      "back": 65,
+      "lay": 87,
+      "win_prob": 61,
       "status_text": "",
       "date": "10/30/2026",
       "time": "2:00 PM"
@@ -174,9 +159,9 @@
       "series": "The Ford Trophy 2026-27",
       "sf": "2LU",
       "fav_team": "Northern Brave",
-      "back": 55,
+      "back": 68,
       "lay": 99,
-      "win_prob": 65,
+      "win_prob": 60,
       "status_text": "",
       "date": "10/31/2026",
       "time": "9:30 PM"
@@ -300,6 +285,21 @@
       "status_text": "",
       "date": "10/31/2026",
       "time": "2:35 AM"
+    },
+    {
+      "t1_name": "Sylhet Division",
+      "t2_name": "Chattogram Division",
+      "t1_sn": "SYL",
+      "t2_sn": "CHT",
+      "series": "Bangladesh National League 2026",
+      "sf": "2NS",
+      "fav_team": "",
+      "back": null,
+      "lay": null,
+      "win_prob": 50,
+      "status_text": "",
+      "date": "10/31/2026",
+      "time": "3:30 AM"
     }
   ]
 }
