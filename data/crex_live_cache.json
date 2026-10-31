@@ -1,51 +1,6 @@
 {
-  "timestamp": 1793421617.7280362,
+  "timestamp": 1793431861.3246155,
   "fixtures": [
-    {
-      "t1_name": "Queensland",
-      "t2_name": "Victoria",
-      "t1_sn": "QLD",
-      "t2_sn": "VIC",
-      "series": "Sheffield Shield 2026-27",
-      "sf": "2KM",
-      "fav_team": "",
-      "back": null,
-      "lay": null,
-      "win_prob": 50,
-      "status_text": "Live",
-      "date": "10/31/2026",
-      "time": "12:00 AM"
-    },
-    {
-      "t1_name": "Oman Sixes",
-      "t2_name": "Afghanistan Sixes",
-      "t1_sn": "OMA-S",
-      "t2_sn": "AFG-S",
-      "series": "Hong Kong Sixes 2026",
-      "sf": "2GV",
-      "fav_team": "Afghanistan Sixes",
-      "back": null,
-      "lay": 1,
-      "win_prob": 50,
-      "status_text": "",
-      "date": "10/31/2026",
-      "time": "12:45 AM"
-    },
-    {
-      "t1_name": "Scotland Sixes",
-      "t2_name": "Sri Lanka Sixes",
-      "t1_sn": "SC0-S",
-      "t2_sn": "SL-S",
-      "series": "Hong Kong Sixes 2026",
-      "sf": "2GV",
-      "fav_team": "Scotland Sixes",
-      "back": null,
-      "lay": 1,
-      "win_prob": 50,
-      "status_text": "",
-      "date": "10/31/2026",
-      "time": "1:40 AM"
-    },
     {
       "t1_name": "United Arab Emirates Sixes",
       "t2_name": "India Sixes",
@@ -58,8 +13,10 @@
       "lay": 1,
       "win_prob": 50,
       "status_text": "",
-      "date": "10/31/2026",
-      "time": "2:35 AM"
+      "status": 2,
+      "timestamp": 1793414100,
+      "date": "2026-10-31",
+      "time": "08:05 AM IST"
     },
     {
       "t1_name": "Sylhet Division",
@@ -73,8 +30,10 @@
       "lay": null,
       "win_prob": 50,
       "status_text": "Live",
-      "date": "10/31/2026",
-      "time": "3:30 AM"
+      "status": 1,
+      "timestamp": 1793417400,
+      "date": "2026-10-31",
+      "time": "09:00 AM IST"
     },
     {
       "t1_name": "Mymensingh Division",
@@ -88,8 +47,10 @@
       "lay": null,
       "win_prob": 50,
       "status_text": "Live",
-      "date": "10/31/2026",
-      "time": "3:30 AM"
+      "status": 1,
+      "timestamp": 1793417400,
+      "date": "2026-10-31",
+      "time": "09:00 AM IST"
     },
     {
       "t1_name": "Dhaka Division",
@@ -103,8 +64,10 @@
       "lay": null,
       "win_prob": 50,
       "status_text": "Live",
-      "date": "10/31/2026",
-      "time": "3:30 AM"
+      "status": 1,
+      "timestamp": 1793417400,
+      "date": "2026-10-31",
+      "time": "09:00 AM IST"
     },
     {
       "t1_name": "Rangpur Division",
@@ -118,8 +81,10 @@
       "lay": null,
       "win_prob": 50,
       "status_text": "Live",
-      "date": "10/31/2026",
-      "time": "3:30 AM"
+      "status": 1,
+      "timestamp": 1793417400,
+      "date": "2026-10-31",
+      "time": "09:00 AM IST"
     },
     {
       "t1_name": "Bangladesh Sixes",
@@ -132,9 +97,11 @@
       "back": null,
       "lay": null,
       "win_prob": 50,
-      "status_text": "Live",
-      "date": "10/31/2026",
-      "time": "3:30 AM"
+      "status_text": "",
+      "status": 2,
+      "timestamp": 1793417400,
+      "date": "2026-10-31",
+      "time": "09:00 AM IST"
     },
     {
       "t1_name": "England Sixes",
@@ -147,9 +114,11 @@
       "back": null,
       "lay": null,
       "win_prob": 50,
-      "status_text": "Live",
-      "date": "10/31/2026",
-      "time": "4:25 AM"
+      "status_text": "",
+      "status": 2,
+      "timestamp": 1793420700,
+      "date": "2026-10-31",
+      "time": "09:55 AM IST"
     },
     {
       "t1_name": "Adelaide Strikers Women",
@@ -158,13 +127,15 @@
       "t2_sn": "MLS-W",
       "series": "Womens Big Bash League 2026",
       "sf": "2KG",
-      "fav_team": "Melbourne Stars Women",
-      "back": 81,
-      "lay": 82,
-      "win_prob": 55,
+      "fav_team": "Adelaide Strikers Women",
+      "back": 22,
+      "lay": 1,
+      "win_prob": 82,
       "status_text": "Live",
-      "date": "10/31/2026",
-      "time": "4:40 AM"
+      "status": 1,
+      "timestamp": 1793421600,
+      "date": "2026-10-31",
+      "time": "10:10 AM IST"
     },
     {
       "t1_name": "Oman Sixes",
@@ -178,8 +149,10 @@
       "lay": null,
       "win_prob": 50,
       "status_text": "",
-      "date": "10/31/2026",
-      "time": "5:20 AM"
+      "status": 2,
+      "timestamp": 1793424000,
+      "date": "2026-10-31",
+      "time": "10:50 AM IST"
     },
     {
       "t1_name": "United Arab Emirates",
@@ -190,11 +163,13 @@
       "sf": "1JK",
       "fav_team": "Netherlands",
       "back": 39,
-      "lay": 64,
+      "lay": 42,
       "win_prob": 72,
-      "status_text": "",
-      "date": "10/31/2026",
-      "time": "5:30 AM"
+      "status_text": "Live",
+      "status": 1,
+      "timestamp": 1793424600,
+      "date": "2026-10-31",
+      "time": "11:00 AM IST"
     },
     {
       "t1_name": "Hong Kong Sixes",
@@ -208,8 +183,10 @@
       "lay": null,
       "win_prob": 50,
       "status_text": "",
-      "date": "10/31/2026",
-      "time": "6:15 AM"
+      "status": 2,
+      "timestamp": 1793427300,
+      "date": "2026-10-31",
+      "time": "11:45 AM IST"
     },
     {
       "t1_name": "Lumbini Lions",
@@ -219,12 +196,14 @@
       "series": "Nepal Premier League 2026",
       "sf": "2LV",
       "fav_team": "Lumbini Lions",
-      "back": 71,
+      "back": 78,
       "lay": 99,
-      "win_prob": 58,
-      "status_text": "",
-      "date": "10/31/2026",
-      "time": "6:45 AM"
+      "win_prob": 56,
+      "status_text": "Toss Delayed",
+      "status": 1,
+      "timestamp": 1793429100,
+      "date": "2026-10-31",
+      "time": "12:15 PM IST"
     },
     {
       "t1_name": "Kenya",
@@ -234,12 +213,14 @@
       "series": "Men&s;s CWC Challenge League A 2024-26",
       "sf": "1WE",
       "fav_team": "Kenya",
-      "back": 97,
+      "back": 79,
       "lay": 99,
-      "win_prob": 51,
-      "status_text": "",
-      "date": "10/31/2026",
-      "time": "6:45 AM"
+      "win_prob": 56,
+      "status_text": "Toss Delayed",
+      "status": 1,
+      "timestamp": 1793429100,
+      "date": "2026-10-31",
+      "time": "12:15 PM IST"
     },
     {
       "t1_name": "Qatar",
@@ -252,9 +233,11 @@
       "back": null,
       "lay": null,
       "win_prob": 50,
-      "status_text": "",
-      "date": "10/31/2026",
-      "time": "6:45 AM"
+      "status_text": "Live",
+      "status": 1,
+      "timestamp": 1793429100,
+      "date": "2026-10-31",
+      "time": "12:15 PM IST"
     },
     {
       "t1_name": "Australia Sixes",
@@ -267,9 +250,11 @@
       "back": null,
       "lay": null,
       "win_prob": 50,
-      "status_text": "",
-      "date": "10/31/2026",
-      "time": "7:10 AM"
+      "status_text": "Live",
+      "status": 1,
+      "timestamp": 1793430600,
+      "date": "2026-10-31",
+      "time": "12:40 PM IST"
     },
     {
       "t1_name": "Pakistan",
@@ -283,8 +268,10 @@
       "lay": 57,
       "win_prob": 64,
       "status_text": "",
-      "date": "10/31/2026",
-      "time": "8:00 AM"
+      "status": 0,
+      "timestamp": 1793433600,
+      "date": "2026-10-31",
+      "time": "01:30 PM IST"
     },
     {
       "t1_name": "Afghanistan Sixes",
@@ -298,8 +285,61 @@
       "lay": null,
       "win_prob": 50,
       "status_text": "",
-      "date": "10/31/2026",
-      "time": "8:05 AM"
+      "status": 0,
+      "timestamp": 1793433900,
+      "date": "2026-10-31",
+      "time": "01:35 PM IST"
+    },
+    {
+      "t1_name": "Perth Scorchers Women",
+      "t2_name": "Melbourne Renegades Women",
+      "t1_sn": "PRS-W",
+      "t2_sn": "MLR-W",
+      "series": "Womens Big Bash League 2026",
+      "sf": "2KG",
+      "fav_team": "Perth Scorchers Women",
+      "back": 73,
+      "lay": 75,
+      "win_prob": 58,
+      "status_text": "",
+      "status": 0,
+      "timestamp": 1793434200,
+      "date": "2026-10-31",
+      "time": "01:40 PM IST"
+    },
+    {
+      "t1_name": "Garden Route Badgers",
+      "t2_name": "Eastern Storm",
+      "t1_sn": "GRB",
+      "t2_sn": "ES",
+      "series": "CSA Pro T20 Cup 2026",
+      "sf": "2MT",
+      "fav_team": "Garden Route Badgers",
+      "back": 87,
+      "lay": 95,
+      "win_prob": 53,
+      "status_text": "",
+      "status": 0,
+      "timestamp": 1793444400,
+      "date": "2026-10-31",
+      "time": "04:30 PM IST"
+    },
+    {
+      "t1_name": "Sudurpaschim Royals",
+      "t2_name": "Biratnagar Kings",
+      "t1_sn": "SPR",
+      "t2_sn": "BK",
+      "series": "Nepal Premier League 2026",
+      "sf": "2LV",
+      "fav_team": "Sudurpaschim Royals",
+      "back": 60,
+      "lay": 99,
+      "win_prob": 62,
+      "status_text": "",
+      "status": 0,
+      "timestamp": 1793445300,
+      "date": "2026-10-31",
+      "time": "04:45 PM IST"
     }
   ]
 }

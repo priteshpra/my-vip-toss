@@ -172,6 +172,22 @@ def fetch_crex_fixtures(force_refresh: bool = False) -> List[Dict]:
             elif g_num.get("b") and float(g_num["b"]) > 1.0:
                 win_prob = int(round(100.0 / float(g_num["b"])))
 
+            # Convert CREX epoch timestamp to exact IST time and ISO date
+            t_ms = f.get("t")
+            c_time_str = f.get("startTimeText", "")
+            c_date_str = f.get("date", "")
+            c_timestamp = 0
+            if t_ms:
+                try:
+                    from datetime import datetime, timezone, timedelta
+                    dt_utc = datetime.fromtimestamp(t_ms / 1000.0, tz=timezone.utc)
+                    dt_ist = dt_utc + timedelta(hours=5, minutes=30)
+                    c_time_str = dt_ist.strftime("%I:%M %p IST")
+                    c_date_str = dt_ist.strftime("%Y-%m-%d")
+                    c_timestamp = int(t_ms / 1000.0)
+                except Exception:
+                    pass
+
             fixtures.append({
                 "t1_name": t1_name,
                 "t2_name": t2_name,
@@ -184,8 +200,10 @@ def fetch_crex_fixtures(force_refresh: bool = False) -> List[Dict]:
                 "lay": lay,
                 "win_prob": win_prob,
                 "status_text": f.get("statusText", ""),
-                "date": f.get("date", ""),
-                "time": f.get("startTimeText", "")
+                "status": f.get("status", 0),
+                "timestamp": c_timestamp,
+                "date": c_date_str,
+                "time": c_time_str
             })
 
         _MEM_CACHE["fixtures"] = fixtures

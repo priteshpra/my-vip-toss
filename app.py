@@ -654,16 +654,53 @@ vip_tabs = st.tabs([
 # TAB 1: LIVE BETS & ACTIONABLE VERDICTS
 # ==============================================================================
 with vip_tabs[0]:
-    # Extract unique tournaments from live matches
-    all_live_tournaments = []
+    # Strictly filter for TODAY's matches only (no yesterday or tomorrow matches)
+    today_matches = []
     for m in all_matches:
+        m_date = str(m.get("match_date") or "").split("T")[0].strip()
+        if m_date and m_date != today_iso:
+            continue
+        today_matches.append(m)
+
+    # Sort matches chronologically by toss time in IST
+    def _toss_sort_minutes(m):
+        t_str = m.get("toss_time_str") or m.get("time_str") or ""
+        clean = t_str.replace("IST", "").strip()
+        parts = clean.split()
+        if len(parts) >= 2:
+            time_part = parts[0]
+            meridiem = parts[1].upper()
+            try:
+                h, mi = [int(x) for x in time_part.split(":")[:2]]
+                if meridiem == "PM" and h != 12:
+                    h += 12
+                elif meridiem == "AM" and h == 12:
+                    h = 0
+                return h * 60 + mi
+            except Exception:
+                pass
+        elif ":" in clean:
+            try:
+                h, mi = [int(x) for x in clean.split(":")[:2]]
+                return h * 60 + mi
+            except Exception:
+                pass
+        return 9999
+
+    today_matches.sort(key=_toss_sort_minutes)
+
+    st.caption(f"📅 **लाइव टॉस लिस्ट (आज के मैच - Today Only):** {format_ist(cur_ist, '%d %b %Y (%A)')} · सभी टॉस समय **IST (Indian Standard Time)** में हैं")
+
+    # Extract unique tournaments from today's live matches
+    all_live_tournaments = []
+    for m in today_matches:
         t = m.get("tournament_name")
         if t and t not in all_live_tournaments:
             all_live_tournaments.append(t)
     all_live_tournaments.sort()
 
     tour_live_opts = ["🌟 Sabhi Tournaments (All)"] + [
-        f"{t} ({sum(1 for m in all_matches if m.get('tournament_name') == t)})"
+        f"{t} ({sum(1 for m in today_matches if m.get('tournament_name') == t)})"
         for t in all_live_tournaments
     ]
 
@@ -694,7 +731,7 @@ with vip_tabs[0]:
         )
 
     # Filter by Tournament
-    filtered_matches = all_matches
+    filtered_matches = today_matches
     if selected_live_tour != "🌟 Sabhi Tournaments (All)":
         filtered_matches = [
             m for m in filtered_matches
@@ -755,6 +792,8 @@ with vip_tabs[0]:
         summary_rows = []
         for m in filtered_list:
             t_str = m.get("toss_time_str") or "30m prior"
+            if "IST" not in t_str and t_str and ":" in t_str:
+                t_str = f"{t_str} IST"
             act = m.get("action_type")
             pick = m.get("recommended_team")
             conf = m.get("confidence_pct", 50)

@@ -470,11 +470,24 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
         from core.providers.crex_provider import fetch_crex_fixtures, is_match_pair
         crex_fix = fetch_crex_fixtures(force_refresh=force_refresh)
         existing_pairs = [(m.get("team_a_name", ""), m.get("team_b_name", "")) for m in matches]
+        today_iso_str = format_ist(now_ist(), "%Y-%m-%d")
+        now_ts = time.time()
         for cf in crex_fix:
             c1 = cf.get("t1_name", "")
             c2 = cf.get("t2_name", "")
             c_ser = cf.get("series", "")
             if not c1 or not c2:
+                continue
+            # NEVER add completed matches to active live bets!
+            if cf.get("status") == 2:
+                continue
+            # Strictly TODAY's matches only
+            cf_date = cf.get("date", "")
+            if cf_date and cf_date != today_iso_str:
+                continue
+            # Skip past matches whose start time has already elapsed by over 45 minutes
+            cf_ts = cf.get("timestamp", 0)
+            if cf_ts and cf_ts < (now_ts - 2700) and cf.get("status") != 1:
                 continue
             already_has = any(is_match_pair(c1, c2, ep[0], ep[1]) for ep in existing_pairs)
             if already_has:
