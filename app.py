@@ -49,7 +49,8 @@ from core.engine.toss_results_manager import (
     save_toss_result,
     get_toss_accuracy_kpis,
     sync_completed_tosses_from_gaming_helper,
-    auto_update_toss_results_from_telegram
+    auto_update_toss_results_from_telegram,
+    sync_live_toss_results_from_crex
 )
 from core.providers.crex_provider import (
     fetch_crex_fixtures,
@@ -1242,8 +1243,10 @@ with vip_tabs[1]:
             with st.spinner("Fetching latest toss outcomes..."):
                 sync_completed_tosses_from_gaming_helper()
                 res_count = auto_update_toss_results_from_telegram()
-                if res_count > 0:
-                    st.success(f"✅ {res_count} Toss results updated!")
+                crex_count = sync_live_toss_results_from_crex()
+                total_updated = res_count + crex_count
+                if total_updated > 0:
+                    st.success(f"✅ {total_updated} Toss results updated from CREX & Telegram!")
                 else:
                     st.info("ℹ️ All matches up-to-date.")
                 st.rerun()

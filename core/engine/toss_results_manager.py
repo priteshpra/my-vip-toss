@@ -374,6 +374,12 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
     except Exception as e:
         print(f"Error in auto_update_toss_results_from_telegram: {e}")
 
+    # Automatically resolve live and completed matches using CREX real-time feed
+    try:
+        sync_live_toss_results_from_crex()
+    except Exception as e:
+        print(f"Error in sync_live_toss_results_from_crex: {e}")
+
     return load_toss_results()
 
 
@@ -458,6 +464,157 @@ def auto_update_toss_results_from_telegram() -> int:
                 )
                 resolved_count += 1
                 break
+
+    return resolved_count
+
+
+def sync_live_toss_results_from_crex() -> int:
+    """
+    Automatically resolve live & completed matches directly from CREX live feed.
+    Pulls real-time toss results within 60s of the coin toss so Tab 2 instantly displays verified outcomes.
+    """
+    import html
+    from core.providers.toss_load_provider import load_locked_predictions, match_teams_fuzzy
+
+    url = "https://crex.com/fixtures/match-list"
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10, context=_SSL_CTX) as resp:
+            content = resp.read().decode("utf-8", errors="ignore")
+    except Exception:
+        return 0
+
+    m = re.search(r'<script id="app-root-state" type="application/json">(.*?)</script>', content, re.DOTALL)
+    if not m:
+        return 0
+
+    try:
+        raw_json = html.unescape(m.group(1).strip().replace("&q;", '"'))
+        data = json.loads(raw_json)
+    except Exception:
+        return 0
+
+    fixtures = data.get("https://stats.crickapi.com/fixture/getFixture", [])
+    if not fixtures:
+        return 0
+
+    existing_results = load_toss_results()
+    locked_map = load_locked_predictions()
+    today_str = format_ist(now_ist(), "%Y-%m-%d")
+    resolved_count = 0
+
+    for fix in fixtures:
+        status = fix.get("status")
+        # 1 = Live, 2 = Completed
+        if status not in [1, 2]:
+            continue
+
+        t1 = fix.get("team1")
+        t2 = fix.get("team2")
+        link = fix.get("link")
+        if not link or not t1 or not t2:
+            continue
+
+        # Check if already resolved in existing_results
+        already_resolved = False
+        for ex in existing_results:
+            if ex.get("actual_winner") and "pending" not in str(ex.get("actual_winner", "")).lower():
+                if match_teams_fuzzy(t1, ex.get("team_a", "")) and match_teams_fuzzy(t2, ex.get("team_b", "")):
+                    already_resolved = True
+                    break
+        if already_resolved:
+            continue
+
+        # Scrape match live page
+        match_url = "https://crex.com" + link
+        try:
+            m_req = urllib.request.Request(match_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(m_req, timeout=8, context=_SSL_CTX) as m_resp:
+                m_content = m_resp.read().decode("utf-8", errors="ignore")
+            mm = re.search(r'<script id="app-root-state" type="application/json">(.*?)</script>', m_content, re.DOTALL)
+            if not mm:
+                continue
+            m_data = json.loads(html.unescape(mm.group(1).strip().replace("&q;", '"')))
+
+            sv3 = m_data.get("https://api.goscorer.com/api/v3/getSV3", {})
+            comment = sv3.get("comment1") or ""
+            toss_winner = None
+            toss_decision = "Bowl"
+
+            if comment and "opt to" in comment.lower():
+                parts = comment.split("opt to")
+                team_code = parts[0].strip()
+                toss_decision = parts[1].strip().capitalize() if len(parts) > 1 else "Bowl"
+
+                t1_sn = fix.get("t1SName") or sv3.get("team1") or ""
+                t2_sn = fix.get("t2SName") or sv3.get("team2") or ""
+
+                if team_code.lower() in [t1_sn.lower(), t1.lower()]:
+                    toss_winner = t1
+                elif team_code.lower() in [t2_sn.lower(), t2.lower()]:
+                    toss_winner = t2
+                elif match_teams_fuzzy(team_code, t1):
+                    toss_winner = t1
+                elif match_teams_fuzzy(team_code, t2):
+                    toss_winner = t2
+
+            if not toss_winner and status == 2:
+                post = m_data.get("https://stats.crickapi.com/i/live/getPostMatchDataV2", {})
+                t_team_key = post.get("toss_team")
+                chose_to = post.get("chose_to")
+                toss_decision = "Bat" if chose_to == 0 else "Bowl"
+
+                for k in ["team1fkey", "t1f"]:
+                    if fix.get(k) == t_team_key:
+                        toss_winner = t1
+                        break
+                if not toss_winner:
+                    for k in ["team2fkey", "t2f"]:
+                        if fix.get(k) == t_team_key:
+                            toss_winner = t2
+                            break
+
+            if toss_winner:
+                # Find matching match_id and locked prediction
+                rec_team = None
+                rating = "🟡 SKIP / 50-50 COIN FLIP"
+                matched_id = None
+
+                for lid, lp in locked_map.items():
+                    if match_teams_fuzzy(t1, lp.get("team_a", "")) and match_teams_fuzzy(t2, lp.get("team_b", "")):
+                        matched_id = lid
+                        if lp.get("action") == "PLAY":
+                            rec_team = lp.get("recommended_team")
+                            rating = lp.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                        break
+
+                if not matched_id:
+                    matched_id = f"crex_{fix.get('matchFkey') or fix.get('id')}"
+
+                series_name = fix.get("seriesShortName") or fix.get("n") or "Cricket Match"
+                time_ist = fix.get("startTimeText") or format_ist(now_ist(), "%I:%M %p IST")
+                if "IST" not in time_ist:
+                    time_ist = f"{time_ist} IST"
+
+                save_toss_result(
+                    match_id=str(matched_id),
+                    match_name=f"{t1} vs {t2}",
+                    tournament=series_name,
+                    toss_time_ist=time_ist,
+                    match_date=today_str,
+                    team_a=t1,
+                    team_b=t2,
+                    recommended_team=rec_team,
+                    stake_rating=rating,
+                    actual_winner=toss_winner,
+                    toss_decision=toss_decision,
+                    is_manual=False
+                )
+                resolved_count += 1
+        except Exception:
+            continue
 
     return resolved_count
 
