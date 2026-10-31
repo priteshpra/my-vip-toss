@@ -103,13 +103,17 @@ def save_toss_result(
     win_clean = (actual_winner or "").strip().lower()
     rating_clean = (stake_rating or "").strip().lower()
 
-    if not actual_winner or "pending" in win_clean:
-        outcome = "PENDING"
-        outcome_label = "⏳ PENDING (Awaiting Result)"
-    elif "skip" in rating_clean or "pass" in rating_clean or not rec_clean or rec_clean in ["none", "skip"]:
+    is_skip = bool("skip" in rating_clean or "pass" in rating_clean or not rec_clean or rec_clean in ["none", "skip"])
+
+    if is_skip:
         outcome = "SKIPPED"
         outcome_label = "🟡 SKIPPED (50-50 NEUTRAL)"
         recommended_team = None
+        if not actual_winner or "pending" in win_clean:
+            actual_winner = "Skipped (50-50 Neutral)"
+    elif not actual_winner or "pending" in win_clean:
+        outcome = "PENDING"
+        outcome_label = "⏳ PENDING (Awaiting Result)"
     elif rec_clean and win_clean:
         if rec_clean in win_clean or win_clean in rec_clean:
             outcome = "PASS"
@@ -352,7 +356,19 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             # Scheduled toss is in the future; cannot be recorded as completed yet
             continue
 
-        # Mark as Pending Confirmation for genuine user or telegram confirmation
+        # If match was a SKIP, mark as Skipped (50-50 Neutral) immediately so it never shows as Pending
+        is_rec_skip = bool("skip" in rating.lower() or "pass" in rating.lower() or not rec_team)
+        win_init = "Skipped (50-50 Neutral)" if is_rec_skip else "Pending Confirmation"
+
+        # Stale Match Guard: If match is older than 48 hours and has no winner, do not pollute log with pending entries
+        if win_init == "Pending Confirmation" and m_date:
+            try:
+                m_dt = datetime.strptime(m_date, "%Y-%m-%d").date()
+                if (now_ist().date() - m_dt).days > 1:
+                    continue
+            except Exception:
+                pass
+
         save_toss_result(
             match_id=m_id,
             match_name=f"{t1} vs {t2}",
@@ -363,8 +379,8 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             team_b=t2,
             recommended_team=rec_team,
             stake_rating=rating,
-            actual_winner="Pending Confirmation",
-            toss_decision="Pending",
+            actual_winner=win_init,
+            toss_decision="Pending" if win_init == "Pending Confirmation" else "Neutral",
             is_manual=False
         )
 
@@ -475,6 +491,7 @@ def sync_live_toss_results_from_crex() -> int:
     """
     import html
     from core.providers.toss_load_provider import load_locked_predictions, match_teams_fuzzy
+    from core.providers.crex_provider import is_match_pair
 
     url = "https://crex.com/fixtures/match-list"
     req = urllib.request.Request(url, headers={
@@ -521,7 +538,7 @@ def sync_live_toss_results_from_crex() -> int:
         already_resolved = False
         for ex in existing_results:
             if ex.get("actual_winner") and "pending" not in str(ex.get("actual_winner", "")).lower():
-                if match_teams_fuzzy(t1, ex.get("team_a", "")) and match_teams_fuzzy(t2, ex.get("team_b", "")):
+                if is_match_pair(t1, t2, ex.get("team_a", ""), ex.get("team_b", "")):
                     already_resolved = True
                     break
         if already_resolved:
@@ -583,7 +600,7 @@ def sync_live_toss_results_from_crex() -> int:
                 matched_id = None
 
                 for lid, lp in locked_map.items():
-                    if match_teams_fuzzy(t1, lp.get("team_a", "")) and match_teams_fuzzy(t2, lp.get("team_b", "")):
+                    if is_match_pair(t1, t2, lp.get("team_a", ""), lp.get("team_b", "")):
                         matched_id = lid
                         if lp.get("action") == "PLAY":
                             rec_team = lp.get("recommended_team")
