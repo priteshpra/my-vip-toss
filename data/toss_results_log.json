@@ -1,5 +1,37 @@
 [
   {
+    "match_id": "crex_2GV_m18",
+    "match_name": "Afghanistan Sixes vs Scotland Sixes, Hong Kong Sixes 2026 Match 18",
+    "tournament": "Hong Kong Sixes 2026",
+    "toss_time_ist": "12:30 PM IST",
+    "match_date": "2026-10-31",
+    "team_a": "Afghanistan Sixes",
+    "team_b": "Scotland Sixes",
+    "predicted_winner": null,
+    "recommended_team": null,
+    "stake_rating": "HISTORICAL",
+    "actual_winner": "Scotland Sixes",
+    "toss_decision": "Bowl",
+    "outcome": "SKIPPED",
+    "is_manual": false
+  },
+  {
+    "match_id": "crex_1JK_m142",
+    "match_name": "United Arab Emirates vs Oman, Men&s;s CWC League 2 2023-27 Match 142",
+    "tournament": "Men&s;s CWC League 2 2023-27",
+    "toss_time_ist": "12:30 PM IST",
+    "match_date": "2026-10-29",
+    "team_a": "United Arab Emirates",
+    "team_b": "Oman",
+    "predicted_winner": null,
+    "recommended_team": null,
+    "stake_rating": "HISTORICAL",
+    "actual_winner": "United Arab Emirates",
+    "toss_decision": "Bowl",
+    "outcome": "SKIPPED",
+    "is_manual": false
+  },
+  {
     "match_id": "40241",
     "match_name": "Perth Scorchers Women vs Melbourne Renegades Women",
     "tournament": "Womens Big Bash League 2026",
