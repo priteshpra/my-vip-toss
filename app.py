@@ -655,13 +655,53 @@ vip_tabs = st.tabs([
 # TAB 1: LIVE BETS & ACTIONABLE VERDICTS
 # ==============================================================================
 with vip_tabs[0]:
-    # Strictly filter for TODAY's matches only (no yesterday or tomorrow matches)
-    today_matches = []
-    for m in all_matches:
-        m_date = str(m.get("match_date") or "").split("T")[0].strip()
-        if m_date and m_date != today_iso:
-            continue
-        today_matches.append(m)
+    # Smart Date-Aware Filtering (Today vs Tomorrow vs All Active)
+    cur_ist = now_ist()
+    today_iso = format_ist(cur_ist, "%Y-%m-%d")
+    tomorrow_iso = format_ist(cur_ist + timedelta(days=1), "%Y-%m-%d")
+
+    c_today = sum(1 for m in all_matches if str(m.get("match_date") or "").split("T")[0].strip() == today_iso)
+    c_tomorrow = sum(1 for m in all_matches if str(m.get("match_date") or "").split("T")[0].strip() == tomorrow_iso)
+
+    date_options = []
+    date_iso_map = {}
+
+    lbl_today = f"📅 Aaj ({format_ist(cur_ist, '%d %b')}) [{c_today}]"
+    date_options.append(lbl_today)
+    date_iso_map[lbl_today] = today_iso
+
+    lbl_tomorrow = f"📅 Kal ({format_ist(cur_ist + timedelta(days=1), '%d %b')}) [{c_tomorrow}]"
+    date_options.append(lbl_tomorrow)
+    date_iso_map[lbl_tomorrow] = tomorrow_iso
+
+    lbl_all = f"🌟 Sabhi Dates [{len(all_matches)}]"
+    date_options.append(lbl_all)
+    date_iso_map[lbl_all] = "ALL"
+
+    # Default: if today has matches, show Today. When today's matches finish (e.g. night time), auto-switch to Tomorrow!
+    default_date_idx = 0 if c_today > 0 else 1
+
+    col_dpill, col_spc = st.columns([2.5, 1])
+    with col_dpill:
+        selected_date_lbl = st.pills(
+            "Fixture Date",
+            date_options,
+            default=date_options[default_date_idx],
+            key="punter_date_pill",
+            label_visibility="collapsed"
+        )
+    if not selected_date_lbl:
+        selected_date_lbl = date_options[default_date_idx]
+
+    selected_iso = date_iso_map.get(selected_date_lbl, "ALL")
+
+    if selected_iso == "ALL":
+        active_matches = list(all_matches)
+    else:
+        active_matches = [
+            m for m in all_matches
+            if str(m.get("match_date") or "").split("T")[0].strip() == selected_iso
+        ]
 
     # Sort matches chronologically by toss time in IST
     def _toss_sort_minutes(m):
@@ -688,20 +728,26 @@ with vip_tabs[0]:
                 pass
         return 9999
 
-    today_matches.sort(key=_toss_sort_minutes)
+    active_matches.sort(key=_toss_sort_minutes)
 
-    st.caption(f"📅 **लाइव टॉस लिस्ट (आज के मैच - Today Only):** {format_ist(cur_ist, '%d %b %Y (%A)')} · सभी टॉस समय **IST (Indian Standard Time)** में हैं")
+    if selected_iso == today_iso:
+        date_caption_text = f"📅 **लाइव टॉस लिस्ट (आज के मैच):** {format_ist(cur_ist, '%d %b %Y (%A)')}"
+    elif selected_iso == tomorrow_iso:
+        date_caption_text = f"📅 **लाइव टॉस लिस्ट (कल के आगामी मैच):** {format_ist(cur_ist + timedelta(days=1), '%d %b %Y (%A)')}"
+    else:
+        date_caption_text = "📅 **लाइव टॉस लिस्ट (सभी एक्टिव मैच):**"
+    st.caption(f"{date_caption_text} · सभी टॉस समय **IST (Indian Standard Time)** में हैं")
 
-    # Extract unique tournaments from today's live matches
+    # Extract unique tournaments from active matches
     all_live_tournaments = []
-    for m in today_matches:
+    for m in active_matches:
         t = m.get("tournament_name")
         if t and t not in all_live_tournaments:
             all_live_tournaments.append(t)
     all_live_tournaments.sort()
 
     tour_live_opts = ["🌟 Sabhi Tournaments (All)"] + [
-        f"{t} ({sum(1 for m in today_matches if m.get('tournament_name') == t)})"
+        f"{t} ({sum(1 for m in active_matches if m.get('tournament_name') == t)})"
         for t in all_live_tournaments
     ]
 
@@ -727,12 +773,12 @@ with vip_tabs[0]:
     with col_search:
         search_q = st.text_input(
             "🔍 Search Team / Match",
-            placeholder="e.g. Abu Dhabi, Emirates Blues...",
+            placeholder="e.g. Bangladesh, England, Sixes...",
             key="input_search_punter"
         )
 
     # Filter by Tournament
-    filtered_matches = today_matches
+    filtered_matches = active_matches
     if selected_live_tour != "🌟 Sabhi Tournaments (All)":
         filtered_matches = [
             m for m in filtered_matches
