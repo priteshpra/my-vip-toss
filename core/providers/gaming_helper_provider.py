@@ -242,18 +242,43 @@ def _extract_tournament_from_match_name(match_name: str, team_a: str, team_b: st
 
     # 3. Known signature mappings for leagues where comma was omitted
     low = name.lower()
-    if "sixes" in low:
-        return "Hong Kong International Sixes"
-    elif "wbbl" in low or "women's big bash" in low or "womens big bash" in low:
-        return "Women's Big Bash League"
-    elif "bbl" in low or "big bash" in low:
-        return "Big Bash League"
-    elif "super smash" in low:
+    ta_low = (team_a or "").lower()
+    tb_low = (team_b or "").lower()
+
+    wbbl_teams = [
+        "adelaide strikers women", "melbourne stars women", "perth scorchers women",
+        "melbourne renegades women", "brisbane heat women", "sydney sixers women",
+        "sydney thunder women", "hobart hurricanes women"
+    ]
+    if any(t in ta_low or t in tb_low for t in wbbl_teams) or "wbbl" in low or "women's big bash" in low or "womens big bash" in low:
+        return "Womens Big Bash League 2026"
+
+    bbl_teams = [
+        "adelaide strikers", "melbourne stars", "perth scorchers",
+        "melbourne renegades", "brisbane heat", "sydney sixers",
+        "sydney thunder", "hobart hurricanes"
+    ]
+    if not ("women" in ta_low or "women" in tb_low) and any(t in ta_low or t in tb_low for t in bbl_teams):
+        return "Big Bash League 2026"
+
+    if "sixes" in ta_low or "sixes" in tb_low or "sixes" in low:
+        return "Hong Kong International Sixes 2026"
+
+    state_women = [
+        "andhra women", "saurashtra women", "hyderabad women", "jharkhand women",
+        "karnataka women", "bengal women", "kerala women", "baroda women",
+        "punjab women", "uttarakhand women", "bihar women", "goa women",
+        "odisha women", "sikkim women", "pondicherry women"
+    ]
+    if any(t in ta_low or t in tb_low for t in state_women):
+        return "Senior Women's T20 Trophy 2026"
+
+    if "super smash" in low:
         return "Super Smash"
     elif "emirates d10" in low or ("emirates" in low and "d10" in low):
         return "Emirates D10"
     elif "emirates d20" in low or ("emirates" in low and "d20" in low):
-        return "Emirates D20 League"
+        return "Emirates D20 League 2026"
     elif "gt20" in low or "global t20" in low:
         return "Global T20 Canada"
     elif "summer cup" in low or "i10x" in low or re.search(r"\bicca\b", low):
@@ -429,7 +454,8 @@ def compute_vip_punter_verdict(team_a: str, team_b: str, tournament: str, match_
 def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
     """
     Main aggregator for the VIP Punter UI:
-    Returns the real-time match list directly from GamingHelper Online (liveMatches).
+    Returns the real-time match list directly from GamingHelper Online (liveMatches),
+    enriched with active tournament fixtures from CREX (like Hong Kong Sixes and WBBL).
     Accepts flexible arguments (*args, **kwargs, force_refresh).
     """
     force_refresh = kwargs.get("force_refresh", False)
@@ -437,11 +463,80 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
         if isinstance(args[0], bool):
             force_refresh = args[0]
     res = fetch_gaming_helper_live_bets(force_refresh=force_refresh)
-    if res.get("success"):
+    matches = res.get("matches") or []
+
+    # Enrich with major CREX fixtures that might not be on GamingHelper (e.g. Hong Kong Sixes)
+    try:
+        from core.providers.crex_provider import fetch_crex_fixtures, is_match_pair
+        crex_fix = fetch_crex_fixtures(force_refresh=force_refresh)
+        existing_pairs = [(m.get("team_a_name", ""), m.get("team_b_name", "")) for m in matches]
+        for cf in crex_fix:
+            c1 = cf.get("t1_name", "")
+            c2 = cf.get("t2_name", "")
+            c_ser = cf.get("series", "")
+            if not c1 or not c2:
+                continue
+            already_has = any(is_match_pair(c1, c2, ep[0], ep[1]) for ep in existing_pairs)
+            if already_has:
+                continue
+            if any(k in c_ser.lower() or k in c1.lower() or k in c2.lower() for k in ["sixes", "wbbl", "big bash", "tri series", "cwc", "d20", "d10"]):
+                mid = f"crex_{cf.get('sf', 'live')}_{c1[:3].lower()}_{c2[:3].lower()}"
+                v = compute_multi_source_toss_load(
+                    team_a=c1,
+                    team_b=c2,
+                    odds_a=cf.get("back") or 98,
+                    odds_b=cf.get("lay") or 80,
+                    tournament=c_ser,
+                    match_time=cf.get("time", ""),
+                    match_id=mid
+                )
+                m_obj = {
+                    "id": mid,
+                    "match_date": cf.get("date") or format_ist(now_ist(), "%Y-%m-%d"),
+                    "team_a_name": c1,
+                    "team_a_short": cf.get("t1_sn") or c1[:3].upper(),
+                    "team_a_logo": None,
+                    "team_b_name": c2,
+                    "team_b_short": cf.get("t2_sn") or c2[:3].upper(),
+                    "team_b_logo": None,
+                    "tournament_name": c_ser,
+                    "match_title": f"{c1} vs {c2}",
+                    "time_str": cf.get("time") or "Live / Upcoming",
+                    "toss_time_str": cf.get("time") or "10 Mins Before",
+                    "venue": "International Stadium",
+                    "odds_a": cf.get("back") or 98,
+                    "odds_b": cf.get("lay") or 80,
+                    "action_type": v["action"],
+                    "recommended_team": v["recommended_team"],
+                    "confidence_pct": v["confidence_pct"],
+                    "stake_rating": v["stake_rating"],
+                    "consensus_badge": v.get("consensus_badge", "🟢 CONFIRMED LOAD"),
+                    "risk_level": v.get("risk_level", "LOW RISK"),
+                    "market_load_text": v.get("market_load_text", ""),
+                    "cricketclues_status": v.get("cricketclues_status", ""),
+                    "punter_rationale": v["punter_rationale"],
+                    "total_edge": v.get("total_edge", 0.0),
+                    "clues_matched": True,
+                    "pattern_badge": v.get("pattern_badge", "⚖️ Neutral Toss Rotation"),
+                    "pattern_rule_name": v.get("pattern_rule_name", "NEUTRAL"),
+                    "pattern_rationale": v.get("pattern_rationale", ""),
+                    "a_streak_str": v.get("a_streak_str", "Even"),
+                    "b_streak_str": v.get("b_streak_str", "Even"),
+                    "a_last5_str": v.get("a_last5_str", "None"),
+                    "b_last5_str": v.get("b_last5_str", "None"),
+                    "is_live": 1,
+                    "status": "UPCOMING",
+                    "source": "CREX Live Feed"
+                }
+                matches.append(m_obj)
+    except Exception:
+        pass
+
+    if res.get("success") or matches:
         return {
-            "source": "GamingHelper Online (Live Bets)",
+            "source": "GamingHelper Online & CREX Live",
             "connected": True,
-            "matches": res.get("matches") or [],
+            "matches": matches,
             "needs_login": False
         }
     

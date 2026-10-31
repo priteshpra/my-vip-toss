@@ -278,11 +278,6 @@ def sync_active_series_history_from_crex(max_series: int = 3) -> int:
     new_records = []
 
     for sf, ser_name in list(active_series.items())[:max_series]:
-        # Check if we already have matches for this series
-        has_matches = any(sf in str(r.get("match_id", "")) for r in existing_records)
-        if has_matches:
-            continue
-
         try:
             s_url = f"https://crex.com/series/{sf}/matches"
             req = urllib.request.Request(s_url, headers=headers)
@@ -302,11 +297,17 @@ def sync_active_series_history_from_crex(max_series: int = 3) -> int:
             mapping = data[map_key]
             teams = {t["f_key"]: t for t in mapping.get("t", []) if "f_key" in t}
 
-            fix_key = next((k for k in data.keys() if "getMatchesForSeriesID" in k), None)
-            if not fix_key:
-                continue
-            s_matches = data[fix_key]
-            completed = [sm for sm in s_matches if sm.get("status") == 2]
+            so_key = next((k for k in data.keys() if "getSeriesOverview" in k), None)
+            s_matches = []
+            if so_key:
+                so = data[so_key]
+                s_matches = so.get("i2", []) + so.get("i5", [])
+            else:
+                fix_key = next((k for k in data.keys() if "getMatches" in k), None)
+                if fix_key:
+                    s_matches = data[fix_key]
+            
+            completed = [sm for sm in s_matches if sm.get("status") in (1, 2) or sm.get("result")]
 
             for cm in completed:
                 mn = cm.get("mn")
@@ -343,6 +344,14 @@ def sync_active_series_history_from_crex(max_series: int = 3) -> int:
                                 chose_to_val = p_data.get("chose_to")
                                 toss_dec = "Bat" if chose_to_val == 0 else "Bowl"
                                 toss_winner = teams.get(toss_fkey, {}).get("n", toss_fkey)
+                            if not toss_winner:
+                                sv3 = m_data.get("https://api.goscorer.com/api/v3/getSV3")
+                                if isinstance(sv3, dict):
+                                    b_txt = sv3.get("B", "")
+                                    f_team = sv3.get("F", "").replace("^", "")
+                                    if any(w in b_txt.lower() for w in ["opt to bowl", "opt to bat", "won toss"]):
+                                        toss_winner = teams.get(f_team, {}).get("n", f_team)
+                                        toss_dec = "Bat" if "bat" in b_txt.lower() else "Bowl"
                     except Exception:
                         pass
 
