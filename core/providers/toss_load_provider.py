@@ -370,17 +370,17 @@ def compute_multi_source_toss_load(
                 risk_level = "LOW RISK (PATTERN BREAKOUT)"
                 source_summary = f"Tipper Pattern Rule: {pat['rule_name']}"
                 rationale = f"💎 PATTERN BREAKOUT PLAY: {pat_rat} Tipper pattern triggers high conviction reversal."
-            elif h2h_fav and tot_h2h >= 1 and (h2h_a != h2h_b):
+            elif h2h_fav and tot_h2h >= 3 and (max(h2h_a, h2h_b) / tot_h2h) >= 0.75:
                 h2h_win_cnt = max(h2h_a, h2h_b)
                 action = "PLAY"
                 favored = h2h_fav
                 underdog = t_b if h2h_fav == t_a else t_a
-                confidence = max(74, int(round((h2h_win_cnt / tot_h2h) * 100)))
+                confidence = min(85, max(74, int(round((h2h_win_cnt / tot_h2h) * 100))))
                 rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
                 badge = f"💎 H2H DOMINANCE ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L)"
                 risk_level = "LOW RISK (HIGH CONVICTION)"
-                source_summary = f"Ground-Truth H2H Dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L)"
-                rationale = f"💎 SATIK GOLD PLAY: Proven head-to-head toss dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L) gives {favored} heavy calling rhythm advantage."
+                source_summary = f"Ground-Truth H2H Dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches)"
+                rationale = f"💎 SATIK GOLD PLAY: Proven head-to-head toss dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches) gives {favored} heavy calling rhythm advantage."
             elif bookie_fav and not is_dummy_rate and bookie_load >= 70:
                 action = "PLAY"
                 favored = fav_team_resolved
@@ -412,17 +412,17 @@ def compute_multi_source_toss_load(
         source_summary = f"Tipper Pattern Rule: {pat['rule_name']}"
         rationale = f"💎 PATTERN BREAKOUT PLAY: {pat_rat} Tipper pattern triggers high conviction reversal."
 
-    elif h2h_fav and tot_h2h >= 1 and (h2h_a != h2h_b):
+    elif h2h_fav and tot_h2h >= 3 and (max(h2h_a, h2h_b) / tot_h2h) >= 0.75:
         h2h_win_cnt = max(h2h_a, h2h_b)
         action = "PLAY"
         favored = h2h_fav
         underdog = t_b if h2h_fav == t_a else t_a
-        confidence = max(74, int(round((h2h_win_cnt / tot_h2h) * 100)))
+        confidence = min(85, max(74, int(round((h2h_win_cnt / tot_h2h) * 100))))
         rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
         badge = f"💎 H2H DOMINANCE ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L)"
         risk_level = "LOW RISK (HIGH CONVICTION)"
-        source_summary = f"Ground-Truth H2H Dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L)"
-        rationale = f"💎 SATIK GOLD PLAY: Proven head-to-head toss dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L) gives {favored} heavy calling rhythm advantage."
+        source_summary = f"Ground-Truth H2H Dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches)"
+        rationale = f"💎 SATIK GOLD PLAY: Proven head-to-head toss dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches) gives {favored} heavy calling rhythm advantage."
 
     elif bookie_fav and not is_dummy_rate and bookie_load >= 70:
         action = "PLAY"
