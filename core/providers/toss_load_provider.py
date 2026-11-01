@@ -156,11 +156,16 @@ def compute_multi_source_toss_load(
     t_a = (team_a or "").strip()
     t_b = (team_b or "").strip()
 
+    # Step 0: Strict Exhibition / Sixes Elimination Gate (Zero Tolerance for Casual Blitz Formats)
+    is_exhibition = any(k in (tournament or "").lower() for k in [
+        "sixes", "hong kong sixes", "exhibition", "masters", "charity"
+    ]) or any(k in (t_a or "").lower() or k in (t_b or "").lower() for k in ["sixes", "6s"])
+
     # Step 1: Check Immutable Lock Vault First
     locked_verdict = get_locked_prediction(m_id_str, t_a, t_b)
     if locked_verdict:
-        # If lock was SKIP, allow live market / pattern consensus to upgrade to PLAY
-        if locked_verdict.get("action") == "SKIP":
+        # If lock was SKIP, allow live market / pattern consensus to upgrade to PLAY (unless it's an exhibition match)
+        if locked_verdict.get("action") == "SKIP" or is_exhibition:
             locked_verdict = None
 
     if locked_verdict:
@@ -196,6 +201,30 @@ def compute_multi_source_toss_load(
     pat_edge = pat.get("pattern_edge", 0.0)
     pat_badge = pat.get("pattern_badge", "⚖️ Neutral Rotation")
     pat_rat = pat.get("pattern_rationale", "")
+
+    # Hard-skip all Exhibition / Sixes matches before any pattern evaluation
+    if is_exhibition:
+        res = {
+            "action": "SKIP",
+            "recommended_team": None,
+            "confidence_pct": 50,
+            "stake_rating": "🟡 STRICT PASS (NO BET)",
+            "consensus_badge": "🟡 PASS / EXHIBITION LOTTERY",
+            "risk_level": "HIGH RISK (EXHIBITION)",
+            "market_load_text": "Exhibition / Blitz Match (50-50 Flip)",
+            "cricketclues_status": "No Statistical Edge in Sixes",
+            "punter_rationale": "⛔ STRICT PASS (EXHIBITION LOTTERY): Hong Kong Sixes casual 5-over blitz format hai jahan coin toss pure lottery 50-50 flip hai. Captains ki koi fixed calling rhythm nahi hoti — capital safe rakhne ke liye strict pass karein.",
+            "total_edge": 0.0,
+            "pattern_badge": pat.get("pattern_badge", "⚖️ Neutral Toss Rotation"),
+            "pattern_rule_name": pat.get("rule_name", "EXHIBITION"),
+            "pattern_rationale": pat.get("pattern_rationale", ""),
+            "a_streak_str": pat.get("a_streak_str", "Even"),
+            "b_streak_str": pat.get("b_streak_str", "Even"),
+            "a_last5_str": pat.get("a_last5_str", "None"),
+            "b_last5_str": pat.get("b_last5_str", "None")
+        }
+        save_locked_prediction(m_id_str, res, t_a, t_b)
+        return res
 
     # Step 4: Analyze Bookmaker Rate Divergence (Asian Odds)
     oa = max(20, min(250, odds_a))
@@ -243,7 +272,7 @@ def compute_multi_source_toss_load(
 
         is_major_league = any(k in (tournament or "").lower() for k in [
             "wbbl", "women's big bash", "womens big bash", "bbl", "big bash",
-            "sixes", "hong kong", "emirates d20", "emirates d10", "cwc", "tri series", "icc"
+            "emirates d20", "emirates d10", "cwc", "tri series", "icc"
         ])
 
         if c_prob >= 60 or (c_back > 0 and c_back <= 62):
