@@ -88,10 +88,9 @@ def test_database_backup_and_retention(tmp_path):
 # --------------------------------------------------------------------------
 # 3. APScheduler Job Registration Tests
 # --------------------------------------------------------------------------
-@pytest.mark.asyncio
-async def test_scheduler_job_registrations():
+def test_scheduler_job_registrations():
     """Verify all 7 background maintenance jobs are registered with appropriate triggers."""
-    sched = start_scheduler()
+    sched = start_scheduler(autostart=False)
     job_ids = [job.id for job in sched.get_jobs()]
 
     assert "sync_live_matches" in job_ids

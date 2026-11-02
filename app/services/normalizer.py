@@ -59,7 +59,9 @@ STANDARD_LEAGUES: Dict[str, List[str]] = {
     "NPL": ["Nepal Premier League", "NPL T20", "Nepal Premier League 2026"],
     "ICC ODI": ["ICC One Day International", "ICC Men's ODI", "ODI", "One Day International", "World Cup ODI"],
     "ICC T20I": ["ICC Men's T20I", "T20I", "Twenty20 International", "ICC T20 World Cup", "T20 World Cup"],
-    "Emirates D10": ["Emirates D10 League", "Emirates D10 Tournament", "D10 Emirates", "Emirates D20"],
+    "Emirates D10": ["Emirates D10 League", "Emirates D10 Tournament", "D10 Emirates"],
+    "Emirates D20": ["Emirates D20", "Emirates D20 2026", "Emirates D20 League"],
+    "India Trophy Women": ["India Trophy. Elite. Women", "India Trophy Women", "Senior Women T20 Trophy"],
     "Local/Unknown": ["Other", "Club", "Domestic", "General League", "Unknown", "Exhibition"],
 }
 
@@ -181,17 +183,6 @@ class EntityNormalizer:
 
         if match:
             matched_str, score, idx = match
-            return valid_candidates[idx][1]
-
-        # 4. Fallback: WRatio for partial phrase matches
-        match_w = process.extractOne(
-            cleaned,
-            cand_strings,
-            scorer=fuzz.WRatio,
-            score_cutoff=max(82.0, threshold)
-        )
-        if match_w:
-            matched_str, score, idx = match_w
             return valid_candidates[idx][1]
 
         return None

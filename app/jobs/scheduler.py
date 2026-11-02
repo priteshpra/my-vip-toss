@@ -26,7 +26,7 @@ from app.jobs.tasks import (
 scheduler = AsyncIOScheduler()
 
 
-def start_scheduler() -> AsyncIOScheduler:
+def start_scheduler(autostart: bool = True) -> AsyncIOScheduler:
     """Start APScheduler with all configured production tasks."""
     global scheduler
     try:
@@ -102,8 +102,9 @@ def start_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
 
-    scheduler.start()
-    logger.info("APScheduler initialized: all production background jobs registered and running.")
+    if autostart:
+        scheduler.start()
+        logger.info("APScheduler initialized: all production background jobs registered and running.")
     return scheduler
 
 
@@ -111,6 +112,10 @@ def stop_scheduler() -> None:
     """Safely shut down background scheduler."""
     global scheduler
     if scheduler.running:
+        try:
+            scheduler.remove_all_jobs()
+        except Exception:
+            pass
         scheduler.shutdown(wait=False)
         scheduler = AsyncIOScheduler()
         logger.info("APScheduler background scheduler shut down.")

@@ -45,18 +45,18 @@ def parse_match_start_utc(date_str: Optional[str], time_str: Optional[str]) -> d
         return now
 
     d_clean = date_str.strip()
-    # Try parsing full ISO format
+    date_part = None
+    # Try parsing full ISO format (e.g. 2026-11-02T00:00:00.000Z)
     try:
-        dt = datetime.fromisoformat(d_clean)
-        return ensure_utc(dt)
+        dt = datetime.fromisoformat(d_clean.replace("Z", "+00:00"))
+        if not time_str and (dt.hour != 0 or dt.minute != 0):
+            return ensure_utc(dt)
+        date_part = dt.date()
     except Exception:
-        pass
-
-    # Extract date parts (YYYY-MM-DD)
-    try:
-        date_part = datetime.strptime(d_clean, "%Y-%m-%d").date()
-    except Exception:
-        date_part = now.date()
+        try:
+            date_part = datetime.strptime(d_clean[:10], "%Y-%m-%d").date()
+        except Exception:
+            date_part = now.date()
 
     if not time_str:
         dt_naive = datetime.combine(date_part, datetime.min.time())
@@ -170,6 +170,8 @@ class GamingHelperAdapter:
 
                 headers = {
                     "Authorization": f"Bearer {self.token}",
+                    "newAccessToken": self.token,
+                    "access-token": self.token,
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TossAnalytics/1.0",
                     "Accept": "application/json",
                 }
@@ -189,7 +191,8 @@ class GamingHelperAdapter:
                             latency_ms = int((time.time() - start_time) * 1000)
                             data = resp.json()
                             raw_matches = (
-                                data.get("data")
+                                data.get("liveMatches")
+                                or data.get("data")
                                 or data.get("bets")
                                 or data.get("matches")
                                 or (data if isinstance(data, list) else [])
@@ -272,10 +275,17 @@ class GamingHelperCollector:
                 continue
 
             # 1. Normalise League Name (Rule 2: Unidentified go to 'Local/Unknown')
-            raw_tourn = m.get("tournament_name") or m.get("tournament") or ""
+            raw_tourn = m.get("tournament_name") or m.get("tournament") or m.get("series_name") or ""
+            if not raw_tourn and m.get("match_name"):
+                m_name = m.get("match_name", "")
+                if "," in m_name:
+                    raw_tourn = m_name.split(",")[-1].strip()
+                elif " - " in m_name:
+                    raw_tourn = m_name.split(" - ")[-1].strip()
+
             canonical_league = normalizer.normalize_league(raw_tourn)
             if not canonical_league:
-                canonical_league = "Local/Unknown"
+                canonical_league = raw_tourn if raw_tourn else "Local/Unknown"
 
             # Get or create League
             stmt_l = select(League).where(League.name == canonical_league)
@@ -288,8 +298,8 @@ class GamingHelperCollector:
                 await session.refresh(league_obj)
 
             # 2. Normalise Teams
-            raw_a = m.get("team_a_name") or m.get("team_a") or "Team A"
-            raw_b = m.get("team_b_name") or m.get("team_b") or "Team B"
+            raw_a = m.get("team_one_name") or m.get("team_a_name") or m.get("team_a") or "Team A"
+            raw_b = m.get("team_two_name") or m.get("team_b_name") or m.get("team_b") or "Team B"
 
             canonical_a = normalizer.normalize_team(raw_a) or raw_a.strip()
             canonical_b = normalizer.normalize_team(raw_b) or raw_b.strip()
@@ -311,7 +321,7 @@ class GamingHelperCollector:
             team_b_obj = team_objs[canonical_b]
 
             # 3. Normalise Venue
-            raw_venue = m.get("venue")
+            raw_venue = m.get("match_address") or m.get("venue")
             venue_id = None
             if raw_venue:
                 norm_v = normalize_venue(raw_venue)
@@ -327,7 +337,22 @@ class GamingHelperCollector:
                     venue_id = v_obj.id
 
             # 4. Parse Start Time in UTC
-            start_utc = parse_match_start_utc(m.get("match_date"), m.get("time_str"))
+            raw_time = m.get("match_time") or m.get("time_str")
+            time_str = None
+            if isinstance(raw_time, list) and len(raw_time) > 0:
+                time_str = str(raw_time[0])
+            elif isinstance(raw_time, str):
+                if raw_time.startswith("["):
+                    try:
+                        parsed_times = json.loads(raw_time)
+                        if isinstance(parsed_times, list) and len(parsed_times) > 0:
+                            time_str = str(parsed_times[0])
+                    except Exception:
+                        time_str = raw_time
+                else:
+                    time_str = raw_time
+
+            start_utc = parse_match_start_utc(m.get("match_date"), time_str)
 
             # Determine initial status
             raw_status = str(m.get("status", "UPCOMING")).upper()
@@ -354,8 +379,8 @@ class GamingHelperCollector:
                 "venue_id": venue_id,
                 "start_time_utc": start_utc,
                 "status": match_status if not existing_match or existing_match.status != "toss_done" else "toss_done",
-                "odds_a": float(m.get("odds_a", 100)),
-                "odds_b": float(m.get("odds_b", 100)),
+                "odds_a": float(m.get("odds_a") or 100),
+                "odds_b": float(m.get("odds_b") or 100),
             }
 
             match_obj = await upsert_match(session, match_data)
@@ -369,8 +394,8 @@ class GamingHelperCollector:
                 source="GamingHelper Online",
                 team_lean=m.get("recommended_team"),
                 load_market=m.get("market_load_text"),
-                odds_a=float(m.get("odds_a", 100)),
-                odds_b=float(m.get("odds_b", 100)),
+                odds_a=float(m.get("odds_a") or 100),
+                odds_b=float(m.get("odds_b") or 100),
                 notes=m.get("punter_rationale")
             )
             session.add(market_entry)

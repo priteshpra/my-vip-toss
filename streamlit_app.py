@@ -81,52 +81,11 @@ def bootstrap_database():
                 cricsheet = CricsheetCollector()
                 await cricsheet.sync_historical_records_to_db(session, limit=100)
 
-            # Seed sample matches if empty
+            # Sync matches from GamingHelper (live feed or cache fallback)
             res_m = await session.execute(select(func.count(Match.id)))
             if res_m.scalar_one() == 0:
                 gh_collector = GamingHelperCollector()
-                matches_data = gh_collector.load_local_fallback()
-                if matches_data:
-                    from app.services.match_service import upsert_match
-                    for m in matches_data[:15]:
-                        mid = str(m.get("id"))
-                        t_a = m.get("team_a_name", "Team A")
-                        t_b = m.get("team_b_name", "Team B")
-                        l_name = m.get("tournament_name", "IPL")
-
-                        # Get league
-                        res_l = await session.execute(select(League).where(League.name == l_name))
-                        league = res_l.scalar_one_or_none()
-                        if not league:
-                            league = League(name=l_name, format="T20")
-                            session.add(league)
-                            await session.commit()
-                            await session.refresh(league)
-
-                        # Get teams
-                        teams = {}
-                        for t_name in [t_a, t_b]:
-                            res_tm = await session.execute(select(Team).where(Team.name == t_name))
-                            tm = res_tm.scalar_one_or_none()
-                            if not tm:
-                                tm = Team(name=t_name, short_code=t_name[:3].upper())
-                                session.add(tm)
-                                await session.commit()
-                                await session.refresh(tm)
-                            teams[t_name] = tm
-
-                        match_dict = {
-                            "source_match_id": mid,
-                            "gaming_helper_ref": mid,
-                            "league_id": league.id,
-                            "team_a_id": teams[t_a].id,
-                            "team_b_id": teams[t_b].id,
-                            "start_time_utc": utc_now(),
-                            "status": "upcoming",
-                            "odds_a": float(m.get("odds_a", 100)),
-                            "odds_b": float(m.get("odds_b", 100)),
-                        }
-                        await upsert_match(session, match_dict)
+                await gh_collector.sync_matches(session)
 
     run_async(_init())
     return True
@@ -286,6 +245,16 @@ nav_choice = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
+if st.sidebar.button("🔄 Sync Today's Matches (GamingHelper)", help="Poll latest live matches from GamingHelper Online"):
+    with st.spinner("Connecting to GamingHelper Online & syncing daily fixtures..."):
+        async def _sync_live():
+            async with AsyncSessionLocal() as session:
+                col = GamingHelperCollector()
+                return await col.sync_matches(session)
+        sync_res = run_async(_sync_live())
+        st.sidebar.success(f"Synced {sync_res.get('matches_synced', 0)} matches!")
+        st.rerun()
+
 st.sidebar.info(
     "**Scientific Honesty Notice**\n\n"
     "A cricket toss is a fair coin flip (p = 0.50). "
