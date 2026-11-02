@@ -3,7 +3,7 @@
 import os
 from typing import Optional, List
 from fastapi import APIRouter, Request, Depends, HTTPException, status, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select, func, distinct, desc
 from sqlalchemy.orm import selectinload, joinedload
@@ -13,7 +13,7 @@ from app.db import get_db, format_ist, utc_to_ist
 from app.config import settings
 from app.models import (
     Match, Team, League, Tournament, Venue, TossResult,
-    Prediction, PredictionOutcome, ExternalSource,
+    Prediction, PredictionOutcome, ExternalSource, MarketEntry,
     TelegramReview, CollectorHealth, AuditLog
 )
 from app.schemas import PredictionCreate, TossResultCreate
@@ -34,7 +34,17 @@ from app.services.match_service import get_matches, get_match_by_id
 from app.services.toss_service import record_toss_result
 from app.services.prediction_service import lock_prediction, verify_prediction_integrity
 from app.services.accuracy_service import get_accuracy_metrics_for_source
-from app.services.analysis_service import get_team_toss_stats, get_h2h_toss_stats
+from app.services.analysis_service import (
+    get_team_toss_stats,
+    get_h2h_toss_stats,
+    get_venue_toss_stats,
+    get_comprehensive_match_analysis
+)
+from app.services.market_service import (
+    get_market_entries_for_match,
+    record_manual_market_entry
+)
+from app.services.export_service import generate_match_csv, generate_match_pdf
 from app.services.source_service import get_source_leaderboard
 from app.jobs.tasks import sync_live_matches_task, verify_toss_results_task
 
@@ -213,7 +223,7 @@ async def match_detail_view(
     session: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin)
 ):
-    """Match detail page with longitudinal statistics and locked pre-toss calls."""
+    """Match detail page with full longitudinal analysis and market intelligence."""
     match = await get_match_by_id(session, match_id)
     if not match:
         raise HTTPException(status_code=404, detail="Match fixture not found.")
@@ -222,12 +232,11 @@ async def match_detail_view(
     for p in match.predictions:
         p.locked_at_ist = format_ist(p.locked_at_utc)
 
-    team_a_name = match.team_a.name if match.team_a else match.team_a_id
-    team_b_name = match.team_b.name if match.team_b else match.team_b_id
-
-    stats_a = await get_team_toss_stats(session, team_a_name)
-    stats_b = await get_team_toss_stats(session, team_b_name)
-    h2h_stats = await get_h2h_toss_stats(session, team_a_name, team_b_name)
+    # Full analysis report
+    analysis = await get_comprehensive_match_analysis(session, match)
+    market_entries = await get_market_entries_for_match(session, match.id)
+    for me in market_entries:
+        me.fetched_at_ist = format_ist(me.fetched_at_utc)
 
     return templates.TemplateResponse(
         request=request,
@@ -236,11 +245,102 @@ async def match_detail_view(
             request,
             active_page="matches",
             match=match,
-            stats_a=stats_a,
-            stats_b=stats_b,
-            h2h_stats=h2h_stats
+            analysis=analysis,
+            stats_a=analysis["stats_a"],
+            stats_b=analysis["stats_b"],
+            h2h_stats=analysis["h2h_stats"],
+            venue_stats=analysis["venue_stats"],
+            market_entries=market_entries
         )
     )
+
+
+@router.get("/matches/{match_id}/export/csv")
+async def export_match_csv(
+    match_id: str,
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Export complete match analysis dossier as structured CSV."""
+    match = await get_match_by_id(session, match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found.")
+
+    analysis = await get_comprehensive_match_analysis(session, match)
+    csv_content = generate_match_csv(analysis, match)
+
+    filename = f"match_{match_id}_toss_analysis.csv"
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+@router.get("/matches/{match_id}/export/pdf")
+async def export_match_pdf(
+    match_id: str,
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Export complete match analysis report as a formatted PDF."""
+    match = await get_match_by_id(session, match_id)
+    if not match:
+        raise HTTPException(status_code=404, detail="Match not found.")
+
+    analysis = await get_comprehensive_match_analysis(session, match)
+    pdf_bytes = generate_match_pdf(analysis, match)
+
+    filename = f"match_{match_id}_toss_analysis.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+
+@router.post("/admin/matches/{match_id}/market", response_class=HTMLResponse)
+async def admin_record_market_entry(
+    request: Request,
+    match_id: int,
+    source: str = Form("Manual Exchange"),
+    team_lean: Optional[str] = Form(None),
+    load_market: Optional[str] = Form(None),
+    odds_a: Optional[float] = Form(None),
+    odds_b: Optional[float] = Form(None),
+    notes: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
+    _csrf: None = Depends(verify_csrf)
+):
+    """Record verified human-entered market intelligence (immutable append-only)."""
+    client_ip = get_client_ip(request)
+    try:
+        entry = await record_manual_market_entry(
+            session=session,
+            match_id=match_id,
+            source=source,
+            team_lean=team_lean,
+            load_market=load_market,
+            odds_a=odds_a,
+            odds_b=odds_b,
+            notes=notes,
+            admin_user=admin.get("username", "admin"),
+            client_ip=client_ip
+        )
+        entry_ist = format_ist(entry.fetched_at_utc)
+        return HTMLResponse(
+            f"<tr class='bg-emerald-950/40 text-xs font-mono transition-colors'>"
+            f"<td class='py-2 px-3 text-slate-300 font-sans font-medium'>{entry.source}</td>"
+            f"<td class='py-2 px-3 text-emerald-400 font-bold'>{entry.team_lean or '-'}</td>"
+            f"<td class='py-2 px-3 text-slate-300'>{entry.load_market or '-'}</td>"
+            f"<td class='py-2 px-3 text-slate-300'>{entry.odds_a or '-'} / {entry.odds_b or '-'}</td>"
+            f"<td class='py-2 px-3 text-slate-400 text-xs font-sans'>{entry.notes or '-'}</td>"
+            f"<td class='py-2 px-3 text-slate-400'>{entry_ist}</td>"
+            f"</tr>"
+        )
+    except Exception as e:
+        return HTMLResponse(f"<div class='text-xs text-rose-400 p-2'>Error: {str(e)}</div>")
 
 
 # --------------------------------------------------------------------------

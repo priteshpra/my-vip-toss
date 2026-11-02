@@ -5,13 +5,29 @@
 {% block content %}
 <div class="space-y-6">
 
-    <!-- Back button & Breadcrumb -->
-    <div class="flex items-center gap-2 text-xs text-slate-400">
-        <a href="/matches" class="hover:text-white flex items-center gap-1 transition-colors">
-            &larr; Back to Matches
-        </a>
-        <span>/</span>
-        <span class="text-slate-200">{{ match.id }}</span>
+    <!-- Top Navigation & Export Buttons -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-xs text-slate-400">
+            <a href="/matches" class="hover:text-white flex items-center gap-1 transition-colors">
+                &larr; Back to Matches
+            </a>
+            <span>/</span>
+            <span class="text-slate-200 font-mono">Match #{{ match.id }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="/matches/{{ match.id }}/export/csv"
+               class="py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
+               title="Export analysis dossier as CSV">
+                <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Export CSV</span>
+            </a>
+            <a href="/matches/{{ match.id }}/export/pdf"
+               class="py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition-all"
+               title="Export analysis dossier as PDF">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                <span>Export PDF</span>
+            </a>
+        </div>
     </div>
 
     <!-- Match Header Card -->
@@ -20,45 +36,52 @@
             <div class="space-y-1">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                        {{ match.tournament.name if match.tournament else match.tournament_id }}
-                    </span>
-                    <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                        {{ match.match_format }}
+                        {{ match.league.name if match.league else 'Local/Unknown' }}
                     </span>
                     <span class="text-xs font-mono text-slate-400">
-                        Match ID: {{ match.id }}
+                        Match ID: #{{ match.id }}
                     </span>
+                    {% if match.gaming_helper_ref %}
+                    <span class="text-xs font-mono text-slate-500">
+                        Ref: {{ match.gaming_helper_ref }}
+                    </span>
+                    {% endif %}
                 </div>
                 <h1 class="text-2xl md:text-3xl font-extrabold text-white">
                     {{ match.team_a.name if match.team_a else match.team_a_id }} <span class="text-slate-500 font-normal">vs</span> {{ match.team_b.name if match.team_b else match.team_b_id }}
                 </h1>
-                <div class="text-xs text-slate-400 flex items-center gap-4">
+                <div class="text-xs text-slate-400 flex flex-wrap items-center gap-4">
                     <span>Scheduled Start: <strong class="text-slate-200">{{ match.scheduled_start_ist }}</strong></span>
-                    {% if match.venue %}
-                    <span>Venue: <strong class="text-slate-200">{{ match.venue.name }}</strong></span>
+                    <span>Venue: <strong class="text-slate-200">{{ match.venue.name if match.venue else 'Venue TBD' }}</strong></span>
+                    {% if match.odds_a and match.odds_b %}
+                    <span>Rates: <strong class="text-slate-200 font-mono">{{ match.odds_a }} / {{ match.odds_b }}</strong></span>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Status Badge -->
-            <div>
-                {% if match.status == 'UPCOMING' %}
-                <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30 shadow-sm">
-                    UPCOMING
+            <!-- Status Badge & Countdown -->
+            <div class="flex flex-col items-end gap-1">
+                {% if match.status == 'toss_done' or match.toss_result %}
+                <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-sm flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    TOSS COMPLETED
                 </span>
-                {% elif match.status == 'TOSS_PENDING' %}
-                <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-sm animate-pulse">
+                {% elif match.status == 'live' or match.status == 'toss_pending' %}
+                <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-sm animate-pulse flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span>
                     TOSS PENDING
                 </span>
-                {% elif match.status == 'TOSS_COMPLETED' %}
-                <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-sm">
-                    OFFICIAL TOSS COMPLETED
+                <span class="text-[11px] font-mono text-amber-300">{{ match.countdown_display }}</span>
+                {% else %}
+                <span class="px-3 py-1.5 rounded-xl text-xs font-bold bg-sky-500/10 text-sky-400 border border-sky-500/30 shadow-sm">
+                    UPCOMING
                 </span>
+                <span class="text-[11px] font-mono text-slate-400">{{ match.countdown_display }}</span>
                 {% endif %}
             </div>
         </div>
 
-        <!-- Official Ground Truth Toss Outcome -->
+        <!-- Official Toss Result Section -->
         <div class="bg-slate-900/60 rounded-xl p-4 border border-slate-800/80">
             <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Confirmed Ground Truth Toss Result</h2>
             {% if match.toss_result %}
@@ -66,99 +89,375 @@
                 <div class="space-y-1">
                     <div class="text-lg font-bold text-white flex items-center gap-2">
                         <span>Toss Winner:</span>
-                        <span class="text-emerald-400 underline decoration-emerald-500/40">
-                            {{ match.toss_result.toss_winner.name if match.toss_result.toss_winner else match.toss_result.toss_winner_id }}
+                        <span class="text-emerald-400 font-extrabold">
+                            {{ match.toss_result.winner_team.name if match.toss_result.winner_team else match.toss_result.winner_team_id }}
                         </span>
-                        <span class="text-xs text-slate-300 font-normal px-2 py-0.5 rounded bg-slate-800">
-                            Elected to {{ match.toss_result.toss_decision }}
+                        <span class="text-xs text-slate-300 font-normal px-2 py-0.5 rounded bg-slate-800 uppercase">
+                            Elected to {{ match.toss_result.decision }}
                         </span>
                     </div>
                     <div class="text-xs text-slate-400 flex items-center gap-3">
-                        <span>Verification Status: <strong class="text-emerald-400 font-mono">{{ match.toss_result.verification_status }}</strong></span>
-                        <span>Source: <span class="font-mono">{{ match.toss_result.source_provider_id }}</span></span>
+                        <span>Source: <strong class="text-slate-300 font-mono">{{ match.toss_result.source }}</strong></span>
+                        {% if match.toss_result.telegram_message_id %}
+                        <span>Telegram Msg: <span class="font-mono text-slate-300">#{{ match.toss_result.telegram_message_id }}</span></span>
+                        {% endif %}
+                        <span>Recorded (IST): <span class="font-mono text-slate-300">{{ match.toss_result.received_at_utc }}</span></span>
                     </div>
                 </div>
             </div>
             {% else %}
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="text-xs text-slate-400">
-                    Official toss outcome has not yet been confirmed by official feeds.
+                    Official toss outcome is pending. Enter ground truth manually if confirmed by referee report:
                 </div>
                 <!-- Admin manual resolution form -->
-                <form hx-post="/admin/matches/{{ match.id }}/toss" hx-target="#toss-submit-msg" class="flex items-center gap-2">
+                <form hx-post="/admin/matches/{{ match.id }}/toss"
+                      hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                      hx-target="#toss-submit-msg"
+                      class="flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <select name="toss_winner_id" required class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white">
-                        <option value="">Select Toss Winner</option>
-                        <option value="{{ match.team_a.id if match.team_a else match.team_a_id }}">{{ match.team_a.name if match.team_a else match.team_a_id }}</option>
-                        <option value="{{ match.team_b.id if match.team_b else match.team_b_id }}">{{ match.team_b.name if match.team_b else match.team_b_id }}</option>
+                        <option value="">Select Winner Team</option>
+                        <option value="{{ match.team_a.name if match.team_a else match.team_a_id }}">{{ match.team_a.name if match.team_a else match.team_a_id }}</option>
+                        <option value="{{ match.team_b.name if match.team_b else match.team_b_id }}">{{ match.team_b.name if match.team_b else match.team_b_id }}</option>
                     </select>
                     <select name="toss_decision" class="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white">
-                        <option value="BAT">Bat</option>
-                        <option value="BOWL">Bowl</option>
+                        <option value="BAT">Elected to Bat</option>
+                        <option value="FIELD">Elected to Field (Bowl)</option>
                     </select>
                     <button type="submit" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors">
                         Confirm Toss
                     </button>
                 </form>
             </div>
-            <div id="toss-submit-msg" class="text-xs mt-2 text-indigo-400"></div>
+            <div id="toss-submit-msg" class="text-xs mt-2"></div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Longitudinal Empirical Statistics (Team A vs Team B vs Fair Baseline) -->
+    <!-- Macro Stats Comparison Grid (Team A vs Team B) -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- Team A Stats -->
+        <!-- Team A Stats Card -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                <h3 class="text-base font-bold text-white">{{ stats_a.team }}</h3>
+                <span class="text-[10px] font-mono text-slate-400">Historical Toss Record</span>
+            </div>
+
+            <!-- Overall Stat -->
+            {% set ov_a = stats_a.overall %}
+            <div class="grid grid-cols-3 gap-2.5 text-xs">
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-slate-400 block text-[10px]">Sample Size (n)</span>
+                    <span class="text-base font-bold text-white">{{ ov_a.n }} matches</span>
+                    {% if ov_a.is_insufficient %}
+                    <span class="text-[10px] block mt-0.5 text-amber-400 font-semibold">{{ ov_a.insufficient_warning }}</span>
+                    {% else %}
+                    <span class="text-[10px] block mt-0.5 text-emerald-400 font-semibold">Sufficient data (n &ge; 30)</span>
+                    {% endif %}
+                </div>
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-slate-400 block text-[10px]">Toss Win Rate</span>
+                    <span class="text-base font-bold text-white">{{ ov_a.win_pct }}%</span>
+                    <span class="text-[10px] font-mono text-indigo-300 block mt-0.5">Wins: {{ ov_a.wins }} / Loss: {{ ov_a.losses }}</span>
+                </div>
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-slate-400 block text-[10px]">95% Wilson CI</span>
+                    <span class="text-xs font-mono font-bold text-purple-300">{{ ov_a.ci_display }}</span>
+                    {% if ov_a.not_different_from_50 %}
+                    <span class="text-[10px] block mt-0.5 text-slate-400">50% within CI (Fair baseline)</span>
+                    {% else %}
+                    <span class="text-[10px] block mt-0.5 text-amber-300">Diverges from 50%</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Format & Home/Away Breakdown -->
+            <div class="space-y-2 text-xs">
+                <div class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Breakdown by Context</div>
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-slate-400 block">Home:</span>
+                        <span class="font-bold text-white">{{ stats_a.home_away.home.win_pct }}%</span>
+                        <span class="text-slate-500 font-mono"> (n={{ stats_a.home_away.home.n }}, CI: {{ stats_a.home_away.home.ci_display }})</span>
+                    </div>
+                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-slate-400 block">Away:</span>
+                        <span class="font-bold text-white">{{ stats_a.home_away.away.win_pct }}%</span>
+                        <span class="text-slate-500 font-mono"> (n={{ stats_a.home_away.away.n }}, CI: {{ stats_a.home_away.away.ci_display }})</span>
+                    </div>
+                </div>
+                {% if stats_a.by_format %}
+                <div class="grid grid-cols-2 gap-2 text-[11px] mt-1">
+                    {% for fmt, s in stats_a.by_format.items() %}
+                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-slate-400 block">{{ fmt }}:</span>
+                        <span class="font-bold text-white">{{ s.win_pct }}%</span>
+                        <span class="text-slate-500 font-mono"> (n={{ s.n }}, CI: {{ s.ci_display }})</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Recent Toss Sequence -->
+            {% if stats_a.recent_form.sequence %}
+            <div class="text-xs space-y-1">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Recent Toss Form (Last 10)</span>
+                <div class="flex items-center gap-1">
+                    {% for res in stats_a.recent_form.sequence[:10] %}
+                    <span class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold {% if res == 'W' %}bg-emerald-500/20 text-emerald-400 border border-emerald-500/40{% else %}bg-rose-500/20 text-rose-400 border border-rose-500/40{% endif %}">
+                        {{ res }}
+                    </span>
+                    {% endfor %}
+                    <span class="text-[11px] font-mono text-slate-400 ml-2">Win %: {{ stats_a.recent_form.last_10.win_pct }}%</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Team B Stats Card -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                <h3 class="text-base font-bold text-white">{{ stats_b.team }}</h3>
+                <span class="text-[10px] font-mono text-slate-400">Team Toss Profile</span>
+            </div>
+
+            <!-- Overall Stat -->
+            {% set ov_b = stats_b.overall %}
+            <div class="grid grid-cols-3 gap-2.5 text-xs">
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-slate-400 block text-[10px]">Sample Size (n)</span>
+                    <span class="text-base font-bold text-white">{{ ov_b.n }} matches</span>
+                    {% if ov_b.is_insufficient %}
+                    <span class="text-[10px] block mt-0.5 text-amber-400 font-semibold">{{ ov_b.insufficient_warning }}</span>
+                    {% else %}
+                    <span class="text-[10px] block mt-0.5 text-emerald-400 font-semibold">Sufficient data (n &ge; 30)</span>
+                    {% endif %}
+                </div>
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-slate-400 block text-[10px]">Toss Win Rate</span>
+                    <span class="text-base font-bold text-white">{{ ov_b.win_pct }}%</span>
+                    <span class="text-[10px] font-mono text-indigo-300 block mt-0.5">Wins: {{ ov_b.wins }} / Loss: {{ ov_b.losses }}</span>
+                </div>
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <span class="text-slate-400 block text-[10px]">95% Wilson CI</span>
+                    <span class="text-xs font-mono font-bold text-purple-300">{{ ov_b.ci_display }}</span>
+                    {% if ov_b.not_different_from_50 %}
+                    <span class="text-[10px] block mt-0.5 text-slate-400">50% within CI (Fair baseline)</span>
+                    {% else %}
+                    <span class="text-[10px] block mt-0.5 text-amber-300">Diverges from 50%</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Format & Home/Away Breakdown -->
+            <div class="space-y-2 text-xs">
+                <div class="text-[11px] font-bold text-slate-300 uppercase tracking-wider">Breakdown by Context</div>
+                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-slate-400 block">Home:</span>
+                        <span class="font-bold text-white">{{ stats_b.home_away.home.win_pct }}%</span>
+                        <span class="text-slate-500 font-mono"> (n={{ stats_b.home_away.home.n }}, CI: {{ stats_b.home_away.home.ci_display }})</span>
+                    </div>
+                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-slate-400 block">Away:</span>
+                        <span class="font-bold text-white">{{ stats_b.home_away.away.win_pct }}%</span>
+                        <span class="text-slate-500 font-mono"> (n={{ stats_b.home_away.away.n }}, CI: {{ stats_b.home_away.away.ci_display }})</span>
+                    </div>
+                </div>
+                {% if stats_b.by_format %}
+                <div class="grid grid-cols-2 gap-2 text-[11px] mt-1">
+                    {% for fmt, s in stats_b.by_format.items() %}
+                    <div class="bg-slate-900/40 p-2 rounded-lg border border-slate-800/80">
+                        <span class="text-slate-400 block">{{ fmt }}:</span>
+                        <span class="font-bold text-white">{{ s.win_pct }}%</span>
+                        <span class="text-slate-500 font-mono"> (n={{ s.n }}, CI: {{ s.ci_display }})</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Recent Toss Sequence -->
+            {% if stats_b.recent_form.sequence %}
+            <div class="text-xs space-y-1">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Recent Toss Form (Last 10)</span>
+                <div class="flex items-center gap-1">
+                    {% for res in stats_b.recent_form.sequence[:10] %}
+                    <span class="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold {% if res == 'W' %}bg-emerald-500/20 text-emerald-400 border border-emerald-500/40{% else %}bg-rose-500/20 text-rose-400 border border-rose-500/40{% endif %}">
+                        {{ res }}
+                    </span>
+                    {% endfor %}
+                    <span class="text-[11px] font-mono text-slate-400 ml-2">Win %: {{ stats_b.recent_form.last_10.win_pct }}%</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Head-to-Head & Venue Analysis Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Direct Head to Head -->
         <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
             <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                <h3 class="text-sm font-bold text-white">{{ match.team_a.name if match.team_a else match.team_a_id }}</h3>
-                <span class="text-[10px] font-mono text-slate-400">Historical Toss Record</span>
+                <h3 class="text-base font-bold text-white">Direct Head-to-Head Toss Record</h3>
+                <span class="text-[10px] font-mono text-slate-400">Total H2H Matches: {{ h2h_stats.total_h2h_matches }}</span>
             </div>
             <div class="grid grid-cols-2 gap-3 text-xs">
                 <div class="bg-slate-900/40 p-2.5 rounded-xl border border-slate-800">
-                    <span class="text-slate-400 block text-[10px]">Sample Size (n)</span>
-                    <span class="text-base font-bold text-white">{{ stats_a.sample_size }} matches</span>
-                    <span class="text-[10px] block mt-0.5 {% if stats_a.is_sample_sufficient %}text-emerald-400{% else %}text-amber-400{% endif %}">
-                        {{ "Sufficient (n>=30)" if stats_a.is_sample_sufficient else "Low sample (n<30)" }}
-                    </span>
+                    <span class="text-slate-400 block text-[10px]">{{ h2h_stats.team_a }} Wins</span>
+                    <span class="text-base font-bold text-white">{{ h2h_stats.stat_a.wins }} ({{ h2h_stats.stat_a.win_pct }}%)</span>
+                    <span class="text-[10px] font-mono text-purple-300 block mt-0.5">CI: {{ h2h_stats.stat_a.ci_display }}</span>
+                    {% if h2h_stats.stat_a.is_insufficient %}
+                    <span class="text-[10px] text-amber-400 block mt-0.5">{{ h2h_stats.stat_a.insufficient_warning }}</span>
+                    {% endif %}
                 </div>
                 <div class="bg-slate-900/40 p-2.5 rounded-xl border border-slate-800">
-                    <span class="text-slate-400 block text-[10px]">Toss Win Rate</span>
-                    <span class="text-base font-bold text-white">{{ stats_a.win_rate_pct }}%</span>
-                    <span class="text-[10px] font-mono text-purple-300 block mt-0.5">
-                        95% CI: [{{ (stats_a.wilson_ci_95[0] * 100)|round(1) }}% - {{ (stats_a.wilson_ci_95[1] * 100)|round(1) }}%]
-                    </span>
+                    <span class="text-slate-400 block text-[10px]">{{ h2h_stats.team_b }} Wins</span>
+                    <span class="text-base font-bold text-white">{{ h2h_stats.stat_b.wins }} ({{ h2h_stats.stat_b.win_pct }}%)</span>
+                    <span class="text-[10px] font-mono text-purple-300 block mt-0.5">CI: {{ h2h_stats.stat_b.ci_display }}</span>
+                    {% if h2h_stats.stat_b.is_insufficient %}
+                    <span class="text-[10px] text-amber-400 block mt-0.5">{{ h2h_stats.stat_b.insufficient_warning }}</span>
+                    {% endif %}
                 </div>
             </div>
             <div class="text-[11px] text-slate-400 bg-slate-900/30 p-2.5 rounded-lg border border-slate-800/60">
-                <strong>Null Hypothesis (50% Fair Coin):</strong> {{ stats_a.binomial_test.conclusion }}
+                <strong>Decisions Chosen in H2H:</strong> Bat First: <strong class="text-white">{{ h2h_stats.decisions.bat }}</strong> &bull; Field/Bowl First: <strong class="text-white">{{ h2h_stats.decisions.field }}</strong>
             </div>
         </div>
 
-        <!-- Team B Stats -->
+        <!-- Venue Tendencies & Correlation -->
         <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
             <div class="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                <h3 class="text-sm font-bold text-white">{{ match.team_b.name if match.team_b else match.team_b_id }}</h3>
-                <span class="text-[10px] font-mono text-slate-400">Historical Toss Record</span>
+                <h3 class="text-base font-bold text-white">Venue Tendencies</h3>
+                <span class="text-[10px] font-mono text-slate-400">{{ venue_stats.venue }} (n={{ venue_stats.total_matches }})</span>
             </div>
             <div class="grid grid-cols-2 gap-3 text-xs">
                 <div class="bg-slate-900/40 p-2.5 rounded-xl border border-slate-800">
-                    <span class="text-slate-400 block text-[10px]">Sample Size (n)</span>
-                    <span class="text-base font-bold text-white">{{ stats_b.sample_size }} matches</span>
-                    <span class="text-[10px] block mt-0.5 {% if stats_b.is_sample_sufficient %}text-emerald-400{% else %}text-amber-400{% endif %}">
-                        {{ "Sufficient (n>=30)" if stats_b.is_sample_sufficient else "Low sample (n<30)" }}
-                    </span>
+                    <span class="text-slate-400 block text-[10px]">Toss Winner Decision Trend</span>
+                    <div class="font-bold text-white text-xs mt-1">
+                        Bat: {{ venue_stats.bat_first.win_pct }}% <span class="text-slate-500 font-mono">(n={{ venue_stats.bat_first.wins }})</span>
+                    </div>
+                    <div class="font-bold text-white text-xs">
+                        Field: {{ venue_stats.field_first.win_pct }}% <span class="text-slate-500 font-mono">(n={{ venue_stats.field_first.wins }})</span>
+                    </div>
                 </div>
                 <div class="bg-slate-900/40 p-2.5 rounded-xl border border-slate-800">
-                    <span class="text-slate-400 block text-[10px]">Toss Win Rate</span>
-                    <span class="text-base font-bold text-white">{{ stats_b.win_rate_pct }}%</span>
-                    <span class="text-[10px] font-mono text-purple-300 block mt-0.5">
-                        95% CI: [{{ (stats_b.wilson_ci_95[0] * 100)|round(1) }}% - {{ (stats_b.wilson_ci_95[1] * 100)|round(1) }}%]
-                    </span>
+                    <span class="text-slate-400 block text-[10px]">Toss-to-Match Win Correlation</span>
+                    <span class="text-base font-bold text-white">{{ venue_stats.toss_match_correlation.win_pct }}%</span>
+                    <span class="text-[10px] font-mono text-purple-300 block mt-0.5">CI: {{ venue_stats.toss_match_correlation.ci_display }}</span>
+                    {% if venue_stats.toss_match_correlation.not_different_from_50 %}
+                    <span class="text-[10px] text-slate-400 block mt-0.5">Toss winner does not have significant match advantage</span>
+                    {% else %}
+                    <span class="text-[10px] text-amber-300 block mt-0.5">Significant correlation with match winner</span>
+                    {% endif %}
                 </div>
             </div>
             <div class="text-[11px] text-slate-400 bg-slate-900/30 p-2.5 rounded-lg border border-slate-800/60">
-                <strong>Null Hypothesis (50% Fair Coin):</strong> {{ stats_b.binomial_test.conclusion }}
+                <strong>Empirical Venue Note:</strong> Toss outcome is a fair coin flip (p=0.50). Pitch conditions influence bat/field choice, but past trends do not guarantee future results.
             </div>
+        </div>
+    </div>
+
+    <!-- Market Intelligence Ledger & Pluggable Provider Form -->
+    <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+            <div>
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>Market & Rate Movement Intelligence</span>
+                    <span class="text-[10px] font-mono font-normal bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded">
+                        Append-Only
+                    </span>
+                </h3>
+                <p class="text-xs text-slate-400">Audited market rates and session commentary. Data is never fabricated.</p>
+            </div>
+            <!-- Toggle Form Button -->
+            <button onclick="document.getElementById('market-form-container').classList.toggle('hidden')"
+                    class="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition-colors">
+                + Add Market Intelligence
+            </button>
+        </div>
+
+        <!-- Inline Record Market Entry Form -->
+        <div id="market-form-container" class="hidden bg-slate-900/70 p-4 rounded-xl border border-slate-800 space-y-3">
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider">Record Verified Market Rate / Flow</h4>
+            <form hx-post="/admin/matches/{{ match.id }}/market"
+                  hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                  hx-target="#market-entries-body"
+                  hx-swap="afterbegin"
+                  class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase">Provider / Source</label>
+                    <input type="text" name="source" value="Exchange Flow" required class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase">Market Lean (Team)</label>
+                    <input type="text" name="team_lean" placeholder="e.g. {{ match.team_a.name if match.team_a else 'Team A' }}" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase">Market Load / Shift</label>
+                    <input type="text" name="load_market" placeholder="e.g. 55% heavy on A" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase">Odds A</label>
+                    <input type="number" step="0.01" name="odds_a" placeholder="1.85" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase">Odds B</label>
+                    <input type="number" step="0.01" name="odds_b" placeholder="1.95" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase">Notes / Commentary</label>
+                    <input type="text" name="notes" placeholder="Observed pre-toss volume spike" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                </div>
+                <div class="sm:col-span-2 lg:col-span-3">
+                    <button type="submit" class="py-1.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md transition-colors">
+                        Commit to Market Ledger
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Market Entries Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-3">Source</th>
+                        <th class="py-3 px-3">Team Lean</th>
+                        <th class="py-3 px-3">Market Load</th>
+                        <th class="py-3 px-3">Odds (A / B)</th>
+                        <th class="py-3 px-3">Commentary</th>
+                        <th class="py-3 px-3">Recorded (IST)</th>
+                    </tr>
+                </thead>
+                <tbody id="market-entries-body" class="divide-y divide-slate-800/60 font-mono">
+                    {% for m in market_entries %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-2.5 px-3 font-sans font-medium text-white">{{ m.source }}</td>
+                        <td class="py-2.5 px-3 text-emerald-400 font-bold">{{ m.team_lean or '-' }}</td>
+                        <td class="py-2.5 px-3 text-slate-300">{{ m.load_market or '-' }}</td>
+                        <td class="py-2.5 px-3 text-slate-300">
+                            {% if m.odds_a and m.odds_b %}
+                            {{ m.odds_a }} / {{ m.odds_b }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-400 text-xs font-sans">{{ m.notes or '-' }}</td>
+                        <td class="py-2.5 px-3 text-slate-400">{{ m.fetched_at_ist }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="py-6 text-center text-slate-500 font-sans">
+                            No market intelligence recorded for this fixture yet. Market data is never fabricated.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -166,8 +465,13 @@
     <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
             <div>
-                <h3 class="text-base font-bold text-white">Cryptographically Locked Pre-Toss Predictions</h3>
-                <p class="text-xs text-slate-400">Strictly append-only ledger. Locked before match start with SHA-256 hash.</p>
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>Cryptographically Locked Pre-Toss Predictions</span>
+                    <span class="text-[10px] font-mono font-normal bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded">
+                        Append-Only
+                    </span>
+                </h3>
+                <p class="text-xs text-slate-400">Strictly append-only ledger. Locked before match start with SHA-256 seal.</p>
             </div>
         </div>
 
@@ -177,11 +481,12 @@
                 <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
                     <tr>
                         <th class="py-3 px-3">Call ID</th>
-                        <th class="py-3 px-3">Source / Tipster Channel</th>
-                        <th class="py-3 px-3">Locked At (IST)</th>
+                        <th class="py-3 px-3">Source</th>
+                        <th class="py-3 px-3">Locked (IST)</th>
                         <th class="py-3 px-3">Action</th>
                         <th class="py-3 px-3">Predicted Team</th>
-                        <th class="py-3 px-3">Cryptographic Seal (SHA-256)</th>
+                        <th class="py-3 px-3">Probability & CI</th>
+                        <th class="py-3 px-3">SHA-256 Seal</th>
                         <th class="py-3 px-3">Outcome</th>
                         <th class="py-3 px-3 text-right">Audit</th>
                     </tr>
@@ -190,56 +495,60 @@
                     {% for pred in match.predictions %}
                     <tr class="hover:bg-slate-900/40 transition-colors">
                         <td class="py-3 px-3 text-slate-400">#{{ pred.id }}</td>
-                        <td class="py-3 px-3 font-sans text-white">{{ pred.source_channel }}</td>
+                        <td class="py-3 px-3 font-sans text-white">{{ pred.source }}</td>
                         <td class="py-3 px-3 text-slate-300">{{ pred.locked_at_ist }}</td>
                         <td class="py-3 px-3 font-sans">
-                            {% if pred.action_type == 'PLAY' %}
-                            <span class="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
-                                PLAY
-                            </span>
-                            {% else %}
+                            {% if pred.lean == 'NO_EDGE' %}
                             <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
                                 SKIP (50-50)
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                PLAY
                             </span>
                             {% endif %}
                         </td>
                         <td class="py-3 px-3 font-sans font-medium text-white">
-                            {{ pred.predicted_team.name if pred.predicted_team else (pred.predicted_team_id or 'None / Pass') }}
+                            {{ pred.predicted_team.name if pred.predicted_team else (pred.lean or 'Pass') }}
                         </td>
                         <td class="py-3 px-3">
-                            <div class="flex items-center gap-1.5">
-                                <span class="text-[10px] text-slate-400 font-mono truncate max-w-[130px]" title="{{ pred.snapshot_hash }}">
-                                    {{ pred.snapshot_hash[:16] }}...
-                                </span>
-                                <button onclick="copyToClipboard('{{ pred.snapshot_hash }}')" class="text-slate-500 hover:text-slate-300" title="Copy full hash">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                                </button>
-                            </div>
+                            {% if pred.probability %}
+                            {{ (pred.probability * 100)|round(1) }}%
+                            {% if pred.ci_low is not none and pred.ci_high is not none %}
+                            <span class="text-slate-500 text-[10px]">[{{ (pred.ci_low * 100)|round(0) }}-{{ (pred.ci_high * 100)|round(0) }}%]</span>
+                            {% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3">
+                            <span class="text-[10px] text-slate-400 font-mono truncate max-w-[120px] inline-block" title="{{ pred.hash }}">
+                                {{ pred.hash[:16] }}...
+                            </span>
                         </td>
                         <td class="py-3 px-3 font-sans">
-                            {% if pred.evaluation %}
-                                {% if pred.evaluation.is_correct is true %}
-                                <span class="text-[10px] font-semibold text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
-                                    HIT (WIN)
+                            {% if pred.outcome %}
+                                {% if pred.outcome.result == 'PASS' %}
+                                <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                    ✓ PASS
                                 </span>
-                                {% elif pred.evaluation.is_correct is false %}
-                                <span class="text-[10px] font-semibold text-rose-400 font-mono bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">
-                                    MISS (LOSS)
+                                {% elif pred.outcome.result == 'FAIL' %}
+                                <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">
+                                    ✗ FAIL
                                 </span>
                                 {% else %}
-                                <span class="text-[10px] text-amber-400 font-mono bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
-                                    PASS (NEUTRAL)
+                                <span class="text-[10px] text-slate-400 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded">
+                                    SKIPPED
                                 </span>
                                 {% endif %}
                             {% else %}
-                            <span class="text-slate-500 text-[10px]">Pending Toss</span>
+                            <span class="text-slate-500 text-[10px]">Awaiting Toss</span>
                             {% endif %}
                         </td>
                         <td class="py-3 px-3 text-right font-sans">
                             <button hx-get="/partials/verify-prediction/{{ pred.id }}"
                                     hx-target="#audit-output-{{ pred.id }}"
-                                    hx-swap="innerHTML"
-                                    class="text-[11px] font-semibold px-2 py-1 rounded bg-slate-800 hover:bg-indigo-900/40 text-indigo-300 border border-slate-700 hover:border-indigo-500/40 transition-colors">
+                                    class="text-[11px] font-semibold px-2 py-1 rounded bg-slate-800 hover:bg-indigo-900/40 text-indigo-300 border border-slate-700 transition-colors">
                                 Verify Hash
                             </button>
                             <div id="audit-output-{{ pred.id }}" class="mt-1"></div>
@@ -258,4 +567,3 @@
 
 </div>
 {% endblock %}
-

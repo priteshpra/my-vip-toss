@@ -387,6 +387,9 @@ class HistoricalMatchStatistic(Base):
     toss_winner_name: Mapped[str] = mapped_column(String(200), nullable=False)
     toss_decision: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     match_winner_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    captain_a: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    captain_b: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    toss_winner_captain: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     source: Mapped[str] = mapped_column(String(50), default="CRICSHEET")
 
 

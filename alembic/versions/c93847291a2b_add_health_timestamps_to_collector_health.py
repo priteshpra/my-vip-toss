@@ -28,3 +28,4 @@ def downgrade() -> None:
     op.drop_column('collector_health', 'last_error')
     op.drop_column('collector_health', 'last_error_utc')
     op.drop_column('collector_health', 'last_success_utc')
+

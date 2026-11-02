@@ -14,6 +14,8 @@ data/backups/
 *.db-wal
 *.db-shm
 data/toss_iq.db
+data/cricsheet_cache/
+data/espn_fixtures_cache.json
 
 # Python Cache & Build
 __pycache__/
