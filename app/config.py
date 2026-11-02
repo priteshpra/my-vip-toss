@@ -1,4 +1,4 @@
-"""Application configuration and settings."""
+"""Application configuration and typed settings."""
 
 import os
 from typing import Optional
@@ -10,9 +10,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class Settings(BaseSettings):
-    """Production application settings with environment variable support."""
+    """Production application settings with environment variable support and strict typing."""
 
-    environment: str = Field(default="development", description="Environment mode (development/production/testing)")
+    environment: str = Field(default="development", description="Environment mode")
     log_level: str = Field(default="INFO", description="Logging verbosity")
 
     # Database
@@ -33,30 +33,55 @@ class Settings(BaseSettings):
     admin_password: str = Field(default="admin_dev_pass_2026", description="Admin login password")
     secret_key: str = Field(default="dev_secret_key_random_hash_a9f823bc87e102d991bce987", description="Session signing key")
     session_cookie_name: str = "toss_session"
+    session_expire_minutes: int = Field(default=120, description="Session idle timeout in minutes")
+    session_cookie_secure: bool = Field(default=False, description="Enforce Secure flag on cookies")
+    login_max_failed_attempts: int = Field(default=5, description="Max failed login attempts before lockout")
+    login_lockout_duration_seconds: int = Field(default=900, description="Lockout duration in seconds")
+    csrf_cookie_name: str = "toss_csrf"
 
-    # External Provider Configs
+    # GamingHelper Online Ingestion Config
+    gaming_helper_base_url: str = Field(
+        default="https://gaminglive.gaminghelperonline.com/api",
+        description="Base API URL for GamingHelper"
+    )
+    gaming_helper_login_url: str = Field(
+        default="https://gaminglive.gaminghelperonline.com/api/users/login",
+        description="Login URL for GamingHelper"
+    )
+    gaming_helper_live_url: str = Field(
+        default="https://gaminglive.gaminghelperonline.com/api/live-bet",
+        description="Live bets endpoint for GamingHelper"
+    )
     gaming_helper_phone: Optional[str] = None
     gaming_helper_password: Optional[str] = None
     gaming_helper_enabled: bool = False
+    gaming_helper_timeout: float = Field(default=15.0, description="HTTP timeout for GamingHelper calls")
+    gaming_helper_max_retries: int = Field(default=3, description="Max retries for transient errors")
+    gaming_helper_backoff_factor: float = Field(default=1.5, description="Exponential backoff factor")
 
+    # Telegram Telethon & Channel Config
     telegram_api_id: Optional[str] = None
     telegram_api_hash: Optional[str] = None
     telegram_phone: Optional[str] = None
-    telegram_channels: Optional[str] = None
+    telegram_bot_token: Optional[str] = None
+    telegram_channel_url: str = "https://t.me/s/KINGTOSSLINE111"
+    telegram_channels: str = "@KINGTOSSLINE111"
     telegram_enabled: bool = False
 
-    # Scheduler & Polling
+    # Polling & Intervals (in seconds)
     match_poll_interval: int = 300
     toss_poll_interval: int = 60
 
     # Statistical Thresholds & Honesty Gates
-    min_historical_sample_size: int = 30
-    significance_alpha: float = 0.05
+    min_sample: int = Field(default=30, description="Minimum sample size threshold for statistical validity")
+    confidence: float = Field(default=0.95, description="Confidence interval level")
+    significance_alpha: float = Field(default=0.05, description="Significance level alpha for binomial tests")
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
+        case_sensitive=False
     )
 
     @property

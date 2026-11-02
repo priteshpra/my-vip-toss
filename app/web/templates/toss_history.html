@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Toss History | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span>Confirmed Toss History</span>
+                <span class="text-xs font-mono font-normal bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
+                    Ground Truth Results
+                </span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Verified official coin flip outcomes across all leagues and historical archives.</p>
+        </div>
+        <div class="text-xs text-slate-400 font-mono">
+            Total Verified Tosses: <span class="font-bold text-white">{{ tosses|length }}</span>
+        </div>
+    </div>
+
+    <!-- Toss History Table -->
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Match / Fixture</th>
+                        <th class="py-3 px-3">Toss Winner</th>
+                        <th class="py-3 px-3">Decision</th>
+                        <th class="py-3 px-3">Official Source</th>
+                        <th class="py-3 px-3">Recorded At (IST)</th>
+                        <th class="py-3 px-4 text-right">Details</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for t in tosses %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-4 font-sans font-medium text-white">
+                            {% if t.match %}
+                            <a href="/matches/{{ t.match_id }}" class="hover:text-indigo-400 transition-colors">
+                                {{ t.match.match_title }}
+                            </a>
+                            <div class="text-[10px] text-slate-500 font-mono">Match #{{ t.match_id }}</div>
+                            {% else %}
+                            Match #{{ t.match_id }}
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 font-sans font-semibold text-emerald-400">
+                            {{ t.winner_team.name if t.winner_team else t.winner_team_id }}
+                        </td>
+                        <td class="py-3 px-3 font-sans">
+                            <span class="text-[10px] px-2 py-0.5 rounded font-semibold {% if t.decision == 'bat' %}bg-amber-500/10 text-amber-300 border border-amber-500/20{% else %}bg-sky-500/10 text-sky-300 border border-sky-500/20{% endif %}">
+                                {{ t.decision|upper }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 font-sans text-slate-400">
+                            <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
+                                {{ t.source|upper }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-slate-300">
+                            {{ t.received_at_ist }}
+                        </td>
+                        <td class="py-3 px-4 text-right font-sans">
+                            {% if t.match_id %}
+                            <a href="/matches/{{ t.match_id }}" class="text-xs text-indigo-400 hover:text-indigo-300 hover:underline">
+                                View Match →
+                            </a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-slate-500 font-sans">
+                            No verified toss outcomes recorded yet. Official results will appear here as matches complete.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

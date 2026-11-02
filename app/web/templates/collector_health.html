@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Collector Health | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span>Collector & Scraper Health</span>
+                <span class="text-xs font-mono font-normal bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+                    Operational Status
+                </span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Real-time health, response times, and synchronization logs across all background collectors.</p>
+        </div>
+        <div>
+            <button hx-post="/admin/sync-now"
+                    hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                    hx-target="#sync-result"
+                    class="py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <span>Trigger Manual Sync</span>
+            </button>
+            <div id="sync-result" class="text-right text-[11px] mt-1"></div>
+        </div>
+    </div>
+
+    <!-- Health Table -->
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Collector / Source</th>
+                        <th class="py-3 px-3">Status</th>
+                        <th class="py-3 px-3">Latency</th>
+                        <th class="py-3 px-3">Last Polled (IST)</th>
+                        <th class="py-3 px-3">Last Success (IST)</th>
+                        <th class="py-3 px-3">Last Error (IST)</th>
+                        <th class="py-3 px-4">Diagnostic Details</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for h in health_records %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-4 font-sans font-semibold text-white">
+                            {{ h.source }}
+                        </td>
+                        <td class="py-3 px-3 font-sans">
+                            {% if h.status == 'OK' or h.status == 'HEALTHY' %}
+                            <span class="inline-flex items-center gap-1.5 text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-bold">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                HEALTHY
+                            </span>
+                            {% elif h.status == 'DEGRADED' %}
+                            <span class="inline-flex items-center gap-1.5 text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded font-bold">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                                DEGRADED
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1.5 text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded font-bold">
+                                <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                OFFLINE
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 text-slate-300">
+                            {{ h.response_time_ms ~ ' ms' if h.response_time_ms else '-' }}
+                        </td>
+                        <td class="py-3 px-3 text-slate-400">
+                            {{ h.last_run_ist }}
+                        </td>
+                        <td class="py-3 px-3 text-emerald-400/90 text-[11px]">
+                            {{ h.last_success_ist }}
+                        </td>
+                        <td class="py-3 px-3 text-rose-400/90 text-[11px]">
+                            {% if h.last_error_ist != '-' %}
+                            <span title="{{ h.last_error or '' }}">{{ h.last_error_ist }}</span>
+                            {% else %}
+                            <span class="text-slate-600">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 font-sans text-slate-400 text-xs">
+                            {{ h.message or 'All ingestion queries functioning normally.' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-slate-500 font-sans">
+                            Collector health monitoring is running. Status will refresh as tasks execute.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

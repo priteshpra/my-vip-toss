@@ -1,30 +1,39 @@
-"""Pytest fixtures for TossIQ test suite."""
+"""Pytest configuration and shared fixtures for Toss Analytics & Tracking Admin Panel."""
 
 import pytest
-import sqlite3
-import os
-from core.database.connection import get_connection, init_db
-from core.database.seeder import seed_synthetic_data
-from core.database.repository import Repository
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.pool import StaticPool
+from fastapi.testclient import TestClient
+
+from app.db import Base
+from app.main import app
+from app.services.seeder import seed_leagues, seed_admin_user
+
+
+@pytest_asyncio.fixture
+async def async_db_session():
+    """Create an isolated in-memory SQLite database session."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        echo=False
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session_factory = async_sessionmaker(bind=engine, expire_on_commit=False, class_=AsyncSession)
+    async with session_factory() as session:
+        await seed_leagues(session)
+        await seed_admin_user(session)
+        yield session
+
+    await engine.dispose()
 
 
 @pytest.fixture
-def test_db_path(tmp_path):
-    """Provide isolated SQLite database path per test."""
-    db_file = str(tmp_path / "test_toss_iq.db")
-    seed_synthetic_data(db_file)
-    return db_file
-
-
-@pytest.fixture
-def test_conn(test_db_path):
-    """Provide open SQLite connection with WAL & foreign keys enabled."""
-    conn = get_connection(test_db_path)
-    yield conn
-    conn.close()
-
-
-@pytest.fixture
-def test_repo(test_conn):
-    """Provide Repository instance bound to isolated test connection."""
-    return Repository(test_conn)
+def client():
+    """Provide a FastAPI TestClient instance."""
+    with TestClient(app) as test_client:
+        yield test_client

@@ -1,7 +1,7 @@
 """Pydantic v2 validation schemas for Toss Analytics API and Dashboards."""
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -78,10 +78,10 @@ class TossResultRead(OrmBaseModel):
 
 
 class TossResultCreate(BaseModel):
-    match_id: str
-    toss_winner_id: str
+    match_id: Union[str, int]
+    toss_winner_id: Union[str, int]
     toss_decision: str = "BAT"  # BAT or BOWL
-    match_winner_id: Optional[str] = None
+    match_winner_id: Optional[Union[str, int]] = None
     official_source_url: Optional[str] = None
     notes: Optional[str] = None
 
@@ -99,11 +99,11 @@ class MatchRead(MatchBase):
 # 4. Prediction & Evaluation Schemas
 class PredictionCreate(BaseModel):
     """Schema for submitting or locking a pre-toss prediction."""
-    match_id: str
+    match_id: Union[str, int]
     model_version_id: str = "baseline_model"
     source_channel: Optional[str] = "Statistical Engine"
     action_type: str = "PLAY"  # PLAY or SKIP
-    predicted_team_id: Optional[str] = None
+    predicted_team_id: Optional[Union[str, int]] = None
     estimated_prob_a: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     estimated_prob_b: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     punter_rationale: Optional[str] = None

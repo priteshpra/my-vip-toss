@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}System Settings | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            <span>System Settings & Configuration</span>
+            <span class="text-xs font-mono font-normal bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
+                Admin Config
+            </span>
+        </h1>
+        <p class="text-xs text-slate-400 mt-1">Application parameters loaded from typed settings and environment variables (.env).</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Statistical & Validation Thresholds -->
+        <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400">Statistical Honesty Rules</h2>
+            <div class="space-y-3 text-xs">
+                <div class="flex justify-between items-center py-2 border-b border-slate-800/80">
+                    <span class="text-slate-400">Fair Baseline Model (p0)</span>
+                    <span class="font-mono font-bold text-white">0.50 (50.0% Coin Flip)</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-slate-800/80">
+                    <span class="text-slate-400">Confidence Interval Level</span>
+                    <span class="font-mono font-bold text-emerald-400">{{ (config.confidence * 100)|int }}% Wilson Score</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-slate-800/80">
+                    <span class="text-slate-400">Minimum Sample Size Gate (n)</span>
+                    <span class="font-mono font-bold text-amber-400">n &ge; {{ config.min_sample }} matches</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-slate-800/80">
+                    <span class="text-slate-400">Significance Level (&alpha;)</span>
+                    <span class="font-mono font-bold text-white">&alpha; = {{ config.significance_alpha }} (Two-sided)</span>
+                </div>
+                <div class="flex justify-between items-center py-2">
+                    <span class="text-slate-400">Retrospective Edits / Deletions</span>
+                    <span class="font-mono font-bold text-rose-400">STRICTLY FORBIDDEN (Append-Only)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security & Session Configuration -->
+        <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400">Security & Authentication</h2>
+            <div class="space-y-3 text-xs">
+                <div class="flex justify-between items-center py-2 border-b border-slate-800/80">
+                    <span class="text-slate-400">Password Hashing Algorithm</span>
+                    <span class="font-mono font-bold text-white">Bcrypt (Cost 12)</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-slate-800/80">
+                    <span class="text-slate-400">Session Cookie Security</span>
+                    <span class="font-mono font-bold text-white">HttpOnly, SameSite=Lax</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-slate-800/80">
+                    <span class="text-slate-400">Session Idle Timeout</span>
+                    <span class="font-mono font-bold text-white">{{ config.session_expire_minutes }} minutes</span>
+                </div>
+                <div class="flex justify-between items-center py-2 border-b border-slate-800/80">
+                    <span class="text-slate-400">Max Failed Login Attempts</span>
+                    <span class="font-mono font-bold text-amber-400">{{ config.login_max_failed_attempts }} attempts before lockout</span>
+                </div>
+                <div class="flex justify-between items-center py-2">
+                    <span class="text-slate-400">Lockout Duration</span>
+                    <span class="font-mono font-bold text-white">{{ (config.login_lockout_duration_seconds / 60)|int }} minutes</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- System & Timezone -->
+        <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4 md:col-span-2">
+            <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400">Environment & Timezone</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                <div class="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <div class="text-slate-400">Environment</div>
+                    <div class="text-sm font-bold text-white mt-1">{{ config.environment|upper }}</div>
+                </div>
+                <div class="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <div class="text-slate-400">Display Timezone</div>
+                    <div class="text-sm font-bold text-white mt-1">{{ config.app_timezone }}</div>
+                </div>
+                <div class="p-3 bg-slate-900 rounded-xl border border-slate-800">
+                    <div class="text-slate-400">Internal Storage</div>
+                    <div class="text-sm font-bold text-white mt-1">UTC (ISO 8601)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,10 +1,10 @@
 """Ground truth official toss results recording and automatic post-toss evaluation service."""
 
 from typing import Optional, List
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models import Match, TossResult, PredictionSnapshot, PredictionEvaluation
+from app.models import Match, TossResult, Prediction, PredictionOutcome, Team
 from app.schemas import TossResultCreate
 from app.db import utc_now
 
@@ -12,114 +12,125 @@ from app.db import utc_now
 async def record_toss_result(
     session: AsyncSession,
     data: TossResultCreate,
-    source_provider_id: str = "OFFICIAL"
+    source_provider_id: str = "manual"
 ) -> TossResult:
     """
-    Record verified official toss result for a match, update match status,
+    Record verified official toss result for a match, update match status to toss_done,
     and trigger automated evaluation for all locked pre-toss predictions.
     """
-    stmt = select(Match).where(Match.id == data.match_id)
+    conditions = []
+    if str(data.match_id).isdigit():
+        conditions.append(Match.id == int(data.match_id))
+    conditions.append(Match.source_match_id == str(data.match_id))
+    conditions.append(Match.gaming_helper_ref == str(data.match_id))
+
+    stmt = select(Match).where(or_(*conditions))
     res = await session.execute(stmt)
     match = res.scalar_one_or_none()
     if not match:
         raise ValueError(f"Match {data.match_id} not found.")
 
+    # Resolve winner team integer ID if string was passed
+    winner_team_id = None
+    if str(data.toss_winner_id).isdigit():
+        winner_team_id = int(data.toss_winner_id)
+    else:
+        stmt_t = select(Team).where(Team.name == str(data.toss_winner_id))
+        res_t = await session.execute(stmt_t)
+        t_obj = res_t.scalar_one_or_none()
+        if t_obj:
+            winner_team_id = t_obj.id
+        else:
+            t_obj = Team(name=str(data.toss_winner_id), short_code=str(data.toss_winner_id)[:3].upper())
+            session.add(t_obj)
+            await session.commit()
+            await session.refresh(t_obj)
+            winner_team_id = t_obj.id
+
+    decision = "bat" if "bat" in data.toss_decision.lower() else "field"
+
     # 1. Upsert official TossResult
-    stmt_toss = select(TossResult).where(TossResult.match_id == data.match_id)
+    stmt_toss = select(TossResult).where(TossResult.match_id == match.id)
     res_toss = await session.execute(stmt_toss)
     existing_toss = res_toss.scalar_one_or_none()
 
     if existing_toss:
-        existing_toss.toss_winner_id = data.toss_winner_id
-        existing_toss.toss_decision = data.toss_decision.upper()
-        existing_toss.match_winner_id = data.match_winner_id
+        existing_toss.winner_team_id = winner_team_id
+        existing_toss.decision = decision
+        existing_toss.source = source_provider_id
         existing_toss.official_source_url = data.official_source_url
-        existing_toss.source_provider_id = source_provider_id
-        existing_toss.verified_at_utc = utc_now()
-        existing_toss.verification_status = "VERIFIED"
+        existing_toss.received_at_utc = utc_now()
         existing_toss.notes = data.notes
         toss_obj = existing_toss
     else:
         toss_obj = TossResult(
-            match_id=data.match_id,
-            toss_winner_id=data.toss_winner_id,
-            toss_decision=data.toss_decision.upper(),
-            match_winner_id=data.match_winner_id,
+            match_id=match.id,
+            winner_team_id=winner_team_id,
+            decision=decision,
+            source=source_provider_id,
+            received_at_utc=utc_now(),
             official_source_url=data.official_source_url,
-            source_provider_id=source_provider_id,
-            verified_at_utc=utc_now(),
-            verification_status="VERIFIED",
             notes=data.notes
         )
         session.add(toss_obj)
 
     # 2. Update Match status
-    match.status = "TOSS_COMPLETED"
-    match.last_updated_utc = utc_now()
+    match.status = "toss_done"
 
     await session.commit()
     await session.refresh(toss_obj)
 
     # 3. Automatically evaluate all locked predictions for this match
-    await evaluate_predictions_for_match(session, data.match_id, data.toss_winner_id)
+    await evaluate_predictions_for_match(session, match.id, winner_team_id)
 
     return toss_obj
 
 
 async def evaluate_predictions_for_match(
     session: AsyncSession,
-    match_id: str,
-    actual_toss_winner_id: str
-) -> List[PredictionEvaluation]:
+    match_id: int,
+    actual_winner_team_id: int
+) -> List[PredictionOutcome]:
     """
     Evaluate all locked pre-toss predictions against confirmed toss winner.
     Strictly post-event objective verification.
     """
     stmt = (
-        select(PredictionSnapshot)
-        .options(selectinload(PredictionSnapshot.evaluation))
-        .where(PredictionSnapshot.match_id == match_id)
+        select(Prediction)
+        .options(selectinload(Prediction.outcome))
+        .where(Prediction.match_id == match_id)
     )
     res = await session.execute(stmt)
     snapshots = res.scalars().all()
 
-    evaluations: List[PredictionEvaluation] = []
+    evaluations: List[PredictionOutcome] = []
 
     for snap in snapshots:
-        # Check if already evaluated
-        if snap.evaluation:
+        if snap.outcome:
             continue
 
-        is_correct: Optional[bool] = None
-        brier: Optional[float] = None
+        result = "PASS"
+        brier = None
 
-        if snap.action_type == "PLAY":
-            if snap.predicted_team_id:
-                is_correct = (snap.predicted_team_id == actual_toss_winner_id)
-                # If probabilistic estimate was provided for the winner
-                if is_correct and snap.estimated_prob_a is not None:
-                    brier = round((snap.estimated_prob_a - 1.0)**2, 4)
-                elif not is_correct and snap.estimated_prob_a is not None:
-                    brier = round((snap.estimated_prob_a - 0.0)**2, 4)
+        if snap.lean == "NO_EDGE":
+            result = "SKIPPED"
         else:
-            # SKIP / PASS call (neutral 50-50 recognition)
-            is_correct = None
+            is_match = (snap.predicted_team_id == actual_winner_team_id)
+            result = "PASS" if is_match else "FAIL"
+            prob = snap.probability or 0.50
+            target = 1.0 if is_match else 0.0
+            brier = round((prob - target) ** 2, 4)
 
-        eval_record = PredictionEvaluation(
-            prediction_snapshot_id=snap.id,
-            match_id=match_id,
-            actual_toss_winner_id=actual_toss_winner_id,
-            predicted_team_id=snap.predicted_team_id,
-            is_correct=is_correct,
+        outcome_record = PredictionOutcome(
+            prediction_id=snap.id,
+            result=result,
             brier_score=brier,
-            evaluated_at_utc=utc_now(),
-            notes="Evaluated against confirmed official toss outcome."
+            evaluated_at_utc=utc_now()
         )
-        session.add(eval_record)
-        evaluations.append(eval_record)
+        session.add(outcome_record)
+        evaluations.append(outcome_record)
 
     if evaluations:
         await session.commit()
 
     return evaluations
-

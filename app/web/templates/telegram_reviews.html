@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Telegram Review Queue | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span>Telegram Feed Review Queue</span>
+                <span class="text-xs font-mono font-normal bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded">
+                    Tipster Audit
+                </span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Audit raw Telegram messages, verify pre-toss timestamps, and review or map ambiguous calls to active matches.</p>
+        </div>
+        <div class="text-xs text-slate-400 font-mono">
+            Total Reviews: <span class="font-bold text-amber-400">{{ reviews|length }}</span>
+        </div>
+    </div>
+
+    <!-- Review Queue Table -->
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Message ID</th>
+                        <th class="py-3 px-3">Channel</th>
+                        <th class="py-3 px-4">Raw Text</th>
+                        <th class="py-3 px-3">Received (IST)</th>
+                        <th class="py-3 px-3">Status</th>
+                        <th class="py-3 px-4 text-right">Admin Resolution</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for r in reviews %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-4 text-slate-400">#{{ r.message_id }}</td>
+                        <td class="py-3 px-3 font-sans text-white">{{ r.channel_name or '@channel' }}</td>
+                        <td class="py-3 px-4 font-sans text-slate-300 max-w-sm truncate" title="{{ r.raw_text }}">
+                            {{ r.raw_text }}
+                        </td>
+                        <td class="py-3 px-3 text-slate-400">{{ r.created_at_ist }}</td>
+                        <td class="py-3 px-3 font-sans">
+                            <span class="text-[10px] px-2 py-0.5 rounded font-bold {% if r.status == 'PENDING' %}bg-amber-500/10 text-amber-400 border border-amber-500/20{% elif r.status == 'APPROVED' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20{% elif r.status == 'REJECTED' %}bg-rose-500/10 text-rose-400 border border-rose-500/20{% else %}bg-slate-800 text-slate-400 border border-slate-700{% endif %}">
+                                {{ r.status }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-right font-sans" id="review-action-{{ r.id }}">
+                            {% if r.status == 'PENDING' %}
+                            <div class="flex items-center justify-end gap-2">
+                                <details class="relative">
+                                    <summary class="cursor-pointer px-2.5 py-1 rounded text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+                                        Map to Match ▾
+                                    </summary>
+                                    <div class="absolute right-0 mt-2 w-72 glass-card p-3 rounded-xl border border-slate-700 shadow-2xl z-30 text-left">
+                                        <form hx-post="/admin/telegram-reviews/{{ r.id }}/resolve"
+                                              hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                                              hx-target="#review-action-{{ r.id }}"
+                                              class="space-y-2">
+                                            <input type="hidden" name="action" value="map">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                            <div>
+                                                <label class="block text-[10px] text-slate-400 uppercase">Target Match</label>
+                                                <select name="match_id" required class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-xs text-white">
+                                                    <option value="">Select active match...</option>
+                                                    {% for m in active_matches %}
+                                                    <option value="{{ m.id }}">{{ m.team_a.name if m.team_a else m.team_a_id }} vs {{ m.team_b.name if m.team_b else m.team_b_id }} (ID: {{ m.id }})</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] text-slate-400 uppercase">Toss Winner Team</label>
+                                                <input type="text" name="toss_winner_id" placeholder="Winner team name" required
+                                                       class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-xs text-white">
+                                            </div>
+                                            <div>
+                                                <label class="block text-[10px] text-slate-400 uppercase">Decision</label>
+                                                <select name="toss_decision" class="w-full bg-slate-900 border border-slate-700 rounded p-1 text-xs text-white">
+                                                    <option value="BAT">Bat</option>
+                                                    <option value="FIELD">Field / Bowl</option>
+                                                </select>
+                                            </div>
+                                            <button type="submit" class="w-full py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-semibold">
+                                                Confirm & Evaluate
+                                            </button>
+                                        </form>
+                                    </div>
+                                </details>
+                                <form hx-post="/admin/telegram-reviews/{{ r.id }}/resolve"
+                                      hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                                      hx-target="#review-action-{{ r.id }}"
+                                      class="inline">
+                                    <input type="hidden" name="action" value="reject">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="px-2 py-1 rounded text-[11px] font-semibold bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border border-slate-700 transition-colors">
+                                        Reject
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span class="text-xs text-slate-500">Processed</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-slate-500 font-sans">
+                            No incoming Telegram messages require manual review. The listener automatically filters post-toss edits and invalid calls.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

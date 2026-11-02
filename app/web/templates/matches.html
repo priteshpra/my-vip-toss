@@ -1,57 +1,156 @@
 {% extends "base.html" %}
 
-{% block title %}Matches | Toss Analytics & Tracking Admin Panel{% endblock %}
+{% block title %}Cricket Match Centre | Toss Analytics{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
 
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-white">Cricket Match Centre</h1>
-            <p class="text-xs sm:text-sm text-slate-400">Scheduled fixtures, real-time rates, and pre-toss tracking records.</p>
+            <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span>Cricket Match Centre</span>
+                <span class="text-xs font-mono font-normal bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
+                    Live Feed
+                </span>
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-400">Scheduled fixtures, real-time odds, pre-toss predictions, and verified toss outcomes.</p>
         </div>
+        <div class="flex items-center gap-2">
+            <button hx-post="/admin/sync-now"
+                    hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'
+                    hx-target="#sync-status-badge"
+                    class="py-2 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <span>Sync Matches Now</span>
+            </button>
+            <span id="sync-status-badge" class="text-xs"></span>
+        </div>
+    </div>
+
+    <!-- Lifecycle Tabs Navigation -->
+    <div class="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-2 text-xs font-medium">
+        <button type="button"
+                onclick="setTab('all')"
+                id="tab-btn-all"
+                class="tab-btn px-3 py-1.5 rounded-lg border transition-all {% if current_tab == 'all' or not current_tab %}bg-indigo-600/20 text-indigo-300 border-indigo-500/30 font-semibold{% else %}bg-slate-900/40 text-slate-400 border-slate-800 hover:text-white{% endif %}">
+            All Matches
+        </button>
+        <button type="button"
+                onclick="setTab('upcoming')"
+                id="tab-btn-upcoming"
+                class="tab-btn px-3 py-1.5 rounded-lg border transition-all {% if current_tab == 'upcoming' %}bg-indigo-600/20 text-indigo-300 border-indigo-500/30 font-semibold{% else %}bg-slate-900/40 text-slate-400 border-slate-800 hover:text-white{% endif %}">
+            Upcoming
+        </button>
+        <button type="button"
+                onclick="setTab('live')"
+                id="tab-btn-live"
+                class="tab-btn px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 {% if current_tab == 'live' %}bg-amber-600/20 text-amber-300 border-amber-500/30 font-semibold{% else %}bg-slate-900/40 text-slate-400 border-slate-800 hover:text-white{% endif %}">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            Live / Toss Pending
+        </button>
+        <button type="button"
+                onclick="setTab('toss_done')"
+                id="tab-btn-toss_done"
+                class="tab-btn px-3 py-1.5 rounded-lg border transition-all {% if current_tab == 'toss_done' %}bg-emerald-600/20 text-emerald-300 border-emerald-500/30 font-semibold{% else %}bg-slate-900/40 text-slate-400 border-slate-800 hover:text-white{% endif %}">
+            Toss Done
+        </button>
+        <button type="button"
+                onclick="setTab('history')"
+                id="tab-btn-history"
+                class="tab-btn px-3 py-1.5 rounded-lg border transition-all {% if current_tab == 'history' %}bg-indigo-600/20 text-indigo-300 border-indigo-500/30 font-semibold{% else %}bg-slate-900/40 text-slate-400 border-slate-800 hover:text-white{% endif %}">
+            Full History
+        </button>
     </div>
 
     <!-- Filter Bar with HTMX Integration -->
     <div class="glass-card rounded-2xl p-4 border border-slate-800">
-        <form class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+        <form id="filter-form"
+              class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3"
               hx-get="/partials/matches-table"
-              hx-trigger="keyup delay:300ms from:#search-input, change from:select"
+              hx-trigger="keyup delay:300ms from:#search-input, keyup delay:300ms from:#venue-input, change from:select"
               hx-target="#matches-table-container">
             
-            <div class="sm:col-span-2">
-                <label for="search-input" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Search Teams or Match</label>
-                <input type="text" id="search-input" name="search" placeholder="Search by team, match name, or ID..."
+            <input type="hidden" name="tab" id="tab-input" value="{{ current_tab or 'all' }}">
+
+            <div>
+                <label for="search-input" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Search Match / Teams</label>
+                <input type="text" id="search-input" name="search" value="{{ search or '' }}" placeholder="CSK, Mumbai, ID..."
                        class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors">
             </div>
 
             <div>
-                <label for="status-select" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Status</label>
-                <select id="status-select" name="status" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                    <option value="">All Statuses</option>
-                    <option value="UPCOMING">Upcoming</option>
-                    <option value="TOSS_PENDING">Toss Pending</option>
-                    <option value="TOSS_COMPLETED">Toss Completed</option>
+                <label for="venue-input" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Venue</label>
+                <input type="text" id="venue-input" name="venue_search" value="{{ venue_search or '' }}" placeholder="Wankhede, Eden Gardens..."
+                       class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors">
+            </div>
+
+            <div>
+                <label for="tournament-select" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">League / Tournament</label>
+                <select id="tournament-select" name="tournament_id" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="">All Leagues</option>
+                    {% for t in tournaments %}
+                    <option value="{{ t.id }}" {% if current_tournament == t.id|string %}selected{% endif %}>{{ t.name }}</option>
+                    {% endfor %}
                 </select>
             </div>
 
             <div>
-                <label for="tournament-select" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Tournament</label>
-                <select id="tournament-select" name="tournament_id" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
-                    <option value="">All Tournaments</option>
-                    {% for t in tournaments %}
-                    <option value="{{ t.id }}">{{ t.name }}</option>
-                    {% endfor %}
+                <label for="outcome-select" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Prediction Outcome</label>
+                <select id="outcome-select" name="outcome_filter" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="">All Outcomes</option>
+                    <option value="PASS" {% if outcome_filter == 'PASS' %}selected{% endif %}>PASS (Hit)</option>
+                    <option value="FAIL" {% if outcome_filter == 'FAIL' %}selected{% endif %}>FAIL (Miss)</option>
+                    <option value="SKIPPED" {% if outcome_filter == 'SKIPPED' %}selected{% endif %}>SKIPPED (No Edge)</option>
                 </select>
+            </div>
+
+            <div class="flex items-end">
+                <button type="button" onclick="clearFilters()" class="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold transition-colors">
+                    Reset Filters
+                </button>
             </div>
         </form>
     </div>
 
-    <!-- Matches Table Container -->
-    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden" id="matches-table-container">
+    <!-- Matches Table Container (Auto-refresh via HTMX polling every 10s) -->
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden"
+         id="matches-table-container"
+         hx-get="/partials/matches-table"
+         hx-trigger="every 10s"
+         hx-include="#filter-form"
+         hx-swap="innerHTML">
         {% include "partials/matches_table.html" %}
     </div>
 
 </div>
-{% endblock %}
 
+<script>
+function setTab(tabName) {
+    document.getElementById('tab-input').value = tabName;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-600/20', 'text-indigo-300', 'border-indigo-500/30', 'font-semibold', 'bg-amber-600/20', 'text-amber-300', 'border-amber-500/30', 'bg-emerald-600/20', 'text-emerald-300', 'border-emerald-500/30');
+        btn.classList.add('bg-slate-900/40', 'text-slate-400', 'border-slate-800');
+    });
+    const activeBtn = document.getElementById('tab-btn-' + tabName);
+    if (activeBtn) {
+        activeBtn.classList.remove('bg-slate-900/40', 'text-slate-400', 'border-slate-800');
+        if (tabName === 'live') {
+            activeBtn.classList.add('bg-amber-600/20', 'text-amber-300', 'border-amber-500/30', 'font-semibold');
+        } else if (tabName === 'toss_done') {
+            activeBtn.classList.add('bg-emerald-600/20', 'text-emerald-300', 'border-emerald-500/30', 'font-semibold');
+        } else {
+            activeBtn.classList.add('bg-indigo-600/20', 'text-indigo-300', 'border-indigo-500/30', 'font-semibold');
+        }
+    }
+    htmx.trigger('#filter-form', 'change');
+}
+
+function clearFilters() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('venue-input').value = '';
+    document.getElementById('tournament-select').value = '';
+    document.getElementById('outcome-select').value = '';
+    htmx.trigger('#filter-form', 'change');
+}
+</script>
+{% endblock %}

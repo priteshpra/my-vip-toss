@@ -12,7 +12,7 @@ from typing import Tuple, Dict, Any, List, Optional
 from scipy.stats import binomtest
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models import PredictionSnapshot, PredictionEvaluation
+from app.models import Prediction, PredictionOutcome
 from app.schemas import AccuracyMetrics, WilsonConfidenceInterval, BinomialBaselineTest
 
 
@@ -106,18 +106,15 @@ async def get_accuracy_metrics_for_source(
     """
     query = (
         select(
-            PredictionSnapshot.action_type,
-            PredictionEvaluation.is_correct,
-            PredictionSnapshot.estimated_prob_a,
-            PredictionSnapshot.estimated_prob_b,
+            Prediction.lean,
+            PredictionOutcome.result,
+            Prediction.probability,
         )
-        .join(PredictionEvaluation, PredictionSnapshot.id == PredictionEvaluation.prediction_snapshot_id)
+        .join(PredictionOutcome, Prediction.id == PredictionOutcome.prediction_id)
     )
 
     if source_channel:
-        query = query.where(PredictionSnapshot.source_channel == source_channel)
-    if model_version_id:
-        query = query.where(PredictionSnapshot.model_version_id == model_version_id)
+        query = query.where(Prediction.source == source_channel)
 
     result = await session.execute(query)
     rows = result.all()
@@ -129,19 +126,19 @@ async def get_accuracy_metrics_for_source(
     losses = 0
     brier_pairs: List[Tuple[float, int]] = []
 
-    for action, is_correct, prob_a, prob_b in rows:
-        if action == "SKIP":
+    for lean, result_val, prob in rows:
+        if lean == "NO_EDGE" or result_val == "SKIPPED":
             skip_calls += 1
             continue
         play_calls += 1
-        if is_correct is True:
+        if result_val == "PASS":
             wins += 1
-            if prob_a is not None:
-                brier_pairs.append((prob_a, 1))
-        elif is_correct is False:
+            if prob is not None:
+                brier_pairs.append((prob, 1))
+        elif result_val == "FAIL":
             losses += 1
-            if prob_a is not None:
-                brier_pairs.append((prob_a, 0))
+            if prob is not None:
+                brier_pairs.append((prob, 0))
 
     evaluated_calls = wins + losses
     measured_accuracy_pct = round((wins / evaluated_calls * 100.0), 2) if evaluated_calls > 0 else 50.0

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span>Administrative Audit Log</span>
+                <span class="text-xs font-mono font-normal bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded">
+                    Immutable Security Trail
+                </span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Append-only record of all administrative activities, authenticated sessions, and system modifications.</p>
+        </div>
+        <div class="text-xs text-slate-400 font-mono">
+            Total Logged Events: <span class="font-bold text-white">{{ logs|length }}</span>
+        </div>
+    </div>
+
+    <!-- Audit Log Table -->
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+                <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Event ID</th>
+                        <th class="py-3 px-3">Timestamp (IST)</th>
+                        <th class="py-3 px-3">User</th>
+                        <th class="py-3 px-3">IP Address</th>
+                        <th class="py-3 px-3">Action</th>
+                        <th class="py-3 px-3">Entity</th>
+                        <th class="py-3 px-4">Details</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for l in logs %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-4 text-slate-500">#{{ l.id }}</td>
+                        <td class="py-3 px-3 text-slate-300">{{ l.timestamp_ist }}</td>
+                        <td class="py-3 px-3 font-sans font-semibold text-indigo-300">{{ l.user or 'anonymous' }}</td>
+                        <td class="py-3 px-3 text-slate-400">{{ l.ip_address or '127.0.0.1' }}</td>
+                        <td class="py-3 px-3">
+                            <span class="text-[10px] px-2 py-0.5 rounded font-bold {% if 'SUCCESS' in l.action or 'CREATE' in l.action %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20{% elif 'FAIL' in l.action or 'LOCKOUT' in l.action %}bg-rose-500/10 text-rose-400 border border-rose-500/20{% else %}bg-indigo-500/10 text-indigo-400 border border-indigo-500/20{% endif %}">
+                                {{ l.action }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 font-sans text-slate-300">
+                            {{ l.entity }}
+                            {% if l.entity_id %}
+                            <span class="text-slate-500">({{ l.entity_id }})</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 font-sans text-slate-400 text-xs max-w-xs truncate" title="{{ l.details }}">
+                            {{ l.details or '-' }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-8 text-center text-slate-500 font-sans">
+                            No administrative audit records logged yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

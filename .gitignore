@@ -4,14 +4,18 @@
 *.session-journal
 data/gaming_helper_session.json
 
+# Backups
+_backup/
+backups/
+data/backups/
+
 # Database & Local Storage
 *.db
 *.db-wal
 *.db-shm
 data/toss_iq.db
-data/backups/
 
-# Python Cache
+# Python Cache & Build
 __pycache__/
 *.py[cod]
 *$py.class

@@ -33,7 +33,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
 
-    <!-- Top Permanent Non-Negotiable Honesty Disclaimer Banner -->
+    <!-- Top Statistical Honesty Notice Banner -->
     <div class="bg-amber-950/80 border-b border-amber-800/60 px-4 py-2 text-center text-xs md:text-sm font-medium text-amber-200 flex items-center justify-center gap-2 shadow-inner">
         <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
@@ -42,49 +42,67 @@
     </div>
 
     <!-- Navigation Header -->
-    <header class="glass-nav sticky top-0 z-50">
+    <header class="glass-nav sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
+                <!-- Brand Logo -->
                 <div class="flex items-center gap-3">
-                    <a href="/" class="flex items-center gap-2 group">
+                    <a href="/" class="flex items-center gap-2.5 group">
                         <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
                             T
                         </div>
                         <div class="flex flex-col">
-                            <span class="font-bold tracking-tight text-white text-base md:text-lg flex items-center gap-1.5">
+                            <span class="font-bold tracking-tight text-white text-base md:text-lg flex items-center gap-1.5 leading-none">
                                 Toss Analytics
-                                <span class="text-[10px] uppercase font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded">Admin</span>
+                                <span class="text-[9px] uppercase font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1 py-0.5 rounded tracking-wider">Admin</span>
                             </span>
-                            <span class="text-[10px] text-slate-400 font-mono tracking-wider">CRYPTOGRAPHIC TRACKING</span>
+                            <span class="text-[9px] text-slate-400 font-mono tracking-widest uppercase mt-1">Append-Only Audit</span>
                         </div>
                     </a>
                 </div>
 
-                <nav class="hidden md:flex items-center space-x-1">
-                    <a href="/" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'dashboard' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                <!-- Desktop Navigation Links -->
+                <nav class="hidden lg:flex items-center space-x-0.5 overflow-x-auto text-xs font-medium">
+                    <a href="/" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'dashboard' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
                         Dashboard
                     </a>
-                    <a href="/matches" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'matches' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                    <a href="/matches" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'matches' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
                         Matches
                     </a>
-                    <a href="/predictions" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'predictions' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
-                        Prediction Ledger
+                    <a href="/toss-history" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'toss_history' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Toss History
                     </a>
-                    <a href="/analytics" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'analytics' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
-                        Statistical Validation
+                    <a href="/predictions" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'predictions' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Ledger
                     </a>
-                    <a href="/sources" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'sources' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
-                        Sources & Channels
+                    <a href="/analytics" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page in ('analytics', 'accuracy') %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Accuracy
                     </a>
-                    <a href="/audit" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'audit' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
-                        Hash Audit
+                    <a href="/leagues-teams" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'leagues_teams' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Leagues & Teams
+                    </a>
+                    <a href="/sources" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'sources' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Sources
+                    </a>
+                    <a href="/telegram-reviews" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'telegram_reviews' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Telegram Review
+                    </a>
+                    <a href="/collector-health" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'collector_health' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Health
+                    </a>
+                    <a href="/settings" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'settings' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Settings
+                    </a>
+                    <a href="/logs" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'logs' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Audit Logs
                     </a>
                 </nav>
 
-                <div class="flex items-center gap-3">
+                <!-- User Session & Mobile Menu Toggle -->
+                <div class="flex items-center gap-2">
                     {% if current_admin %}
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-slate-400 font-mono hidden sm:inline">{{ current_admin.username }}</span>
+                    <div class="hidden sm:flex items-center gap-2">
+                        <span class="text-xs text-slate-400 font-mono">👤 {{ current_admin.username }}</span>
                         <a href="/auth/logout" class="text-xs bg-slate-800 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-800/60 px-3 py-1.5 rounded-lg transition-colors">
                             Logout
                         </a>
@@ -94,32 +112,91 @@
                         Admin Login
                     </a>
                     {% endif %}
+
+                    <!-- Mobile Hamburger Button -->
+                    <button type="button" onclick="toggleMobileMenu()" class="lg:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 focus:outline-none" aria-label="Toggle navigation menu">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
+                        </svg>
+                    </button>
                 </div>
+            </div>
+
+            <!-- Mobile Navigation Drawer -->
+            <div id="mobile-menu" class="hidden lg:hidden border-t border-slate-800 py-3 space-y-1">
+                <a href="/" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'dashboard' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Dashboard</a>
+                <a href="/matches" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'matches' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Matches</a>
+                <a href="/toss-history" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'toss_history' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Toss History</a>
+                <a href="/predictions" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'predictions' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Prediction Ledger</a>
+                <a href="/analytics" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page in ('analytics', 'accuracy') %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Accuracy & Wilson CI</a>
+                <a href="/leagues-teams" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'leagues_teams' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Leagues & Teams</a>
+                <a href="/sources" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'sources' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Sources & Leaderboard</a>
+                <a href="/telegram-reviews" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'telegram_reviews' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Telegram Review</a>
+                <a href="/collector-health" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'collector_health' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Collector Health</a>
+                <a href="/settings" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'settings' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Settings</a>
+                <a href="/logs" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'logs' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Audit Logs</a>
+                {% if current_admin %}
+                <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between px-3">
+                    <span class="text-xs text-slate-400 font-mono">{{ current_admin.username }}</span>
+                    <a href="/auth/logout" class="text-xs text-rose-400 hover:underline">Logout</a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </header>
 
-    <!-- Main Body Container -->
+    <!-- Main Content Area -->
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="border-t border-slate-800/80 bg-slate-950/80 mt-12 py-6 text-xs text-slate-500">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+    <!-- Permanent Disclaimer Footer (Task 5: Required On Every Page) -->
+    <footer class="border-t border-slate-800/80 bg-slate-950 mt-12 text-slate-400">
+        <!-- Prominent Non-Negotiable Honesty Callout -->
+        <div class="border-b border-amber-900/40 bg-amber-950/20 py-4 px-4 text-center">
+            <p class="text-xs md:text-sm font-semibold text-amber-300 flex items-center justify-center gap-2">
+                <svg class="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                Toss is a random event. Past stats do not guarantee results. Play responsibly.
+            </p>
+            <p class="text-[11px] text-amber-400/80 mt-1 font-mono">
+                Independent coin flip baseline (p=0.50) • Pre-match cryptographic SHA-256 seal • Real measured sample sizes only
+            </p>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
             <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span>Toss Analytics v1.0 • All times shown in IST (Asia/Kolkata) • Stored internally in UTC</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Toss Analytics v1.0 • Displaying IST (Asia/Kolkata) • Canonical Timestamps in UTC</span>
             </div>
-            <div class="text-center md:text-right">
-                <span>Fair Coin Baseline Model (p=0.50) • Wilson 95% Confidence Intervals</span>
+            <div class="text-center md:text-right font-mono text-[11px] text-slate-500">
+                Append-only ledger • Zero retrospective edits • Wilson 95% CI
             </div>
         </div>
     </footer>
 
-    <!-- Client Script -->
+    <!-- Client Script with Automatic HTMX CSRF Attachment -->
+    <script>
+        function toggleMobileMenu() {
+            var menu = document.getElementById('mobile-menu');
+            if (menu) {
+                menu.classList.toggle('hidden');
+            }
+        }
+
+        // Attach CSRF token to all HTMX AJAX requests
+        document.body.addEventListener('htmx:configRequest', function(evt) {
+            evt.detail.headers['X-CSRF-Token'] = '{{ csrf_token }}';
+        });
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('Copied to clipboard: ' + text);
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+    </script>
     <script src="/static/js/app.js"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
-

@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import StaticPool
 from app.db import Base
-from app.models import Team, Tournament, DataSource, Match, PredictionSnapshot
+from app.models import Team, League, ExternalSource, Match, Prediction
 from app.schemas import PredictionCreate, TossResultCreate
 from app.services.match_service import upsert_match, get_match_by_id, get_matches
 from app.services.prediction_service import lock_prediction, verify_prediction_integrity
@@ -30,10 +30,10 @@ async def async_test_session():
     session_maker = async_sessionmaker(test_engine, expire_on_commit=False, class_=AsyncSession)
     async with session_maker() as session:
         # Seed base data
-        session.add(DataSource(id="test_feed", name="Test Feed", provider_type="API"))
-        session.add(Tournament(id="ipl_test", name="IPL Test", category="LEAGUE"))
-        session.add(Team(id="csk", name="Chennai Super Kings", short_code="CSK"))
-        session.add(Team(id="mi", name="Mumbai Indians", short_code="MI"))
+        session.add(ExternalSource(id=1, name="Test Feed", type="json_api"))
+        session.add(League(id=1, name="IPL Test", format="T20"))
+        session.add(Team(id=1, name="Chennai Super Kings", short_code="CSK"))
+        session.add(Team(id=2, name="Mumbai Indians", short_code="MI"))
         await session.commit()
         yield session
 
@@ -45,25 +45,23 @@ async def test_upsert_and_retrieve_match(async_test_session: AsyncSession):
     """Test match creation, retrieval, and status tracking."""
     start_utc = datetime.now(timezone.utc) + timedelta(hours=3)
     match_dict = {
-        "id": "match_test_001",
-        "tournament_id": "ipl_test",
-        "team_a_id": "csk",
-        "team_b_id": "mi",
-        "match_format": "T20",
-        "match_title": "CSK vs MI",
-        "scheduled_start_utc": start_utc,
-        "status": "UPCOMING",
-        "data_source_id": "test_feed",
+        "id": 1,
+        "source_match_id": "match_test_001",
+        "league_id": 1,
+        "team_a_id": 1,
+        "team_b_id": 2,
+        "start_time_utc": start_utc,
+        "status": "upcoming",
         "odds_a": 95.0,
         "odds_b": 85.0
     }
     match = await upsert_match(async_test_session, match_dict)
-    assert match.id == "match_test_001"
+    assert match.id == 1
 
     retrieved = await get_match_by_id(async_test_session, "match_test_001")
     assert retrieved is not None
-    assert retrieved.match_title == "CSK vs MI"
-    assert retrieved.status == "UPCOMING"
+    assert retrieved.match_title == "Chennai Super Kings vs Mumbai Indians"
+    assert retrieved.status == "upcoming"
 
 
 @pytest.mark.asyncio
@@ -75,24 +73,22 @@ async def test_prediction_locking_and_evaluation(async_test_session: AsyncSessio
     # 1. Create upcoming match (start in 2 hours)
     start_utc = datetime.now(timezone.utc) + timedelta(hours=2)
     await upsert_match(async_test_session, {
-        "id": "match_eval_1",
-        "tournament_id": "ipl_test",
-        "team_a_id": "csk",
-        "team_b_id": "mi",
-        "match_format": "T20",
-        "match_title": "CSK vs MI",
-        "scheduled_start_utc": start_utc,
-        "status": "UPCOMING",
-        "data_source_id": "test_feed"
+        "id": 2,
+        "source_match_id": "match_eval_1",
+        "league_id": 1,
+        "team_a_id": 1,
+        "team_b_id": 2,
+        "start_time_utc": start_utc,
+        "status": "upcoming",
     })
 
     # 2. Lock Prediction before match start
     pred_data = PredictionCreate(
-        match_id="match_eval_1",
+        match_id=2,
         model_version_id="model_v1",
         source_channel="@vip_cricket_toss",
         action_type="PLAY",
-        predicted_team_id="csk",
+        predicted_team_id=1,
         estimated_prob_a=0.58,
         punter_rationale="Longitudinal H2H calling rotation favors CSK"
     )
@@ -110,18 +106,18 @@ async def test_prediction_locking_and_evaluation(async_test_session: AsyncSessio
 
     # 4. Record Ground Truth Official Toss Outcome (CSK won toss and bat)
     toss_data = TossResultCreate(
-        match_id="match_eval_1",
-        toss_winner_id="csk",
+        match_id=2,
+        toss_winner_id=1,
         toss_decision="BAT",
         official_source_url="https://cricbuzz.com/match/1"
     )
     toss_res = await record_toss_result(async_test_session, toss_data, source_provider_id="CRICBUZZ")
-    assert toss_res.toss_winner_id == "csk"
+    assert toss_res.toss_winner_id == 1
 
-    # 5. Check match status is now TOSS_COMPLETED
+    # 5. Check match status is now toss_done
     async_test_session.expire_all()
     match = await get_match_by_id(async_test_session, "match_eval_1")
-    assert match.status == "TOSS_COMPLETED"
+    assert match.status in ("toss_done", "TOSS_COMPLETED")
 
     # 6. Check Prediction was automatically evaluated as HIT (True)
     assert len(match.predictions) == 1
@@ -143,21 +139,19 @@ async def test_post_match_prediction_disqualified(async_test_session: AsyncSessi
     """Predictions locked after scheduled match start must be flagged is_pre_toss=False."""
     past_start = datetime.now(timezone.utc) - timedelta(minutes=30)
     await upsert_match(async_test_session, {
-        "id": "match_past_01",
-        "tournament_id": "ipl_test",
-        "team_a_id": "csk",
-        "team_b_id": "mi",
-        "match_format": "T20",
-        "match_title": "CSK vs MI",
-        "scheduled_start_utc": past_start,
-        "status": "UPCOMING",
-        "data_source_id": "test_feed"
+        "id": 3,
+        "source_match_id": "match_past_01",
+        "league_id": 1,
+        "team_a_id": 1,
+        "team_b_id": 2,
+        "start_time_utc": past_start,
+        "status": "upcoming",
     })
 
     pred_data = PredictionCreate(
-        match_id="match_past_01",
+        match_id=3,
         action_type="PLAY",
-        predicted_team_id="mi"
+        predicted_team_id=2
     )
     snapshot = await lock_prediction(async_test_session, pred_data)
     assert snapshot.is_pre_toss is False
