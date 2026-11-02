@@ -79,20 +79,23 @@ def setup_logging(log_level: Optional[str] = None) -> None:
         colorize=True
     )
 
-    # Optional file sink in logs/app.log
-    logs_dir = os.path.join(BASE_DIR, "logs")
-    os.makedirs(logs_dir, exist_ok=True)
-    file_path = os.path.join(logs_dir, "app.log")
+    # Optional file sink in logs/app.log (gracefully fallback to console if file access is restricted)
+    try:
+        logs_dir = os.path.join(BASE_DIR, "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        file_path = os.path.join(logs_dir, "app.log")
 
-    logger.add(
-        file_path,
-        format=log_format,
-        level=level,
-        filter=secret_redaction_sink_filter,
-        rotation="10 MB",
-        retention="14 days",
-        compression="zip",
-        encoding="utf-8"
-    )
+        logger.add(
+            file_path,
+            format=log_format,
+            level=level,
+            filter=secret_redaction_sink_filter,
+            rotation="10 MB",
+            retention="14 days",
+            compression="zip",
+            encoding="utf-8"
+        )
+    except Exception as exc:
+        logger.warning(f"File log sink could not be initialized ({exc}); using stderr sink only.")
 
     logger.info("Structured logging initialized with active credential redaction.")
