@@ -59,7 +59,7 @@ def validate_csrf_token(token: Optional[str], max_age_seconds: int = 7200) -> bo
         return False
 
 
-async def verify_csrf(request: Request) -> None:
+async def verify_csrf(request: Request, token: Optional[str] = None) -> None:
     """
     FastAPI dependency / check that enforces CSRF token validation on mutating HTTP methods.
     Exempts programmatic API requests presenting Bearer tokens.
@@ -72,8 +72,9 @@ async def verify_csrf(request: Request) -> None:
     if auth_header and auth_header.startswith("Bearer "):
         return
 
-    # Check header first (e.g. HTMX or AJAX)
-    token = request.headers.get("X-CSRF-Token")
+    # Check explicitly passed token or header first (e.g. HTMX or AJAX)
+    if not token:
+        token = request.headers.get("X-CSRF-Token")
 
     # If not in header, check form body if content-type is form data
     if not token:

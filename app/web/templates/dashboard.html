@@ -258,11 +258,11 @@
                             {{ src.measured_accuracy_pct }}%
                         </td>
                         <td class="py-3 px-3 text-purple-300">
-                            {{ src.wilson_interval_95.display_str }}
+                            {{ src.wilson_interval_95.display_str if src.wilson_interval_95 is defined else src.wilson_display }}
                         </td>
                         <td class="py-3 px-3">
-                            <span class="{% if src.binomial_test.is_significant %}text-emerald-400{% else %}text-slate-400{% endif %}">
-                                p = {{ src.binomial_test.p_value }}
+                            <span class="{% if (src.binomial_test.is_significant if src.binomial_test is defined else src.is_significant) %}text-emerald-400{% else %}text-slate-400{% endif %}">
+                                p = {{ src.binomial_test.p_value if src.binomial_test is defined else src.p_value }}
                             </span>
                         </td>
                         <td class="py-3 px-3 text-right font-sans">

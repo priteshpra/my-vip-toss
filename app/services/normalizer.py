@@ -196,6 +196,14 @@ class EntityNormalizer:
 
         return None
 
+    def normalize_team_name(self, query: str, threshold: float = 78.0) -> Tuple[Optional[str], float]:
+        """
+        Normalize team name returning tuple of (canonical_team_name, confidence_score).
+        Compatibility bridge for external source adapters and services.
+        """
+        res = self.normalize_team(query, threshold=threshold)
+        return (res, 100.0 if res else 0.0)
+
     def normalize_league(self, query: Optional[str], threshold: float = 75.0) -> str:
         """
         Normalize raw tournament/league name to canonical standard league.

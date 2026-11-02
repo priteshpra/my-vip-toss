@@ -60,7 +60,19 @@ from app.services.market_service import (
     record_manual_market_entry
 )
 from app.services.export_service import generate_match_csv, generate_match_pdf
-from app.services.source_service import get_source_leaderboard
+from app.services.source_service import (
+    get_source_leaderboard,
+    get_source_accuracy_leaderboard,
+    get_all_sources,
+    get_source_by_id,
+    create_external_source,
+    update_external_source,
+    toggle_source_enabled,
+    record_manual_source_snapshot,
+    get_source_comparison_for_match,
+    get_consensus_historical_accuracy,
+    evaluate_combined_panel_lean
+)
 from app.jobs.tasks import sync_live_matches_task, verify_toss_results_task
 
 router = APIRouter()
@@ -253,6 +265,18 @@ async def match_detail_view(
     for me in market_entries:
         me.fetched_at_ist = format_ist(me.fetched_at_utc)
 
+    # Phase 6: Multi-Source Comparison, Consensus, and Combined Panel Lean
+    model_lean_info = generate_lean_from_analysis(analysis)
+    model_lean_str = model_lean_info.get("lean")
+    source_comparison_data = await get_source_comparison_for_match(session, match.id, model_lean_str)
+    consensus_historical = await get_consensus_historical_accuracy(session)
+    combined_panel_lean = evaluate_combined_panel_lean(
+        model_lean_info=model_lean_info,
+        consensus_info=source_comparison_data["consensus"],
+        consensus_historical=consensus_historical
+    )
+    configured_sources = await get_all_sources(session)
+
     return templates.TemplateResponse(
         request=request,
         name="match_detail.html",
@@ -265,7 +289,14 @@ async def match_detail_view(
             stats_b=analysis["stats_b"],
             h2h_stats=analysis["h2h_stats"],
             venue_stats=analysis["venue_stats"],
-            market_entries=market_entries
+            market_entries=market_entries,
+            source_snapshots=source_comparison_data["snapshots"],
+            source_comparison=source_comparison_data,
+            consensus_info=source_comparison_data["consensus"],
+            consensus_historical=consensus_historical,
+            combined_panel_lean=combined_panel_lean,
+            model_lean_info=model_lean_info,
+            configured_sources=configured_sources
         )
     )
 
@@ -693,13 +724,192 @@ async def sources_view(
     session: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin)
 ):
-    """Audited leaderboard of tracked sources and channels."""
-    leaderboard = await get_source_leaderboard(session)
+    """Audited leaderboard of tracked sources and channels, plus dynamic source management."""
+    leaderboard = await get_source_accuracy_leaderboard(session)
+    sources = await get_all_sources(session)
+    consensus_accuracy = await get_consensus_historical_accuracy(session)
     return templates.TemplateResponse(
         request=request,
         name="sources.html",
-        context=template_ctx(request, active_page="sources", leaderboard=leaderboard)
+        context=template_ctx(
+            request,
+            active_page="sources",
+            leaderboard=leaderboard,
+            sources=sources,
+            consensus_accuracy=consensus_accuracy
+        )
     )
+
+
+@router.post("/admin/sources/create")
+async def admin_create_source_route(
+    request: Request,
+    name: str = Form(...),
+    type: str = Form(...),
+    url: Optional[str] = Form(None),
+    parse_rules: Optional[str] = Form(None),
+    poll_interval: int = Form(300),
+    enabled: Optional[str] = Form(None),
+    csrf_token: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Dynamically register a new external data source or tipper channel."""
+    await verify_csrf(request, csrf_token)
+    client_ip = get_client_ip(request)
+    admin_user = admin.get("username", "admin")
+    is_enabled = bool(enabled and enabled.lower() in ("true", "1", "on", "yes"))
+
+    try:
+        await create_external_source(
+            session=session,
+            name=name,
+            source_type=type,
+            url=url,
+            parse_rules=parse_rules,
+            poll_interval=poll_interval,
+            enabled=is_enabled,
+            admin_user=admin_user,
+            client_ip=client_ip
+        )
+        return RedirectResponse(url="/sources", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e:
+        if "HX-Request" in request.headers:
+            return HTMLResponse(f"<div class='p-2 rounded bg-rose-500/10 text-rose-400 text-xs font-semibold'>Error: {str(e)}</div>", status_code=400)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/admin/sources/{source_id}/edit")
+async def admin_edit_source_route(
+    request: Request,
+    source_id: int,
+    name: str = Form(...),
+    type: str = Form(...),
+    url: Optional[str] = Form(None),
+    parse_rules: Optional[str] = Form(None),
+    poll_interval: int = Form(300),
+    enabled: Optional[str] = Form(None),
+    csrf_token: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Update configuration of an existing external data source."""
+    await verify_csrf(request, csrf_token)
+    client_ip = get_client_ip(request)
+    admin_user = admin.get("username", "admin")
+    is_enabled = bool(enabled and enabled.lower() in ("true", "1", "on", "yes"))
+
+    try:
+        await update_external_source(
+            session=session,
+            source_id=source_id,
+            name=name,
+            source_type=type,
+            url=url,
+            parse_rules=parse_rules,
+            poll_interval=poll_interval,
+            enabled=is_enabled,
+            admin_user=admin_user,
+            client_ip=client_ip
+        )
+        return RedirectResponse(url="/sources", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e:
+        if "HX-Request" in request.headers:
+            return HTMLResponse(f"<div class='p-2 rounded bg-rose-500/10 text-rose-400 text-xs font-semibold'>Error: {str(e)}</div>", status_code=400)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/admin/sources/{source_id}/toggle")
+async def admin_toggle_source_route(
+    request: Request,
+    source_id: int,
+    csrf_token: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Toggle source enabled/disabled status."""
+    await verify_csrf(request, csrf_token)
+    client_ip = get_client_ip(request)
+    admin_user = admin.get("username", "admin")
+
+    try:
+        await toggle_source_enabled(
+            session=session,
+            source_id=source_id,
+            admin_user=admin_user,
+            client_ip=client_ip
+        )
+        return RedirectResponse(url="/sources", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/admin/sources/{source_id}/sync")
+async def admin_sync_source_route(
+    request: Request,
+    source_id: int,
+    csrf_token: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Trigger immediate manual sync / fetch for an external source."""
+    await verify_csrf(request, csrf_token)
+    source = await session.get(ExternalSource, source_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found.")
+
+    from app.collectors.external_sources import poll_external_source
+    snaps = await poll_external_source(session, source)
+
+    if "HX-Request" in request.headers:
+        return HTMLResponse(
+            f"<div class='p-2 rounded bg-emerald-500/10 text-emerald-400 text-xs font-semibold'>"
+            f"Synced {source.name}: captured {len(snaps)} snapshot(s)."
+            f"</div>"
+        )
+    return RedirectResponse(url="/sources", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/admin/matches/{match_id}/source-snapshot")
+async def admin_record_source_snapshot_route(
+    request: Request,
+    match_id: str,
+    source_id: int = Form(...),
+    lean: str = Form(...),
+    market: Optional[str] = Form(None),
+    session_notes: Optional[str] = Form(None),
+    csrf_token: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Record a verified manual snapshot for a fixture from an external source."""
+    await verify_csrf(request, csrf_token)
+    client_ip = get_client_ip(request)
+    admin_user = admin.get("username", "admin")
+
+    m_id = int(match_id) if match_id.isdigit() else None
+    if not m_id:
+        match = await get_match_by_id(session, match_id)
+        if not match:
+            raise HTTPException(status_code=404, detail="Match not found.")
+        m_id = match.id
+
+    try:
+        await record_manual_source_snapshot(
+            session=session,
+            match_id=m_id,
+            source_id=source_id,
+            lean=lean,
+            market=market,
+            session_notes=session_notes,
+            admin_user=admin_user,
+            client_ip=client_ip
+        )
+        return RedirectResponse(url=f"/matches/{match_id}", status_code=status.HTTP_303_SEE_OTHER)
+    except Exception as e:
+        if "HX-Request" in request.headers:
+            return HTMLResponse(f"<div class='p-2 rounded bg-rose-500/10 text-rose-400 text-xs font-semibold'>Error: {str(e)}</div>", status_code=400)
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # --------------------------------------------------------------------------

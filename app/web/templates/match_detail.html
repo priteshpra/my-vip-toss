@@ -360,6 +360,171 @@
         </div>
     </div>
 
+    <!-- Multi-Source Intelligence & Tipster Comparison (Phase 6) -->
+    <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+            <div>
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>Multi-Source Intelligence & Tipster Comparison</span>
+                    <span class="text-[10px] font-mono font-normal bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
+                        Append-Only Snapshots
+                    </span>
+                </h3>
+                <p class="text-xs text-slate-400">Independent tracking of external tipsters, market rates, and cross-source consensus.</p>
+            </div>
+            <button onclick="document.getElementById('source-snapshot-form-container').classList.toggle('hidden')"
+                    class="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition-colors">
+                + Record Source Snapshot
+            </button>
+        </div>
+
+        <!-- Consensus & Combined Panel Lean Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Consensus Card -->
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Source Consensus Signal</span>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded {% if consensus_info.consensus_team %}bg-indigo-500/10 text-indigo-400 border border-indigo-500/20{% else %}bg-slate-800 text-slate-400{% endif %}">
+                        {{ consensus_info.consensus_lean }}
+                    </span>
+                </div>
+                <div class="text-sm font-semibold text-white">
+                    {{ consensus_info.display_text }}
+                </div>
+                <div class="text-[11px] text-slate-400 flex items-center gap-4 pt-1 font-mono">
+                    <span>{{ match.team_a.name if match.team_a else 'Team A' }}: <strong class="text-white">{{ consensus_info.team_a_votes }}</strong></span>
+                    <span>{{ match.team_b.name if match.team_b else 'Team B' }}: <strong class="text-white">{{ consensus_info.team_b_votes }}</strong></span>
+                    <span>Skip: <strong class="text-amber-400">{{ consensus_info.skip_votes }}</strong></span>
+                </div>
+            </div>
+
+            <!-- Combined Panel Lean Card (Honesty Guarded) -->
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Combined Panel Lean</span>
+                    {% if combined_panel_lean.action_type == 'PLAY' %}
+                    <span class="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+                        PLAY CALL
+                    </span>
+                    {% else %}
+                    <span class="text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                        NO EDGE - SKIP
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="text-sm font-bold text-white">
+                    {{ combined_panel_lean.predicted_team_name }}
+                </div>
+                <p class="text-[11px] text-slate-400 italic">
+                    {{ combined_panel_lean.rationale }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Inline Record Source Snapshot Form -->
+        <div id="source-snapshot-form-container" class="hidden bg-slate-900/80 p-4 rounded-xl border border-indigo-500/30 space-y-3">
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider">Record Append-Only External Source Snapshot</h4>
+            <form method="POST" action="/admin/matches/{{ match.id }}/source-snapshot" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase mb-1">Source / Channel *</label>
+                    <select name="source_id" required class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                        {% for src in configured_sources %}
+                        <option value="{{ src.id }}">{{ src.name }} ({{ src.type }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase mb-1">Toss Lean / Pick *</label>
+                    <select name="lean" required class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                        <option value="{{ match.team_a.name if match.team_a else 'Team A' }}">{{ match.team_a.name if match.team_a else 'Team A' }}</option>
+                        <option value="{{ match.team_b.name if match.team_b else 'Team B' }}">{{ match.team_b.name if match.team_b else 'Team B' }}</option>
+                        <option value="NO_EDGE">NO_EDGE (Skip / Neutral)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase mb-1">Market / Load Info</label>
+                    <input type="text" name="market" placeholder="e.g. Load 60% / Rate 1.90" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-400 uppercase mb-1">Session / Notes</label>
+                    <input type="text" name="session_notes" placeholder="e.g. Tipster recommendation pre-match" class="w-full bg-slate-800 border border-slate-700 rounded px-2.5 py-1.5 text-white">
+                </div>
+                <div class="sm:col-span-2 lg:col-span-4 flex justify-end">
+                    <button type="submit" class="py-1.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-md transition-colors">
+                        Commit Snapshot to Ledger
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Source Comparison Table -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-3">Source Name</th>
+                        <th class="py-3 px-3">Toss Lean</th>
+                        <th class="py-3 px-3">Market / Load</th>
+                        <th class="py-3 px-3">Session Notes</th>
+                        <th class="py-3 px-3">Fetched (IST)</th>
+                        <th class="py-3 px-3">Model Agreement</th>
+                        <th class="py-3 px-3 text-right">Toss Outcome</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for snap in source_snapshots %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-2.5 px-3 font-sans font-medium text-white">{{ snap.source_name }}</td>
+                        <td class="py-2.5 px-3 font-bold {% if snap.lean == 'NO_EDGE' %}text-amber-400{% else %}text-emerald-400{% endif %}">
+                            {{ snap.lean }}
+                        </td>
+                        <td class="py-2.5 px-3 text-slate-300">{{ snap.market }}</td>
+                        <td class="py-2.5 px-3 text-slate-400 font-sans text-xs max-w-xs truncate" title="{{ snap.session_notes }}">{{ snap.session_notes }}</td>
+                        <td class="py-2.5 px-3 text-slate-400">{{ snap.fetched_at_ist }}</td>
+                        <td class="py-2.5 px-3 font-sans">
+                            {% if snap.agreement_status == 'AGREES' %}
+                            <span class="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                AGREES
+                            </span>
+                            {% elif snap.agreement_status == 'CONFLICTS' %}
+                            <span class="text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded">
+                                CONFLICTS
+                            </span>
+                            {% elif snap.agreement_status == 'MODEL_SKIPPED' %}
+                            <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                                MODEL SKIPPED
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] text-slate-400 font-mono">
+                                NEUTRAL
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-2.5 px-3 text-right font-sans">
+                            {% if snap.outcome == 'PASS' %}
+                            <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">PASS</span>
+                            {% elif snap.outcome == 'FAIL' %}
+                            <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">FAIL</span>
+                            {% elif snap.outcome == 'SKIPPED' %}
+                            <span class="text-[10px] text-slate-400 font-mono">SKIPPED</span>
+                            {% else %}
+                            <span class="text-[10px] text-amber-400/80 font-mono">PENDING</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-6 text-center text-slate-500 font-sans">
+                            No external source snapshots captured for this fixture yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Market Intelligence Ledger & Pluggable Provider Form -->
     <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">

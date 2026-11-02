@@ -119,6 +119,7 @@ class Match(Base):
     toss_result: Mapped[Optional["TossResult"]] = relationship("TossResult", back_populates="match", uselist=False, cascade="all, delete-orphan")
     predictions: Mapped[List["Prediction"]] = relationship("Prediction", back_populates="match", cascade="all, delete-orphan")
     market_entries: Mapped[List["MarketEntry"]] = relationship("MarketEntry", back_populates="match", cascade="all, delete-orphan")
+    source_snapshots: Mapped[List["SourceSnapshot"]] = relationship("SourceSnapshot", back_populates="match", cascade="all, delete-orphan")
 
 
 class TossResult(Base):
@@ -301,6 +302,7 @@ class SourceSnapshot(Base):
     fetched_at_utc: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
 
     source_ref: Mapped["ExternalSource"] = relationship("ExternalSource", back_populates="snapshots")
+    match: Mapped[Optional["Match"]] = relationship("Match", back_populates="source_snapshots")
     outcome: Mapped[Optional["SourceOutcome"]] = relationship("SourceOutcome", back_populates="snapshot", uselist=False, cascade="all, delete-orphan")
 
 

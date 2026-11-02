@@ -54,6 +54,9 @@ async def log_audit_event(
     return audit
 
 
+record_audit_log = log_audit_event
+
+
 async def get_audit_logs(
     session: AsyncSession,
     limit: int = 100,

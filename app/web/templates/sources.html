@@ -5,23 +5,140 @@
 {% block content %}
 <div class="space-y-6">
 
+    <!-- Header & Dynamic Source Add Action -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
             <h1 class="text-2xl font-bold tracking-tight text-white">Tracked Sources & Tipster Channels</h1>
-            <p class="text-xs sm:text-sm text-slate-400">Audited performance across Telegram tipsters, algorithmic models, and feeds.</p>
+            <p class="text-xs sm:text-sm text-slate-400">Audited performance across Telegram tipsters, public feeds, scrapers, and internal analysts.</p>
         </div>
+        <button onclick="document.getElementById('add-source-form-container').classList.toggle('hidden')"
+                class="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            + Add External Source
+        </button>
     </div>
 
-    <!-- Leaderboard Table -->
-    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden">
+    <!-- Inline Add External Source Form (Hidden by default) -->
+    <div id="add-source-form-container" class="hidden glass-card rounded-2xl p-5 border border-indigo-500/30 bg-slate-900/90 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div>
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Configure New External Source / Scraper</h3>
+                <p class="text-xs text-slate-400">Add an external source dynamically without restarting or modifying codebase.</p>
+            </div>
+            <button onclick="document.getElementById('add-source-form-container').classList.add('hidden')"
+                    class="text-slate-400 hover:text-white text-xs font-mono">✕ Close</button>
+        </div>
+        <form method="POST" action="/admin/sources/create" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Source Name *</label>
+                <input type="text" name="name" required placeholder="e.g. VIP Cricket Tipster Telegram"
+                       class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Source Type *</label>
+                <select name="type" required class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+                    <option value="public_html">Public HTML Web Scraper (public_html)</option>
+                    <option value="json_api">JSON API Feed (json_api)</option>
+                    <option value="telegram_channel">Telegram Tipster Channel (telegram_channel)</option>
+                    <option value="manual">Manual Entry Provider (manual)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Target Endpoint URL (Optional)</label>
+                <input type="url" name="url" placeholder="https://..."
+                       class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Poll Interval (seconds)</label>
+                <input type="number" name="poll_interval" value="300" min="30" max="86400"
+                       class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex items-center gap-2 pt-6">
+                <input type="checkbox" id="src_enabled" name="enabled" value="true" checked class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
+                <label for="src_enabled" class="text-xs text-slate-200 font-medium">Enable Immediately</label>
+            </div>
+            <div class="md:col-span-2 lg:col-span-3">
+                <label class="block text-[11px] font-semibold text-slate-300 uppercase mb-1">Parse Rules (JSON / Regex Configuration)</label>
+                <textarea name="parse_rules" rows="3" placeholder='{"item_regex": "", "teams_regex": "([A-Za-z]+) vs ([A-Za-z]+)", "lean_regex": "toss:\\s*([A-Za-z]+)"}'
+                          class="w-full font-mono bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"></textarea>
+                <p class="text-[10px] text-slate-500 mt-1">Accepts JSON object defining extraction regexes, CSS selectors, or field names.</p>
+            </div>
+            <div class="md:col-span-2 lg:col-span-3 flex justify-end gap-2">
+                <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-xs transition-colors">
+                    Save & Initialize Source
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Consensus Signal Historical Performance Card -->
+    {% if consensus_accuracy %}
+    <div class="glass-card rounded-2xl p-5 border border-slate-800 bg-slate-900/40 relative overflow-hidden">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+                    <h3 class="text-sm font-bold text-white uppercase tracking-wider">Multi-Source Consensus Signal Accuracy</h3>
+                    <span class="text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
+                        Information Only
+                    </span>
+                </div>
+                <p class="text-xs text-slate-400">
+                    Empirical performance of majority external source calls across completed fixtures vs the 50% baseline.
+                </p>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <div class="text-[10px] uppercase font-semibold text-slate-400">Consensus (n)</div>
+                    <div class="text-base font-bold text-white font-mono">{{ consensus_accuracy.evaluated_calls }}</div>
+                </div>
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <div class="text-[10px] uppercase font-semibold text-slate-400">Hit Rate</div>
+                    <div class="text-base font-bold text-indigo-400 font-mono">{{ consensus_accuracy.measured_accuracy_pct }}%</div>
+                </div>
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <div class="text-[10px] uppercase font-semibold text-slate-400">95% Wilson CI</div>
+                    <div class="text-xs font-semibold text-purple-300 font-mono mt-0.5">{{ consensus_accuracy.wilson_display }}</div>
+                </div>
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                    <div class="text-[10px] uppercase font-semibold text-slate-400">Status</div>
+                    <div class="text-[11px] font-semibold {% if consensus_accuracy.is_sufficient %}text-emerald-400{% else %}text-amber-400{% endif %} font-mono mt-0.5">
+                        {{ consensus_accuracy.status_label }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Audited Source Accuracy Leaderboard Table -->
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden space-y-2">
+        <div class="p-4 bg-slate-900/60 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+                <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    <span>Audited Accuracy Leaderboard</span>
+                    <span class="text-[10px] font-normal text-slate-400">Strict n &ge; 30 Honesty Gate</span>
+                </h2>
+                <p class="text-[11px] text-slate-400">
+                    Only sources with sample size n &ge; 30 are ranked by measured hit-rate. Low sample sources are flagged with "Insufficient data".
+                </p>
+            </div>
+            <div class="text-[11px] text-slate-400 font-mono">
+                Baseline: 50.0% (Fair Coin Flip)
+            </div>
+        </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
                 <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
                     <tr>
+                        <th class="py-3 px-3">Rank</th>
                         <th class="py-3 px-4">Channel / Source Name</th>
                         <th class="py-3 px-3">Total Calls</th>
-                        <th class="py-3 px-3">Play Calls</th>
-                        <th class="py-3 px-3">Skipped</th>
+                        <th class="py-3 px-3">Play</th>
+                        <th class="py-3 px-3">Skip</th>
                         <th class="py-3 px-3">Sample (n)</th>
                         <th class="py-3 px-3">Hits (Wins)</th>
                         <th class="py-3 px-3">Misses (Losses)</th>
@@ -33,9 +150,18 @@
                 </thead>
                 <tbody class="divide-y divide-slate-800/60 font-mono">
                     {% for src in leaderboard %}
-                    <tr class="hover:bg-slate-900/40 transition-colors">
+                    {% set is_suff = src.is_sufficient if src.is_sufficient is defined else (src.evaluated_calls >= 30) %}
+                    <tr class="hover:bg-slate-900/40 transition-colors {% if not is_suff %}opacity-80{% endif %}">
+                        <td class="py-3 px-3 font-semibold {% if is_suff %}text-indigo-400{% else %}text-slate-500{% endif %}">
+                            {{ src.rank if src.rank is defined else ('#' ~ loop.index if is_suff else 'Unranked') }}
+                        </td>
                         <td class="py-3 px-4 font-sans font-medium text-white flex items-center gap-2">
                             <span>{{ src.source_name }}</span>
+                            {% if src.source_type is defined %}
+                            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                                {{ src.source_type }}
+                            </span>
+                            {% endif %}
                         </td>
                         <td class="py-3 px-3 text-slate-300">{{ src.total_calls }}</td>
                         <td class="py-3 px-3 text-slate-300">{{ src.play_calls }}</td>
@@ -47,20 +173,22 @@
                             {{ src.measured_accuracy_pct }}%
                         </td>
                         <td class="py-3 px-3 text-purple-300">
-                            {{ src.wilson_interval_95.display_str }}
+                            {{ src.wilson_display if src.wilson_display is defined else (src.wilson_interval_95.display_str if src.wilson_interval_95 is defined else '-') }}
                         </td>
                         <td class="py-3 px-3">
-                            <span class="{% if src.binomial_test.is_significant %}text-emerald-400{% else %}text-slate-400{% endif %}">
-                                p = {{ src.binomial_test.p_value }}
+                            {% set p_val = src.p_value if src.p_value is defined else (src.binomial_test.p_value if src.binomial_test is defined else 1.0) %}
+                            {% set is_sig = src.is_significant if src.is_significant is defined else (src.binomial_test.is_significant if src.binomial_test is defined else false) %}
+                            <span class="{% if is_sig %}text-emerald-400 font-semibold{% else %}text-slate-400{% endif %}">
+                                p = {{ p_val }}
                             </span>
                         </td>
                         <td class="py-3 px-4 text-right font-sans">
-                            {% if src.evaluated_calls >= 30 %}
+                            {% if is_suff %}
                             <span class="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
                                 SUFFICIENT (n>=30)
                             </span>
                             {% else %}
-                            <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                            <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded" title="Sample size below n=30. Insufficient statistical power.">
                                 LOW SAMPLE (n&lt;30)
                             </span>
                             {% endif %}
@@ -68,8 +196,8 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="11" class="py-8 text-center text-slate-500 font-sans">
-                            No sources tracked yet.
+                        <td colspan="12" class="py-8 text-center text-slate-500 font-sans">
+                            No external sources or predictions evaluated yet.
                         </td>
                     </tr>
                     {% endfor %}
@@ -78,6 +206,87 @@
         </div>
     </div>
 
+    <!-- Configured External Sources & Scrapers Management -->
+    {% if sources %}
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden space-y-2">
+        <div class="p-4 bg-slate-900/60 border-b border-slate-800 flex items-center justify-between">
+            <div>
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Configured Sources & Scrapers</h3>
+                <p class="text-[11px] text-slate-400">Dynamic source endpoints, health checks, and collection rules.</p>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Source Name</th>
+                        <th class="py-3 px-3">Type</th>
+                        <th class="py-3 px-3">URL / Identifier</th>
+                        <th class="py-3 px-3">Interval</th>
+                        <th class="py-3 px-3">Health Status</th>
+                        <th class="py-3 px-3">Active</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for s in sources %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-4 font-sans font-medium text-white">{{ s.name }}</td>
+                        <td class="py-3 px-3">
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                                {{ s.type }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-slate-400 font-sans truncate max-w-xs" title="{{ s.url or 'N/A' }}">
+                            {{ s.url or 'Internal / Manual' }}
+                        </td>
+                        <td class="py-3 px-3 text-slate-300">{{ s.poll_interval }}s</td>
+                        <td class="py-3 px-3 font-sans">
+                            {% if s.health == 'HEALTHY' %}
+                            <span class="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                HEALTHY
+                            </span>
+                            {% elif s.health == 'DEGRADED' %}
+                            <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                                DEGRADED
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2 py-0.5 rounded">
+                                {{ s.health }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 font-sans">
+                            <form method="POST" action="/admin/sources/{{ s.id }}/toggle" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="text-[10px] font-semibold px-2 py-0.5 rounded border transition-colors {% if s.enabled %}bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20{% else %}bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700{% endif %}">
+                                    {{ 'Enabled' if s.enabled else 'Disabled' }}
+                                </button>
+                            </form>
+                        </td>
+                        <td class="py-3 px-4 text-right space-x-2">
+                            <form method="POST" action="/admin/sources/{{ s.id }}/sync" class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 px-2 py-1 rounded bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
+                                    Sync Now
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Permanent Disclaimer Callout -->
+    <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
+        <div>
+            <strong class="text-slate-300">Statistical Honesty Rule:</strong> Toss is an independent random event ($p = 0.50$). External tipsters, scrapers, and market odds do not possess infallible information.
+        </div>
+        <div class="text-[10px] text-slate-500 uppercase font-mono">Wilson 95% CI Guarded</div>
+    </div>
+
 </div>
 {% endblock %}
-

@@ -1,5 +1,6 @@
 """Database seeder for standard leagues and foundational entities."""
 
+import json
 from typing import List, Dict, Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,4 +89,61 @@ async def seed_admin_user(session: AsyncSession) -> None:
         session.add(admin)
         await session.commit()
         logger.info(f"Initialized admin user: {settings.admin_username}")
+
+
+async def seed_external_sources(session: AsyncSession) -> int:
+    """Seed foundational external sources and tipster channels if empty."""
+    from app.models import ExternalSource
+
+    initial_sources = [
+        {
+            "name": "Exchange Flow & Floor Insights",
+            "type": "manual",
+            "url": None,
+            "parse_rules": json.dumps({"description": "Manual intelligence entered by system administrators."}),
+            "poll_interval": 300,
+            "enabled": True,
+            "health": "HEALTHY"
+        },
+        {
+            "name": "VIP Cricket Toss Alerts",
+            "type": "telegram_channel",
+            "url": None,
+            "parse_rules": json.dumps({"channel_name": "@VIPCricketToss", "auto_queue_ambiguous": True}),
+            "poll_interval": 60,
+            "enabled": True,
+            "health": "HEALTHY"
+        },
+        {
+            "name": "Public T20 Market Odds",
+            "type": "json_api",
+            "url": "https://api.example.com/v1/cricket/odds",
+            "parse_rules": json.dumps({"items_path": "matches", "team_a_key": "team1", "team_b_key": "team2", "lean_key": "toss_lean"}),
+            "poll_interval": 600,
+            "enabled": False,
+            "health": "HEALTHY"
+        }
+    ]
+
+    seeded = 0
+    for data in initial_sources:
+        stmt = select(ExternalSource).where(ExternalSource.name == data["name"])
+        res = await session.execute(stmt)
+        if not res.scalar_one_or_none():
+            src = ExternalSource(
+                name=data["name"],
+                type=data["type"],
+                url=data["url"],
+                parse_rules=data["parse_rules"],
+                poll_interval=data["poll_interval"],
+                enabled=data["enabled"],
+                health=data["health"]
+            )
+            session.add(src)
+            seeded += 1
+
+    if seeded > 0:
+        await session.commit()
+        logger.info(f"Seeded {seeded} initial external sources.")
+    return seeded
 

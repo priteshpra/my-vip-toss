@@ -86,6 +86,13 @@ async def record_toss_result(
     # 3. Automatically evaluate all locked predictions for this match
     await evaluate_predictions_for_match(session, match.id, winner_team_id)
 
+    # 4. Automatically score all source snapshots for this match
+    try:
+        from app.services.source_service import score_source_snapshots_for_match
+        await score_source_snapshots_for_match(session, match.id, winner_team_id)
+    except Exception as exc:
+        logger.warning(f"Error scoring source snapshots for match {match.id}: {exc}")
+
     return toss_obj
 
 
