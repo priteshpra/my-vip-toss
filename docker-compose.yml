@@ -37,3 +37,4 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
     command: python run.py --telegram
+

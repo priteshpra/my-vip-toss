@@ -157,9 +157,17 @@ async def run_all_concurrently():
         stop_scheduler()
 
 
+def run_streamlit(port: int = 8501):
+    """Launch Streamlit interactive web dashboard."""
+    import subprocess
+    cmd = [sys.executable, "-m", "streamlit", "run", "streamlit_app.py", "--server.port", str(port)]
+    subprocess.run(cmd)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Toss Analytics & Tracking Admin Panel Runner")
     parser.add_argument("--web", action="store_true", help="Launch Uvicorn web server only")
+    parser.add_argument("--streamlit", action="store_true", help="Launch Streamlit dashboard")
     parser.add_argument("--scheduler", action="store_true", help="Launch standalone scheduler worker")
     parser.add_argument("--telegram", action="store_true", help="Launch standalone Telegram listener daemon")
     parser.add_argument("--backup", action="store_true", help="Execute database hot backup and exit")
@@ -175,6 +183,8 @@ def main():
         run_backup()
     elif args.sync:
         asyncio.run(run_sync())
+    elif args.streamlit:
+        run_streamlit()
     elif args.scheduler:
         asyncio.run(run_scheduler_daemon())
     elif args.telegram:
@@ -188,3 +198,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
