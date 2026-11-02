@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Accuracy & Truth Dashboard | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Top Header & Status -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
+                <span>Accuracy & Mathematical Truth</span>
+                <span class="text-xs font-mono font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2.5 py-1 rounded-lg">
+                    Zero Retroactive Edits
+                </span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">
+                Objective verification of pre-toss predictions against ground truth coin flips, with Wilson score intervals and calibration testing.
+            </p>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-mono">
+            <span class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300">
+                Baseline: <strong class="text-indigo-400">50.0% (Fair Coin)</strong>
+            </span>
+        </div>
+    </div>
+
+    <!-- Visible Banner: Non-negotiable honesty banner when indistinguishable from 50% -->
+    {% if is_indistinguishable_from_50 %}
+    <div class="rounded-2xl p-4 md:p-5 border border-amber-600/40 bg-gradient-to-r from-amber-950/60 via-slate-900 to-amber-950/60 shadow-lg space-y-2">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <div>
+                <h3 class="text-sm md:text-base font-bold text-amber-200">
+                    {{ banner_message }}
+                </h3>
+                <p class="text-xs text-amber-300/80 mt-0.5">
+                    The observed hit rate does not statistically exceed what is expected by sheer random chance.
+                    {% if metrics.evaluated_calls < 30 %}
+                    Sample size is also low (n = {{ metrics.evaluated_calls }} &lt; 30).
+                    {% else %}
+                    Exact binomial two-sided p-value is {{ metrics.binomial_test.p_value }} (&ge; 0.05).
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="rounded-2xl p-4 border border-emerald-600/40 bg-emerald-950/40 space-y-1">
+        <h3 class="text-sm font-bold text-emerald-200">{{ banner_message }}</h3>
+        <p class="text-xs text-emerald-300/80 font-mono">
+            p = {{ metrics.binomial_test.p_value }} &lt; 0.05 against the theoretical 50% baseline.
+        </p>
+    </div>
+    {% endif %}
+
+    <!-- Core Metrics Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Evaluated Calls & Sample Size -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
+            <span class="text-xs text-slate-400 uppercase tracking-wider block font-semibold">Sample Size (n)</span>
+            <div class="text-3xl font-extrabold text-white font-mono">{{ metrics.evaluated_calls }}</div>
+            <div class="text-xs {% if metrics.evaluated_calls >= 30 %}text-emerald-400{% else %}text-amber-400{% endif %} font-semibold">
+                {{ "Sufficient Sample (n >= 30)" if metrics.evaluated_calls >= 30 else "Insufficient Data (n < 30)" }}
+            </div>
+        </div>
+
+        <!-- Measured Accuracy vs Baseline -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
+            <span class="text-xs text-slate-400 uppercase tracking-wider block font-semibold">Measured Accuracy</span>
+            <div class="text-3xl font-extrabold text-white font-mono flex items-baseline gap-2">
+                <span>{{ metrics.measured_accuracy_pct }}%</span>
+                <span class="text-xs font-normal {% if diff_from_baseline >= 0 %}text-emerald-400{% else %}text-rose-400{% endif %} font-mono">
+                    {% if diff_from_baseline >= 0 %}+{% endif %}{{ diff_from_baseline }}% vs 50%
+                </span>
+            </div>
+            <div class="text-xs text-slate-400 font-mono">
+                {{ metrics.wins }} Hits / {{ metrics.losses }} Misses
+            </div>
+        </div>
+
+        <!-- 95% Wilson Score Confidence Interval -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
+            <span class="text-xs text-slate-400 uppercase tracking-wider block font-semibold">95% Wilson Score Interval</span>
+            <div class="text-2xl font-bold text-purple-300 font-mono">{{ metrics.wilson_interval_95.display_str }}</div>
+            <div class="text-[11px] text-slate-400">
+                Exact Binomial p-value: <span class="font-mono text-indigo-300">{{ metrics.binomial_test.p_value }}</span>
+            </div>
+        </div>
+
+        <!-- Brier Score Calibration -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
+            <span class="text-xs text-slate-400 uppercase tracking-wider block font-semibold">Brier Score Calibration</span>
+            <div class="text-3xl font-extrabold font-mono text-white">
+                {{ metrics.brier_score if metrics.brier_score is not none else "N/A" }}
+            </div>
+            <div class="text-[11px] text-slate-400">
+                0.250 = random guessing (50-50). Lower is better.
+            </div>
+        </div>
+    </div>
+
+    <!-- Calls Taken vs Skipped Breakdown -->
+    <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div>
+                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Actionable Calls vs Inconclusive Skips</h3>
+                <p class="text-xs text-slate-400">Enforcing the non-negotiable rule: if no statistically significant edge exists, the call is honestly skipped.</p>
+            </div>
+            <div class="text-xs font-mono text-slate-300">
+                Total Signals: <strong>{{ metrics.total_calls }}</strong>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-1">
+                <span class="text-xs text-slate-400">Actionable Calls Taken (PLAY):</span>
+                <div class="text-2xl font-bold text-emerald-400 font-mono">{{ calls_taken }}</div>
+                <div class="text-[11px] text-slate-500">Matches where empirical edge satisfied criteria</div>
+            </div>
+
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-1">
+                <span class="text-xs text-slate-400">No Edge Skipped (SKIP):</span>
+                <div class="text-2xl font-bold text-amber-400 font-mono">{{ no_edge_skipped }}</div>
+                <div class="text-[11px] text-slate-500">Honest default when lines were fair / inconclusive</div>
+            </div>
+
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-1">
+                <span class="text-xs text-slate-400">Selective Filter Rate:</span>
+                <div class="text-2xl font-bold text-indigo-300 font-mono">
+                    {% if metrics.total_calls > 0 %}
+                    {{ (calls_taken / metrics.total_calls * 100)|round(1) }}%
+                    {% else %}
+                    0.0%
+                    {% endif %}
+                </div>
+                <div class="text-[11px] text-slate-500">Discipline metric (lower indicates high standards)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Probability Calibration Table -->
+    <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+        <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+                <span>Probability Calibration Table</span>
+                <span class="text-[10px] font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                    Reliability Diagram Data
+                </span>
+            </h2>
+            <p class="text-xs text-slate-400">Compares expected win probabilities against actual observed outcomes. A well-calibrated model hits 60% of the time when predicting 60%.</p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono">
+                <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-3">Probability Bucket</th>
+                        <th class="py-3 px-3">Sample Count (n)</th>
+                        <th class="py-3 px-3">Mean Predicted %</th>
+                        <th class="py-3 px-3">Actual Observed Hit %</th>
+                        <th class="py-3 px-3">95% Wilson CI</th>
+                        <th class="py-3 px-3">Calibration Gap</th>
+                        <th class="py-3 px-3 text-right">Data Sufficiency</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60">
+                    {% for row in calibration_table %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-3 font-sans font-semibold text-white">{{ row.bucket }}</td>
+                        <td class="py-3 px-3 text-slate-300">{{ row.count }}</td>
+                        <td class="py-3 px-3 text-indigo-300">{{ row.mean_predicted_pct }}%</td>
+                        <td class="py-3 px-3 font-bold {% if row.actual_win_rate_pct and row.actual_win_rate_pct >= 50.0 %}text-emerald-400{% else %}text-slate-300{% endif %}">
+                            {{ row.actual_win_rate_pct }}%
+                        </td>
+                        <td class="py-3 px-3 text-purple-300">{{ row.ci_95 }}</td>
+                        <td class="py-3 px-3 font-semibold {% if row.calibration_gap and row.calibration_gap >= 0 %}text-emerald-400{% elif row.calibration_gap and row.calibration_gap < 0 %}text-amber-400{% else %}text-slate-500{% endif %}">
+                            {% if row.calibration_gap is not none %}
+                            {% if row.calibration_gap >= 0 %}+{% endif %}{{ row.calibration_gap }}%
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 text-right font-sans">
+                            {% if row.is_sufficient %}
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Sufficient (n &ge; 30)</span>
+                            {% else %}
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">n &lt; 30</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Rolling Hit-Rate (30 & 100 matches) -->
+    <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+        <div>
+            <h2 class="text-base font-bold text-white">Rolling Window Accuracy Trend (Last 30 & 100 Matches)</h2>
+            <p class="text-xs text-slate-400">Tracks performance momentum to prevent retrospective cherry-picking or recency bias.</p>
+        </div>
+
+        {% if rolling_data.rolling_30 %}
+        <div class="space-y-2 pt-2">
+            <div class="text-xs font-semibold text-slate-300 font-mono">Rolling 30-Match Windows:</div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                {% for pt in rolling_data.rolling_30[-12:] %}
+                <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 text-center font-mono">
+                    <div class="text-[10px] text-slate-400">{{ pt.date }}</div>
+                    <div class="text-sm font-bold {% if pt.hit_rate >= 50.0 %}text-emerald-400{% else %}text-rose-400{% endif %}">
+                        {{ pt.hit_rate }}%
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="p-4 bg-slate-900/40 rounded-xl text-center text-xs text-slate-500 font-mono">
+            Requires at least 30 evaluated actionable calls to render rolling 30-match windows. (Current evaluated calls: {{ calls_taken }})
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Streaks Breakdown Card -->
+    <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+        <h2 class="text-base font-bold text-white">Streak Dynamics & Coin Flip Norms</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                <span class="text-slate-400 block mb-1">Max Consecutive Wins (PASS)</span>
+                <span class="text-2xl font-bold text-emerald-400">{{ streaks.max_win_streak }}</span>
+                <span class="text-[10px] text-slate-500 block mt-1">Normal in 100 trials: ~6-7 consecutive</span>
+            </div>
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                <span class="text-slate-400 block mb-1">Max Consecutive Losses (FAIL)</span>
+                <span class="text-2xl font-bold text-rose-400">{{ streaks.max_loss_streak }}</span>
+                <span class="text-[10px] text-slate-500 block mt-1">Expected random drawdown clustering</span>
+            </div>
+            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+                <span class="text-slate-400 block mb-1">Current Active Streak</span>
+                <span class="text-2xl font-bold text-white">{{ streaks.current_streak_display }}</span>
+                <span class="text-[10px] text-slate-500 block mt-1">Most recent contiguous outcomes</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

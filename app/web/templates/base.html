@@ -72,6 +72,9 @@
                     <a href="/toss-history" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'toss_history' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
                         Toss History
                     </a>
+                    <a href="/totals" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'totals' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Totals
+                    </a>
                     <a href="/predictions" class="px-2.5 py-1.5 rounded-lg transition-colors {% if active_page == 'predictions' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
                         Ledger
                     </a>
@@ -127,6 +130,7 @@
                 <a href="/" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'dashboard' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Dashboard</a>
                 <a href="/matches" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'matches' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Matches</a>
                 <a href="/toss-history" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'toss_history' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Toss History</a>
+                <a href="/totals" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'totals' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Totals Dashboard</a>
                 <a href="/predictions" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'predictions' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Prediction Ledger</a>
                 <a href="/analytics" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page in ('analytics', 'accuracy') %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Accuracy & Wilson CI</a>
                 <a href="/leagues-teams" class="block px-3 py-2 rounded-md text-sm font-medium {% if active_page == 'leagues_teams' %}bg-slate-800 text-white{% else %}text-slate-300 hover:bg-slate-900{% endif %}">Leagues & Teams</a>

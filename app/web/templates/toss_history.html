@@ -1,22 +1,102 @@
 {% extends "base.html" %}
 
-{% block title %}Toss History | Toss Analytics{% endblock %}
+{% block title %}Toss History & Results Ledger | Toss Analytics{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+
+    <!-- Header & Action Bar -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                <span>Confirmed Toss History</span>
-                <span class="text-xs font-mono font-normal bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded">
-                    Ground Truth Results
+            <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
+                <span>Audited Toss History</span>
+                <span class="text-xs font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded-lg">
+                    Append-Only Ledger
                 </span>
             </h1>
-            <p class="text-xs text-slate-400 mt-1">Verified official coin flip outcomes across all leagues and historical archives.</p>
+            <p class="text-xs text-slate-400 mt-1">
+                Permanent ground truth coin flip outcomes, pre-toss cryptographic seals, and empirical hit-rate evaluations.
+            </p>
         </div>
-        <div class="text-xs text-slate-400 font-mono">
-            Total Verified Tosses: <span class="font-bold text-white">{{ tosses|length }}</span>
+
+        <!-- Export CSV Button -->
+        <div class="flex items-center gap-3">
+            <a href="/toss-history/export/csv?{{ request.query_params }}"
+               class="py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-2 shadow-sm transition-colors"
+               title="Export filtered toss history as CSV dossier">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Export History CSV</span>
+            </a>
+            <div class="text-xs text-slate-400 font-mono bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-800">
+                Total Tosses: <span class="font-bold text-white">{{ total_count }}</span>
+            </div>
         </div>
+    </div>
+
+    <!-- Filter Bar Card -->
+    <div class="glass-card rounded-2xl p-4 border border-slate-800">
+        <form method="GET" action="/toss-history" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 text-xs">
+            <!-- League Filter -->
+            <div>
+                <label class="block text-slate-400 mb-1 font-semibold">Tournament / League</label>
+                <select name="league_id" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="">All Leagues</option>
+                    {% for lg in leagues %}
+                    <option value="{{ lg.id }}" {% if current_league_id == lg.id|string %}selected{% endif %}>{{ lg.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Team Filter -->
+            <div>
+                <label class="block text-slate-400 mb-1 font-semibold">Team</label>
+                <select name="team_id" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="">All Teams</option>
+                    {% for t in teams %}
+                    <option value="{{ t.id }}" {% if current_team_id == t.id|string %}selected{% endif %}>{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Outcome Filter -->
+            <div>
+                <label class="block text-slate-400 mb-1 font-semibold">Outcome</label>
+                <select name="outcome" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="ALL" {% if current_outcome == 'ALL' or not current_outcome %}selected{% endif %}>All Outcomes</option>
+                    <option value="PASS" {% if current_outcome == 'PASS' %}selected{% endif %}>PASS (Hit)</option>
+                    <option value="FAIL" {% if current_outcome == 'FAIL' %}selected{% endif %}>FAIL (Miss)</option>
+                    <option value="SKIPPED" {% if current_outcome == 'SKIPPED' %}selected{% endif %}>SKIPPED (No Edge)</option>
+                </select>
+            </div>
+
+            <!-- Source Filter -->
+            <div>
+                <label class="block text-slate-400 mb-1 font-semibold">Verification Source</label>
+                <select name="source" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="">All Sources</option>
+                    <option value="telegram" {% if current_source == 'telegram' %}selected{% endif %}>Telegram Channel</option>
+                    <option value="manual" {% if current_source == 'manual' %}selected{% endif %}>Manual / Referee</option>
+                    <option value="gaming_helper" {% if current_source == 'gaming_helper' %}selected{% endif %}>Gaming Helper</option>
+                    <option value="cricbuzz" {% if current_source == 'cricbuzz' %}selected{% endif %}>Cricbuzz Public</option>
+                </select>
+            </div>
+
+            <!-- Date Range From -->
+            <div>
+                <label class="block text-slate-400 mb-1 font-semibold">From Date</label>
+                <input type="date" name="date_from" value="{{ current_date_from }}" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-end gap-2">
+                <button type="submit" class="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg shadow-sm transition-colors text-center">
+                    Filter
+                </button>
+                <a href="/toss-history" class="py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg text-center transition-colors">
+                    Reset
+                </a>
+            </div>
+        </form>
     </div>
 
     <!-- Toss History Table -->
@@ -25,64 +105,130 @@
             <table class="w-full text-left text-xs text-slate-300">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                     <tr>
-                        <th class="py-3 px-4">Match / Fixture</th>
-                        <th class="py-3 px-3">Toss Winner</th>
-                        <th class="py-3 px-3">Decision</th>
-                        <th class="py-3 px-3">Official Source</th>
-                        <th class="py-3 px-3">Recorded At (IST)</th>
-                        <th class="py-3 px-4 text-right">Details</th>
+                        <th class="py-3 px-3">Match Fixture</th>
+                        <th class="py-3 px-3">Date (IST)</th>
+                        <th class="py-3 px-3">League & Venue</th>
+                        <th class="py-3 px-3">Pre-Toss Locked Call</th>
+                        <th class="py-3 px-3">SHA-256 Seal</th>
+                        <th class="py-3 px-3">Official Toss Winner</th>
+                        <th class="py-3 px-3">Elected</th>
+                        <th class="py-3 px-3">Evaluation</th>
+                        <th class="py-3 px-3">Source</th>
+                        <th class="py-3 px-3 text-right">View</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-800/60 font-mono">
-                    {% for t in tosses %}
+                    {% for item in items %}
                     <tr class="hover:bg-slate-900/40 transition-colors">
-                        <td class="py-3 px-4 font-sans font-medium text-white">
-                            {% if t.match %}
-                            <a href="/matches/{{ t.match_id }}" class="hover:text-indigo-400 transition-colors">
-                                {{ t.match.match_title }}
+                        <td class="py-3 px-3 font-sans font-medium text-white">
+                            <a href="/matches/{{ item.match_id }}" class="hover:text-indigo-400 transition-colors flex items-center gap-1.5">
+                                <span>{{ item.team_a_name }} <span class="text-slate-500 font-normal">vs</span> {{ item.team_b_name }}</span>
                             </a>
-                            <div class="text-[10px] text-slate-500 font-mono">Match #{{ t.match_id }}</div>
-                            {% else %}
-                            Match #{{ t.match_id }}
-                            {% endif %}
+                            <div class="text-[10px] text-slate-500 font-mono">#{{ item.match_id }}</div>
                         </td>
-                        <td class="py-3 px-3 font-sans font-semibold text-emerald-400">
-                            {{ t.winner_team.name if t.winner_team else t.winner_team_id }}
+                        <td class="py-3 px-3 text-slate-300 font-mono text-[11px]">
+                            {{ item.match_date_ist }}
                         </td>
                         <td class="py-3 px-3 font-sans">
-                            <span class="text-[10px] px-2 py-0.5 rounded font-semibold {% if t.decision == 'bat' %}bg-amber-500/10 text-amber-300 border border-amber-500/20{% else %}bg-sky-500/10 text-sky-300 border border-sky-500/20{% endif %}">
-                                {{ t.decision|upper }}
+                            <div class="text-slate-200 font-medium">{{ item.league_name }}</div>
+                            <div class="text-[10px] text-slate-500 truncate max-w-[140px]">{{ item.venue_name }}</div>
+                        </td>
+                        <td class="py-3 px-3 font-sans">
+                            {% if item.prediction_lean == 'NO_EDGE' %}
+                            <span class="text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                                NO EDGE (Skip)
                             </span>
-                        </td>
-                        <td class="py-3 px-3 font-sans text-slate-400">
-                            <span class="text-[10px] bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                                {{ t.source|upper }}
-                            </span>
-                        </td>
-                        <td class="py-3 px-3 text-slate-300">
-                            {{ t.received_at_ist }}
-                        </td>
-                        <td class="py-3 px-4 text-right font-sans">
-                            {% if t.match_id %}
-                            <a href="/matches/{{ t.match_id }}" class="text-xs text-indigo-400 hover:text-indigo-300 hover:underline">
-                                View Match →
-                            </a>
+                            {% elif item.prediction_lean == 'NONE' %}
+                            <span class="text-[10px] text-slate-500">None</span>
                             {% else %}
-                            -
+                            <div class="font-bold text-white text-[11px]">
+                                {{ item.prediction_lean }}
+                                {% if item.prediction_probability %}
+                                <span class="text-indigo-300 font-mono text-[10px]">({{ (item.prediction_probability * 100)|round(0) }}%)</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-[10px] text-slate-500 font-mono">{{ item.prediction_ci_display }}</div>
                             {% endif %}
+                        </td>
+                        <td class="py-3 px-3">
+                            {% if item.prediction_hash and item.prediction_hash != '-' %}
+                            <span class="text-[10px] font-mono text-slate-400 truncate max-w-[100px] inline-block" title="{{ item.prediction_hash }}">
+                                {{ item.prediction_hash[:12] }}...
+                            </span>
+                            {% else %}
+                            <span class="text-slate-600">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 font-sans font-bold text-emerald-400">
+                            {{ item.toss_winner_name }}
+                        </td>
+                        <td class="py-3 px-3 font-sans">
+                            <span class="text-[10px] px-2 py-0.5 rounded font-semibold {% if item.toss_decision == 'BAT' %}bg-amber-500/10 text-amber-300 border border-amber-500/20{% else %}bg-sky-500/10 text-sky-300 border border-sky-500/20{% endif %}">
+                                {{ item.toss_decision }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 font-sans">
+                            {% if item.outcome_result == 'PASS' %}
+                            <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded">
+                                PASS
+                            </span>
+                            {% elif item.outcome_result == 'FAIL' %}
+                            <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded">
+                                FAIL
+                            </span>
+                            {% elif item.outcome_result == 'SKIPPED' %}
+                            <span class="text-[10px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-2.5 py-0.5 rounded">
+                                SKIPPED
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] text-slate-500 font-mono">UNRATED</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 font-sans">
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded border border-slate-700 uppercase">
+                                {{ item.toss_source }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-right font-sans">
+                            <a href="/matches/{{ item.match_id }}" class="text-xs text-indigo-400 hover:text-indigo-300 hover:underline">
+                                View &rarr;
+                            </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="py-8 text-center text-slate-500 font-sans">
-                            No verified toss outcomes recorded yet. Official results will appear here as matches complete.
+                        <td colspan="10" class="py-12 text-center text-slate-500 font-sans">
+                            No toss history records found matching the active filter criteria.
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <!-- Pagination Bar -->
+        {% if total_pages > 1 %}
+        <div class="bg-slate-900/60 p-4 border-t border-slate-800 flex items-center justify-between text-xs">
+            <div class="text-slate-400">
+                Showing page <strong class="text-white">{{ page }}</strong> of <strong class="text-white">{{ total_pages }}</strong>
+            </div>
+            <div class="flex items-center gap-2">
+                {% if page > 1 %}
+                <a href="/toss-history?page={{ page - 1 }}&league_id={{ current_league_id }}&team_id={{ current_team_id }}&outcome={{ current_outcome }}&source={{ current_source }}&date_from={{ current_date_from }}"
+                   class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">
+                    &larr; Previous
+                </a>
+                {% endif %}
+                {% if page < total_pages %}
+                <a href="/toss-history?page={{ page + 1 }}&league_id={{ current_league_id }}&team_id={{ current_team_id }}&outcome={{ current_outcome }}&source={{ current_source }}&date_from={{ current_date_from }}"
+                   class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors">
+                    Next &rarr;
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
+
 </div>
 {% endblock %}
-

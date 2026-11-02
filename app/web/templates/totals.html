@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}Macro Totals & Trends Dashboard | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Top Header -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
+                <span>Longitudinal Totals & Trends</span>
+                <span class="text-xs font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2.5 py-1 rounded-lg">
+                    Empirical Aggregates
+                </span>
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">
+                Macro-level breakdown across leagues, cricket franchises, decision tendencies, and longitudinal streaks.
+            </p>
+        </div>
+        <div class="text-xs text-slate-400 font-mono bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-800 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span>Total Evaluated Matches: <strong class="text-white">{{ overview.total_matches }}</strong></span>
+        </div>
+    </div>
+
+    <!-- Macro KPI Overview Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Completed Tosses & Bat/Field Split -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Completed Tosses</span>
+                <span class="text-xs font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded">Ground Truth</span>
+            </div>
+            <div class="text-3xl font-extrabold text-white">
+                {{ overview.total_tosses }}
+            </div>
+            <div class="space-y-1.5 text-xs text-slate-400">
+                <div class="flex justify-between">
+                    <span>Elected to Bat:</span>
+                    <strong class="text-amber-300 font-mono">{{ overview.bat_count }} ({{ overview.bat_pct }}%)</strong>
+                </div>
+                <div class="flex justify-between">
+                    <span>Elected to Field:</span>
+                    <strong class="text-sky-300 font-mono">{{ overview.field_count }} ({{ overview.field_pct }}%)</strong>
+                </div>
+                <!-- Mini Progress Bar -->
+                <div class="w-full bg-slate-800 rounded-full h-1.5 flex overflow-hidden">
+                    <div class="bg-amber-400 h-1.5" style="width: {{ overview.bat_pct }}%"></div>
+                    <div class="bg-sky-400 h-1.5" style="width: {{ overview.field_pct }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prediction Calls Taken vs Skipped -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Predictions Filter</span>
+                <span class="text-xs font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">Honesty Guard</span>
+            </div>
+            <div class="text-3xl font-extrabold text-white">
+                {{ overview.total_predictions }}
+            </div>
+            <div class="space-y-1 text-xs text-slate-400">
+                <div class="flex justify-between">
+                    <span>Calls Taken (Edge Found):</span>
+                    <strong class="text-emerald-400 font-mono">{{ overview.calls_taken }}</strong>
+                </div>
+                <div class="flex justify-between">
+                    <span>No Edge (Honest Skips):</span>
+                    <strong class="text-amber-400 font-mono">{{ overview.calls_skipped }}</strong>
+                </div>
+                <div class="text-[10px] text-slate-500 mt-1">
+                    95% Wilson CI enforced &bull; Inconclusive lines skipped
+                </div>
+            </div>
+        </div>
+
+        <!-- Empirical Measured Accuracy -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Actionable Hit Rate</span>
+                <span class="text-xs font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">Wilson CI</span>
+            </div>
+            <div class="text-3xl font-extrabold text-white flex items-baseline gap-2">
+                <span>{{ overview.win_pct }}%</span>
+                <span class="text-xs font-normal text-slate-400 font-mono">({{ overview.wins }}/{{ overview.evaluated_calls }})</span>
+            </div>
+            <div class="space-y-1 text-xs">
+                <div class="text-slate-400">
+                    95% Wilson CI: <strong class="text-purple-300 font-mono">{{ overview.ci_display }}</strong>
+                </div>
+                <div class="text-[10px] text-slate-500">
+                    Sample: {{ overview.evaluated_calls }} evaluated decisions
+                </div>
+            </div>
+        </div>
+
+        <!-- Streaks Widget -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Streaks Analysis</span>
+                <span class="text-xs font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded">Sequence</span>
+            </div>
+            <div class="text-2xl font-extrabold font-mono text-white">
+                {% if overview.streaks.current_streak_type == 'PASS' %}
+                <span class="text-emerald-400">{{ overview.streaks.current_streak_display }}</span>
+                {% elif overview.streaks.current_streak_type == 'FAIL' %}
+                <span class="text-rose-400">{{ overview.streaks.current_streak_display }}</span>
+                {% else %}
+                <span class="text-slate-400">0</span>
+                {% endif %}
+            </div>
+            <div class="space-y-1 text-xs text-slate-400">
+                <div class="flex justify-between">
+                    <span>Max Win Streak:</span>
+                    <strong class="text-emerald-400 font-mono">{{ overview.streaks.max_win_streak }} PASS</strong>
+                </div>
+                <div class="flex justify-between">
+                    <span>Max Loss Streak:</span>
+                    <strong class="text-rose-400 font-mono">{{ overview.streaks.max_loss_streak }} FAIL</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeframe Monthly / Weekly Progression Chart & Table -->
+    <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div>
+                <h2 class="text-base font-bold text-white flex items-center gap-2">
+                    <span>Monthly Toss Activity & Decision Distribution</span>
+                </h2>
+                <p class="text-xs text-slate-400">Aggregated toss frequencies and hit rates by calendar month.</p>
+            </div>
+        </div>
+
+        {% if monthly_series %}
+        <!-- Visual Progression Bar Chart -->
+        <div class="space-y-3 pt-2">
+            {% for item in monthly_series %}
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs font-mono">
+                    <span class="text-slate-300 font-semibold">{{ item.period }}</span>
+                    <span class="text-slate-400">
+                        Total Tosses: <strong class="text-white">{{ item.total_tosses }}</strong> &bull;
+                        Bat: <strong class="text-amber-300">{{ item.bat_count }}</strong> &bull;
+                        Field: <strong class="text-sky-300">{{ item.field_count }}</strong>
+                        {% if item.calls_taken > 0 %}
+                        &bull; Hit Rate: <strong class="text-emerald-400">{{ item.hit_rate_pct }}%</strong> ({{ item.wins }}/{{ item.calls_taken }})
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-3 flex overflow-hidden border border-slate-800">
+                    {% if item.total_tosses > 0 %}
+                    <div class="bg-amber-500/80 h-3" style="width: {{ (item.bat_count / item.total_tosses * 100)|round(0) }}%" title="Bat First: {{ item.bat_count }}"></div>
+                    <div class="bg-sky-500/80 h-3" style="width: {{ (item.field_count / item.total_tosses * 100)|round(0) }}%" title="Field First: {{ item.field_count }}"></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="py-8 text-center text-xs text-slate-500 font-mono">
+            No completed monthly toss records available yet.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- League-wise Breakdown Table -->
+    <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+        <div>
+            <h2 class="text-base font-bold text-white">Competition League Breakdown</h2>
+            <p class="text-xs text-slate-400">Toss volumes, decision preferences, and model accuracy segmented by competition.</p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-3">Tournament / League</th>
+                        <th class="py-3 px-3">Total Tosses</th>
+                        <th class="py-3 px-3">Elected Bat</th>
+                        <th class="py-3 px-3">Elected Field</th>
+                        <th class="py-3 px-3">Calls Taken</th>
+                        <th class="py-3 px-3">Prediction Win %</th>
+                        <th class="py-3 px-3">95% Wilson CI</th>
+                        <th class="py-3 px-3 text-right">Data Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for lg in league_totals %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-3 font-sans font-semibold text-white">{{ lg.league_name }}</td>
+                        <td class="py-3 px-3 text-slate-200">{{ lg.total_tosses }}</td>
+                        <td class="py-3 px-3 text-amber-300">{{ lg.bat_count }} ({{ lg.bat_pct }}%)</td>
+                        <td class="py-3 px-3 text-sky-300">{{ lg.field_count }} ({{ lg.field_pct }}%)</td>
+                        <td class="py-3 px-3 text-slate-300">{{ lg.calls_taken }}</td>
+                        <td class="py-3 px-3 font-bold {% if lg.pred_win_pct >= 50.0 %}text-emerald-400{% else %}text-slate-400{% endif %}">
+                            {{ lg.pred_win_pct }}%
+                        </td>
+                        <td class="py-3 px-3 text-purple-300">{{ lg.ci_display }}</td>
+                        <td class="py-3 px-3 text-right font-sans">
+                            {% if lg.is_insufficient %}
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                Low Sample (n &lt; 30)
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                Robust Sample
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="py-6 text-center text-slate-500 font-sans">
+                            No competition records logged.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Team Toss Record Leaderboard -->
+    <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+        <div>
+            <h2 class="text-base font-bold text-white">Franchise & International Team Toss Profiles</h2>
+            <p class="text-xs text-slate-400">Longitudinal empirical coin toss records across all historical and live fixtures.</p>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-3">Team Name</th>
+                        <th class="py-3 px-3">Sample (n)</th>
+                        <th class="py-3 px-3">Toss Wins</th>
+                        <th class="py-3 px-3">Toss Losses</th>
+                        <th class="py-3 px-3">Win %</th>
+                        <th class="py-3 px-3">95% Wilson CI</th>
+                        <th class="py-3 px-3 text-right">Baseline Test</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for t in team_totals %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-3 font-sans font-medium text-white">{{ t.team_name }}</td>
+                        <td class="py-3 px-3 text-slate-300">{{ t.total_matches }}</td>
+                        <td class="py-3 px-3 text-emerald-400">{{ t.toss_wins }}</td>
+                        <td class="py-3 px-3 text-rose-400">{{ t.toss_losses }}</td>
+                        <td class="py-3 px-3 font-bold text-white">{{ t.win_pct }}%</td>
+                        <td class="py-3 px-3 text-purple-300 font-semibold">{{ t.ci_display }}</td>
+                        <td class="py-3 px-3 text-right font-sans">
+                            {% if t.not_different_from_50 %}
+                            <span class="text-[10px] text-slate-400">Indistinguishable from 50%</span>
+                            {% else %}
+                            <span class="text-[10px] text-amber-300 font-semibold">Diverges from baseline</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-6 text-center text-slate-500 font-sans">
+                            No team toss data available.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+

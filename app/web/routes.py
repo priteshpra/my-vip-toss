@@ -1,6 +1,7 @@
 """Web application routes, HTMX partials, and administrative endpoints."""
 
 import os
+from datetime import datetime, date
 from typing import Optional, List
 from fastapi import APIRouter, Request, Depends, HTTPException, status, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
@@ -31,9 +32,23 @@ from app.auth.csrf import generate_csrf_token, validate_csrf_token, verify_csrf
 from app.auth.rate_limiter import login_rate_limiter
 from app.services.audit_service import log_audit_event, get_audit_logs, get_client_ip
 from app.services.match_service import get_matches, get_match_by_id
-from app.services.toss_service import record_toss_result
-from app.services.prediction_service import lock_prediction, verify_prediction_integrity
-from app.services.accuracy_service import get_accuracy_metrics_for_source
+from app.services.toss_service import record_toss_result, get_toss_history, export_toss_history_csv
+from app.services.prediction_service import (
+    lock_prediction,
+    verify_prediction_integrity,
+    generate_lean_from_analysis,
+    lock_match_prediction
+)
+from app.services.accuracy_service import (
+    get_accuracy_metrics_for_source,
+    get_accuracy_dashboard_data
+)
+from app.services.totals_service import (
+    get_totals_overview,
+    get_totals_by_league,
+    get_totals_by_team,
+    get_totals_by_timeframe
+)
 from app.services.analysis_service import (
     get_team_toss_stats,
     get_h2h_toss_stats,
@@ -344,34 +359,140 @@ async def admin_record_market_entry(
 
 
 # --------------------------------------------------------------------------
-# 3. Toss History View (Protected)
+# 3. Toss History View & CSV Export (Protected)
 # --------------------------------------------------------------------------
 @router.get("/toss-history", response_class=HTMLResponse)
 async def toss_history_view(
     request: Request,
+    league_id: Optional[str] = None,
+    team_id: Optional[str] = None,
+    venue_id: Optional[str] = None,
+    outcome: Optional[str] = None,
+    source: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    page: int = 1,
     session: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin)
 ):
-    """Confirmed ground truth toss outcomes."""
-    query = (
-        select(TossResult)
-        .options(
-            joinedload(TossResult.winner_team),
-            joinedload(TossResult.match).joinedload(Match.team_a),
-            joinedload(TossResult.match).joinedload(Match.team_b),
-        )
-        .order_by(desc(TossResult.received_at_utc))
-        .limit(100)
+    """Confirmed ground truth toss outcomes with rich filters, pre-toss calls, and evaluations."""
+    # Parse filter types
+    parsed_league_id = int(league_id) if league_id and league_id.isdigit() else None
+    parsed_team_id = int(team_id) if team_id and team_id.isdigit() else None
+    parsed_venue_id = int(venue_id) if venue_id and venue_id.isdigit() else None
+
+    d_from = None
+    if date_from:
+        try:
+            d_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+        except Exception:
+            pass
+
+    d_to = None
+    if date_to:
+        try:
+            d_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+        except Exception:
+            pass
+
+    # Fetch filter lists
+    leagues_res = await session.execute(select(League).order_by(League.name))
+    leagues = list(leagues_res.scalars().all())
+
+    teams_res = await session.execute(select(Team).order_by(Team.name))
+    teams = list(teams_res.scalars().all())
+
+    # Get history
+    history_data = await get_toss_history(
+        session=session,
+        league_id=parsed_league_id,
+        team_id=parsed_team_id,
+        venue_id=parsed_venue_id,
+        outcome_filter=outcome,
+        source_filter=source,
+        date_from=d_from,
+        date_to=d_to,
+        page=page,
+        page_size=30
     )
-    result = await session.execute(query)
-    tosses = result.unique().scalars().all()
-    for t in tosses:
-        t.received_at_ist = format_ist(t.received_at_utc)
 
     return templates.TemplateResponse(
         request=request,
         name="toss_history.html",
-        context=template_ctx(request, active_page="toss_history", tosses=tosses)
+        context=template_ctx(
+            request,
+            active_page="toss_history",
+            items=history_data["items"],
+            tosses=history_data["items"],
+            total_count=history_data["total_count"],
+            page=history_data["page"],
+            total_pages=history_data["total_pages"],
+            leagues=leagues,
+            teams=teams,
+            current_league_id=league_id or "",
+            current_team_id=team_id or "",
+            current_outcome=outcome or "ALL",
+            current_source=source or "",
+            current_date_from=date_from or "",
+            current_date_to=date_to or ""
+        )
+    )
+
+
+@router.get("/toss-history/export/csv")
+async def toss_history_export_csv_view(
+    league_id: Optional[str] = None,
+    team_id: Optional[str] = None,
+    venue_id: Optional[str] = None,
+    outcome: Optional[str] = None,
+    source: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Export filtered toss history as audited CSV dossier."""
+    parsed_league_id = int(league_id) if league_id and league_id.isdigit() else None
+    parsed_team_id = int(team_id) if team_id and team_id.isdigit() else None
+    parsed_venue_id = int(venue_id) if venue_id and venue_id.isdigit() else None
+
+    d_from = None
+    if date_from:
+        try:
+            d_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+        except Exception:
+            pass
+
+    d_to = None
+    if date_to:
+        try:
+            d_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+        except Exception:
+            pass
+
+    history_data = await get_toss_history(
+        session=session,
+        league_id=parsed_league_id,
+        team_id=parsed_team_id,
+        venue_id=parsed_venue_id,
+        outcome_filter=outcome,
+        source_filter=source,
+        date_from=d_from,
+        date_to=d_to,
+        page=1,
+        page_size=10000
+    )
+
+    csv_content = export_toss_history_csv(history_data["items"])
+    filename = f"toss_history_audit_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Cache-Control": "no-cache"
+        }
     )
 
 
@@ -452,22 +573,118 @@ async def verify_prediction_partial(
 
 
 # --------------------------------------------------------------------------
-# 5. Statistical Validation & Tracked Sources (Protected)
+# 5. Statistical Validation & Accuracy Dashboard (Protected)
 # --------------------------------------------------------------------------
-@router.get("/analytics", response_class=HTMLResponse)
 @router.get("/accuracy", response_class=HTMLResponse)
-async def analytics_view(
+@router.get("/analytics", response_class=HTMLResponse)
+async def accuracy_dashboard_view(
+    request: Request,
+    source_channel: Optional[str] = None,
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Accuracy and Mathematical Truth Dashboard with 95% Wilson CI, Brier score, and calibration."""
+    data = await get_accuracy_dashboard_data(session, source_channel=source_channel)
+    return templates.TemplateResponse(
+        request=request,
+        name="accuracy.html",
+        context=template_ctx(
+            request,
+            active_page="accuracy",
+            metrics=data["metrics"],
+            diff_from_baseline=data["diff_from_baseline"],
+            calibration_table=data["calibration_table"],
+            streaks=data["streaks"],
+            rolling_data=data["rolling_data"],
+            is_indistinguishable_from_50=data["is_indistinguishable_from_50"],
+            banner_message=data["banner_message"],
+            calls_taken=data["calls_taken"],
+            no_edge_skipped=data["no_edge_skipped"],
+            disclaimer=data["disclaimer"]
+        )
+    )
+
+
+# --------------------------------------------------------------------------
+# 5b. Macro Totals & Trends Dashboard (Protected)
+# --------------------------------------------------------------------------
+@router.get("/totals", response_class=HTMLResponse)
+async def totals_dashboard_view(
     request: Request,
     session: AsyncSession = Depends(get_db),
     admin: dict = Depends(get_current_admin)
 ):
-    """Statistical validation page with Wilson score interval and baseline null test."""
-    metrics = await get_accuracy_metrics_for_source(session)
+    """Macro totals and longitudinal trends dashboard."""
+    overview = await get_totals_overview(session)
+    league_totals = await get_totals_by_league(session)
+    team_totals = await get_totals_by_team(session, limit=30)
+    monthly_series = await get_totals_by_timeframe(session, interval="month")
+
     return templates.TemplateResponse(
         request=request,
-        name="analytics.html",
-        context=template_ctx(request, active_page="analytics", metrics=metrics)
+        name="totals.html",
+        context=template_ctx(
+            request,
+            active_page="totals",
+            overview=overview,
+            league_totals=league_totals,
+            team_totals=team_totals,
+            monthly_series=monthly_series
+        )
     )
+
+
+# --------------------------------------------------------------------------
+# 5c. Manual Prediction Locking Route (Protected)
+# --------------------------------------------------------------------------
+@router.post("/admin/matches/{match_id}/prediction")
+async def admin_lock_prediction_route(
+    match_id: int,
+    request: Request,
+    csrf_token: str = Form(...),
+    lean: Optional[str] = Form(None),
+    predicted_team_id: Optional[str] = Form(None),
+    probability: Optional[float] = Form(None),
+    rationale: Optional[str] = Form(None),
+    session: AsyncSession = Depends(get_db),
+    admin: dict = Depends(get_current_admin)
+):
+    """Admin route to manually or automatically lock a pre-toss prediction before match start."""
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403, detail="Invalid CSRF token")
+
+    p_team_id = int(predicted_team_id) if predicted_team_id and predicted_team_id.isdigit() else None
+    client_ip = get_client_ip(request)
+
+    try:
+        pred = await lock_match_prediction(
+            session=session,
+            match_id=match_id,
+            lean=lean,
+            predicted_team_id=p_team_id,
+            probability=probability,
+            source="manual",
+            admin_user=admin.get("username", "admin"),
+            client_ip=client_ip,
+            punter_rationale=rationale,
+            strict=True
+        )
+        if "HX-Request" in request.headers:
+            return HTMLResponse(
+                f"<div class='p-2 rounded bg-emerald-500/10 text-emerald-400 text-xs font-semibold'>"
+                f"Prediction locked: {pred.lean} (SHA-256: {pred.hash[:12]}...)"
+                f"</div>"
+            )
+        return RedirectResponse(url=f"/matches/{match_id}", status_code=303)
+    except Exception as e:
+        if "HX-Request" in request.headers:
+            return HTMLResponse(
+                f"<div class='p-2 rounded bg-rose-500/10 text-rose-400 text-xs font-semibold'>"
+                f"Error: {str(e)}"
+                f"</div>",
+                status_code=400
+            )
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/sources", response_class=HTMLResponse)
