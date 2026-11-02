@@ -1,0 +1,95 @@
+<div class="overflow-x-auto">
+    <table class="w-full text-left text-xs">
+        <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
+            <tr>
+                <th class="py-3 px-4">Match / Teams</th>
+                <th class="py-3 px-3">Tournament</th>
+                <th class="py-3 px-3">Format</th>
+                <th class="py-3 px-3">Scheduled Start (IST)</th>
+                <th class="py-3 px-3">Status</th>
+                <th class="py-3 px-3">Rates (A / B)</th>
+                <th class="py-3 px-3">Pre-Toss Call</th>
+                <th class="py-3 px-4 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/60 font-mono">
+            {% for match in matches %}
+            <tr class="hover:bg-slate-900/40 transition-colors">
+                <td class="py-3 px-4 font-sans font-medium text-white">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold">{{ match.team_a.name if match.team_a else match.team_a_id }}</span>
+                        <span class="text-xs text-slate-500 font-normal">vs</span>
+                        <span class="font-bold">{{ match.team_b.name if match.team_b else match.team_b_id }}</span>
+                    </div>
+                    <div class="text-[10px] text-slate-500 font-mono">ID: {{ match.id }}</div>
+                </td>
+                <td class="py-3 px-3 font-sans text-slate-300">
+                    {{ match.tournament.name if match.tournament else match.tournament_id }}
+                </td>
+                <td class="py-3 px-3 font-sans">
+                    <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 text-[10px]">
+                        {{ match.match_format }}
+                    </span>
+                </td>
+                <td class="py-3 px-3 text-slate-300">
+                    {{ match.scheduled_start_ist }}
+                </td>
+                <td class="py-3 px-3 font-sans">
+                    {% if match.status == 'UPCOMING' %}
+                    <span class="text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded">
+                        UPCOMING
+                    </span>
+                    {% elif match.status == 'TOSS_PENDING' %}
+                    <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                        TOSS PENDING
+                    </span>
+                    {% elif match.status == 'TOSS_COMPLETED' %}
+                    <span class="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+                        COMPLETED
+                    </span>
+                    {% else %}
+                    <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded">
+                        {{ match.status }}
+                    </span>
+                    {% endif %}
+                </td>
+                <td class="py-3 px-3 text-slate-300">
+                    {% if match.odds_a and match.odds_b %}
+                    {{ match.odds_a }} / {{ match.odds_b }}
+                    {% else %}
+                    <span class="text-slate-600">-</span>
+                    {% endif %}
+                </td>
+                <td class="py-3 px-3 font-sans">
+                    {% if match.predictions %}
+                        {% set pred = match.predictions[-1] %}
+                        {% if pred.action_type == 'SKIP' %}
+                        <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded">
+                            SKIP (50-50)
+                        </span>
+                        {% else %}
+                        <span class="text-[10px] font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2 py-0.5 rounded">
+                            {{ pred.predicted_team.name if pred.predicted_team else pred.predicted_team_id }}
+                        </span>
+                        {% endif %}
+                    {% else %}
+                    <span class="text-slate-500 text-[11px]">None</span>
+                    {% endif %}
+                </td>
+                <td class="py-3 px-4 text-right font-sans">
+                    <a href="/matches/{{ match.id }}" class="px-2.5 py-1 rounded text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors">
+                        View Details &rarr;
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="py-8 text-center text-slate-500 font-sans">
+                    No matching fixtures found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+

@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Toss Analytics & Tracking Admin Panel{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Top Action Bar -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Analytics & Tracking Dashboard</h1>
+            <p class="text-xs sm:text-sm text-slate-400">Cryptographically locked pre-toss tracking with longitudinal empirical statistics.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button hx-post="/admin/sync-now" hx-target="#sync-status" hx-swap="innerHTML" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 shadow-sm transition-all">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Sync Data Now
+            </button>
+            <div id="sync-status" class="text-xs text-indigo-400"></div>
+        </div>
+    </div>
+
+    <!-- 4 Key Metric Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Metric 1: Tracked Matches -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Tracked Matches</span>
+                <span class="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                </span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold text-white">{{ stats.total_matches }}</span>
+                <span class="text-xs text-slate-400">fixtures</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-400 flex items-center gap-1">
+                <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span>{{ stats.upcoming_matches }} upcoming or in-progress</span>
+            </div>
+        </div>
+
+        <!-- Metric 2: Verified Tosses -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Verified Tosses</span>
+                <span class="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold text-white">{{ stats.verified_tosses }}</span>
+                <span class="text-xs text-slate-400">ground truth</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-400">
+                100% verified against official feeds
+            </div>
+        </div>
+
+        <!-- Metric 3: Real Measured Accuracy with Wilson CI -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Measured Accuracy</span>
+                <span class="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                </span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-2">
+                <span class="text-3xl font-extrabold text-white">{{ overall_metrics.measured_accuracy_pct }}%</span>
+                <span class="text-xs text-slate-400">(n = {{ overall_metrics.evaluated_calls }})</span>
+            </div>
+            <div class="mt-2 text-xs font-mono text-purple-300">
+                95% CI: {{ overall_metrics.wilson_interval_95.display_str }}
+            </div>
+        </div>
+
+        <!-- Metric 4: 50% Baseline Comparison -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 relative overflow-hidden">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">50% Baseline Null Test</span>
+                <span class="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path></svg>
+                </span>
+            </div>
+            <div class="mt-4 flex items-baseline gap-2">
+                <span class="text-2xl font-bold {% if overall_metrics.binomial_test.is_significant %}text-emerald-400{% else %}text-amber-300{% endif %}">
+                    p = {{ overall_metrics.binomial_test.p_value }}
+                </span>
+            </div>
+            <div class="mt-2 text-[11px] leading-tight text-slate-400">
+                {% if overall_metrics.binomial_test.is_significant %}
+                Departure from fair coin baseline is statistically significant (p < 0.05).
+                {% else %}
+                Indistinguishable from fair 50/50 coin flip (p >= 0.05).
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Two-Column Section: Upcoming Matches & Recent Toss Declarations -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left 2 Cols: Live & Upcoming Matches -->
+        <div class="lg:col-span-2 glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-base font-semibold text-white">Live & Upcoming Matches</h2>
+                    <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">
+                        {{ upcoming_matches|length }}
+                    </span>
+                </div>
+                <a href="/matches" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">View All &rarr;</a>
+            </div>
+
+            {% if upcoming_matches %}
+            <div class="space-y-3">
+                {% for match in upcoming_matches[:6] %}
+                <div class="bg-slate-900/60 hover:bg-slate-900/90 rounded-xl p-4 border border-slate-800/80 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-slate-800 text-indigo-300 border border-indigo-500/20">
+                                {{ match.tournament.name if match.tournament else match.tournament_id }}
+                            </span>
+                            <span class="text-xs text-slate-400 font-mono">{{ match.scheduled_start_ist }}</span>
+                        </div>
+                        <div class="text-sm font-bold text-white flex items-center gap-2">
+                            <span>{{ match.team_a.name if match.team_a else match.team_a_id }}</span>
+                            <span class="text-xs text-slate-500 font-normal">vs</span>
+                            <span>{{ match.team_b.name if match.team_b else match.team_b_id }}</span>
+                        </div>
+                        <div class="text-xs text-slate-400 flex items-center gap-3">
+                            {% if match.odds_a and match.odds_b %}
+                            <span class="text-[11px] font-mono text-slate-300">Rates: {{ match.odds_a }} / {{ match.odds_b }}</span>
+                            {% endif %}
+                            <span class="text-[11px] text-slate-500">ID: {{ match.id }}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 self-start sm:self-center">
+                        {% if match.predictions %}
+                            {% set latest_pred = match.predictions[-1] %}
+                            {% if latest_pred.action_type == 'SKIP' %}
+                            <span class="text-xs px-2.5 py-1 rounded-lg font-medium bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                                SKIP / 50-50
+                            </span>
+                            {% else %}
+                            <span class="text-xs px-2.5 py-1 rounded-lg font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                                Call: {{ latest_pred.predicted_team.name if latest_pred.predicted_team else latest_pred.predicted_team_id }}
+                            </span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">Analysis Pending</span>
+                        {% endif %}
+                        <a href="/matches/{{ match.id }}" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600/80 hover:bg-indigo-600 text-white transition-colors">
+                            Inspect
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-12 text-center text-slate-500 text-sm">
+                No upcoming fixtures currently scheduled. Click "Sync Data Now" to refresh.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right 1 Col: Recent Ground Truth Toss Results -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                <h2 class="text-base font-semibold text-white">Recent Toss Declarations</h2>
+                <span class="text-xs text-slate-400">Official</span>
+            </div>
+
+            {% if completed_matches %}
+            <div class="space-y-3">
+                {% for match in completed_matches[:6] %}
+                <div class="bg-slate-900/60 rounded-xl p-3 border border-slate-800/80 space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-400 truncate max-w-[160px]">{{ match.match_title }}</span>
+                        <span class="text-[10px] text-emerald-400 font-medium px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                            VERIFIED
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs font-medium">
+                        <div class="text-white">
+                            Toss: <strong class="text-emerald-400">{{ match.toss_result.toss_winner.name if match.toss_result and match.toss_result.toss_winner else (match.toss_result.toss_winner_id if match.toss_result else 'N/A') }}</strong>
+                            <span class="text-slate-400 text-[11px]">({{ match.toss_result.toss_decision if match.toss_result else '' }})</span>
+                        </div>
+                        <a href="/matches/{{ match.id }}" class="text-indigo-400 hover:text-indigo-300 text-xs">Details &rarr;</a>
+                    </div>
+
+                    {% if match.predictions and match.predictions[-1].evaluation %}
+                        {% set ev = match.predictions[-1].evaluation %}
+                        <div class="text-[11px] pt-1 border-t border-slate-800/60 flex items-center justify-between">
+                            <span class="text-slate-400">Prediction Result:</span>
+                            {% if ev.is_correct is true %}
+                            <span class="text-emerald-400 font-semibold font-mono">HIT (WIN)</span>
+                            {% elif ev.is_correct is false %}
+                            <span class="text-rose-400 font-semibold font-mono">MISS (LOSS)</span>
+                            {% else %}
+                            <span class="text-amber-400 font-mono">PASS (NEUTRAL)</span>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="py-12 text-center text-slate-500 text-sm">
+                No verified toss results recorded yet.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tracked Tipsters & Channels Accuracy Leaderboard -->
+    <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+            <div>
+                <h2 class="text-base font-semibold text-white">Tracked Tipsters & Channels Leaderboard</h2>
+                <p class="text-xs text-slate-400">Measured performance based strictly on pre-toss cryptographically locked predictions.</p>
+            </div>
+            <a href="/sources" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Full Leaderboard &rarr;</a>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Source / Tipster Channel</th>
+                        <th class="py-3 px-3">Total Calls</th>
+                        <th class="py-3 px-3">Sample (n)</th>
+                        <th class="py-3 px-3">Wins - Losses</th>
+                        <th class="py-3 px-3">Measured Accuracy</th>
+                        <th class="py-3 px-3">95% Wilson CI</th>
+                        <th class="py-3 px-3">vs 50% Baseline (p-value)</th>
+                        <th class="py-3 px-3 text-right">Data Sufficiency</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for src in leaderboard %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-4 font-sans font-medium text-white flex items-center gap-2">
+                            <span>{{ src.source_name }}</span>
+                        </td>
+                        <td class="py-3 px-3 text-slate-300">{{ src.total_calls }}</td>
+                        <td class="py-3 px-3 text-slate-300">{{ src.evaluated_calls }}</td>
+                        <td class="py-3 px-3 text-slate-300">
+                            <span class="text-emerald-400 font-semibold">{{ src.wins }}</span> -
+                            <span class="text-rose-400 font-semibold">{{ src.losses }}</span>
+                            <span class="text-slate-500 text-[10px]">({{ src.skip_calls }} skipped)</span>
+                        </td>
+                        <td class="py-3 px-3 font-semibold text-white">
+                            {{ src.measured_accuracy_pct }}%
+                        </td>
+                        <td class="py-3 px-3 text-purple-300">
+                            {{ src.wilson_interval_95.display_str }}
+                        </td>
+                        <td class="py-3 px-3">
+                            <span class="{% if src.binomial_test.is_significant %}text-emerald-400{% else %}text-slate-400{% endif %}">
+                                p = {{ src.binomial_test.p_value }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3 text-right font-sans">
+                            {% if src.evaluated_calls >= 30 %}
+                            <span class="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                SUFFICIENT
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                                LOW SAMPLE (n&lt;30)
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

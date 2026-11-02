@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Toss Analytics & Tracking Admin Panel{% endblock %}</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- Top Permanent Non-Negotiable Honesty Disclaimer Banner -->
+    <div class="bg-amber-950/80 border-b border-amber-800/60 px-4 py-2 text-center text-xs md:text-sm font-medium text-amber-200 flex items-center justify-center gap-2 shadow-inner">
+        <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+        </svg>
+        <span><strong>Statistical Notice:</strong> Toss is a random event. Past stats do not guarantee results. Play responsibly.</span>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="glass-nav sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <a href="/" class="flex items-center gap-2 group">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
+                            T
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="font-bold tracking-tight text-white text-base md:text-lg flex items-center gap-1.5">
+                                Toss Analytics
+                                <span class="text-[10px] uppercase font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-1.5 py-0.5 rounded">Admin</span>
+                            </span>
+                            <span class="text-[10px] text-slate-400 font-mono tracking-wider">CRYPTOGRAPHIC TRACKING</span>
+                        </div>
+                    </a>
+                </div>
+
+                <nav class="hidden md:flex items-center space-x-1">
+                    <a href="/" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'dashboard' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Dashboard
+                    </a>
+                    <a href="/matches" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'matches' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Matches
+                    </a>
+                    <a href="/predictions" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'predictions' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Prediction Ledger
+                    </a>
+                    <a href="/analytics" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'analytics' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Statistical Validation
+                    </a>
+                    <a href="/sources" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'sources' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Sources & Channels
+                    </a>
+                    <a href="/audit" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors {% if active_page == 'audit' %}bg-slate-800 text-white border border-slate-700{% else %}text-slate-300 hover:text-white hover:bg-slate-900/60{% endif %}">
+                        Hash Audit
+                    </a>
+                </nav>
+
+                <div class="flex items-center gap-3">
+                    {% if current_admin %}
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400 font-mono hidden sm:inline">{{ current_admin.username }}</span>
+                        <a href="/auth/logout" class="text-xs bg-slate-800 hover:bg-rose-950/40 text-slate-300 hover:text-rose-400 border border-slate-700 hover:border-rose-800/60 px-3 py-1.5 rounded-lg transition-colors">
+                            Logout
+                        </a>
+                    </div>
+                    {% else %}
+                    <a href="/auth/login" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg font-medium shadow-md shadow-indigo-600/30 transition-all">
+                        Admin Login
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Body Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-slate-950/80 mt-12 py-6 text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Toss Analytics v1.0 • All times shown in IST (Asia/Kolkata) • Stored internally in UTC</span>
+            </div>
+            <div class="text-center md:text-right">
+                <span>Fair Coin Baseline Model (p=0.50) • Wilson 95% Confidence Intervals</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Client Script -->
+    <script src="/static/js/app.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+

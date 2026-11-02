@@ -1,0 +1,15 @@
+<div class="text-[11px] p-2 rounded-lg font-sans text-left mt-1 {% if audit.is_valid and audit.is_pre_toss_verified %}bg-emerald-950/60 border border-emerald-800 text-emerald-200{% elif not audit.is_valid %}bg-rose-950/80 border border-rose-800 text-rose-200{% else %}bg-amber-950/60 border border-amber-800 text-amber-200{% endif %}">
+    <div class="font-bold flex items-center gap-1">
+        {% if audit.is_valid and audit.is_pre_toss_verified %}
+        <span class="text-emerald-400">✓ SEAL VERIFIED:</span> Valid & Pre-Match Locked
+        {% elif not audit.is_valid %}
+        <span class="text-rose-400">✗ TAMPER DETECTED:</span> Hash mismatch!
+        {% else %}
+        <span class="text-amber-400">! WARNING:</span> Post-start lock
+        {% endif %}
+    </div>
+    <div class="text-[10px] text-slate-300 font-mono mt-0.5 break-all">
+        Hash: {{ audit.computed_hash[:20] }}...
+    </div>
+</div>
+

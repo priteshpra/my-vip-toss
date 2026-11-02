@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Statistical Validation & Accuracy | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Statistical Accuracy & Validation</h1>
+            <p class="text-xs sm:text-sm text-slate-400">Longitudinal empirical verification against the 50% fair coin baseline using Wilson score intervals.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-mono">
+                Alpha = 0.05 (Two-Sided)
+            </span>
+        </div>
+    </div>
+
+    <!-- Mathematical Foundations Banner -->
+    <div class="glass-card rounded-2xl p-5 border border-indigo-500/20 bg-indigo-950/20 space-y-3">
+        <h2 class="text-sm font-bold text-indigo-300 flex items-center gap-2">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Scientific Principles & Theoretical Null Hypothesis
+        </h2>
+        <p class="text-xs text-slate-300 leading-relaxed">
+            In cricket, the coin toss is modeled as an independent Bernoulli trial with parameter \(p = 0.50\).
+            Short-term fluctuations (streaks of 4 or 5 consecutive tosses) occur regularly by chance.
+            To establish whether any tipster, algorithm, or pattern has predictive validity beyond random luck,
+            we require a minimum sample size \(n \ge 30\), calculate the 95% Wilson Score Confidence Interval,
+            and perform an exact two-sided binomial test against the 50% baseline.
+        </p>
+    </div>
+
+    <!-- Overall Empirical Metric Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
+            <span class="text-xs text-slate-400 uppercase tracking-wider block">Sample Size (n)</span>
+            <div class="text-3xl font-extrabold text-white font-mono">{{ metrics.evaluated_calls }}</div>
+            <div class="text-xs {% if metrics.evaluated_calls >= 30 %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                {{ "Statistically Valid (n >= 30)" if metrics.evaluated_calls >= 30 else "Insufficient Sample (n < 30)" }}
+            </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
+            <span class="text-xs text-slate-400 uppercase tracking-wider block">Measured Accuracy</span>
+            <div class="text-3xl font-extrabold text-white font-mono">{{ metrics.measured_accuracy_pct }}%</div>
+            <div class="text-xs text-slate-400 font-mono">
+                {{ metrics.wins }} Hits / {{ metrics.losses }} Misses
+            </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
+            <span class="text-xs text-slate-400 uppercase tracking-wider block">95% Wilson Score Interval</span>
+            <div class="text-2xl font-bold text-purple-300 font-mono">{{ metrics.wilson_interval_95.display_str }}</div>
+            <div class="text-xs text-slate-400">
+                True long-run proportion lies here with 95% confidence.
+            </div>
+        </div>
+
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-2">
+            <span class="text-xs text-slate-400 uppercase tracking-wider block">Exact Binomial p-Value</span>
+            <div class="text-3xl font-extrabold font-mono {% if metrics.binomial_test.is_significant %}text-emerald-400{% else %}text-amber-300{% endif %}">
+                {{ metrics.binomial_test.p_value }}
+            </div>
+            <div class="text-xs text-slate-400">
+                {{ "H0 Rejected (p < 0.05)" if metrics.binomial_test.is_significant else "Fail to reject H0 (p >= 0.05)" }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Mathematical Analysis Breakdown -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Left: Binomial Hypothesis Testing -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+            <h3 class="text-base font-bold text-white border-b border-slate-800/80 pb-2">Exact Binomial Hypothesis Test</h3>
+            <div class="space-y-3 text-xs text-slate-300">
+                <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-800 space-y-1 font-mono">
+                    <div>Null Hypothesis (H0): True probability p = 0.50 (Fair Coin)</div>
+                    <div>Alternative (H1): True probability p ≠ 0.50</div>
+                    <div>Significance Level (α): 0.05</div>
+                    <div>Observed Proportion: {{ metrics.binomial_test.sample_proportion }}</div>
+                    <div>p-value: {{ metrics.binomial_test.p_value }}</div>
+                </div>
+
+                <div class="p-3 rounded-xl border {% if metrics.binomial_test.is_significant %}bg-emerald-950/40 border-emerald-800 text-emerald-200{% else %}bg-slate-900/60 border-slate-800 text-slate-300{% endif %}">
+                    <strong>Statistical Conclusion:</strong> {{ metrics.binomial_test.conclusion }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Wilson Score Confidence Interval Details -->
+        <div class="glass-card rounded-2xl p-5 border border-slate-800 space-y-4">
+            <h3 class="text-base font-bold text-white border-b border-slate-800/80 pb-2">Wilson Score Interval Mechanics</h3>
+            <div class="space-y-3 text-xs text-slate-300">
+                <p>
+                    Unlike normal approximation intervals which break down with small samples or near boundaries (0% or 100%),
+                    the <strong>Wilson Score Interval</strong> inverts the score test, guaranteeing coverage probability close to nominal 95%.
+                </p>
+                <div class="bg-slate-900/50 p-3 rounded-xl border border-slate-800 space-y-1 font-mono text-[11px]">
+                    <div>Sample size evaluated: {{ metrics.evaluated_calls }}</div>
+                    <div>Lower Bound (95% CI): {{ metrics.wilson_interval_95.lower_bound }} ({{ (metrics.wilson_interval_95.lower_bound * 100)|round(1) }}%)</div>
+                    <div>Upper Bound (95% CI): {{ metrics.wilson_interval_95.upper_bound }} ({{ (metrics.wilson_interval_95.upper_bound * 100)|round(1) }}%)</div>
+                    {% if metrics.brier_score is not none %}
+                    <div>Brier Score: {{ metrics.brier_score }} (0 = perfect, 0.25 = 50-50 guess)</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+

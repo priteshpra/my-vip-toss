@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Prediction Ledger (Append-Only) | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Cryptographically Locked Prediction Ledger</h1>
+            <p class="text-xs sm:text-sm text-slate-400">Strictly append-only record of all pre-toss calls. Zero edits or retro-active submissions allowed.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                Append-Only Locked
+            </span>
+        </div>
+    </div>
+
+    <!-- Filter / Source Selection -->
+    <div class="glass-card rounded-2xl p-4 border border-slate-800">
+        <form class="grid grid-cols-1 sm:grid-cols-3 gap-3" method="GET" action="/predictions">
+            <div>
+                <label for="filter-channel" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Source / Tipster Channel</label>
+                <select id="filter-channel" name="source_channel" onchange="this.form.submit()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+                    <option value="">All Sources</option>
+                    {% for src in sources %}
+                    <option value="{{ src }}" {% if current_source == src %}selected{% endif %}>{{ src }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="filter-action" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Action Type</label>
+                <select id="filter-action" name="action_type" onchange="this.form.submit()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+                    <option value="">All Calls</option>
+                    <option value="PLAY" {% if current_action == 'PLAY' %}selected{% endif %}>PLAY</option>
+                    <option value="SKIP" {% if current_action == 'SKIP' %}selected{% endif %}>SKIP (50-50)</option>
+                </select>
+            </div>
+        </form>
+    </div>
+
+    <!-- Ledger Table -->
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-3">Call ID</th>
+                        <th class="py-3 px-4">Match / Fixture</th>
+                        <th class="py-3 px-3">Source Channel</th>
+                        <th class="py-3 px-3">Locked At (IST)</th>
+                        <th class="py-3 px-3">Action</th>
+                        <th class="py-3 px-3">Predicted Team</th>
+                        <th class="py-3 px-3">Cryptographic Seal (SHA-256)</th>
+                        <th class="py-3 px-3">Official Result</th>
+                        <th class="py-3 px-4 text-right">Integrity Audit</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for pred in predictions %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-3 text-slate-400">#{{ pred.id }}</td>
+                        <td class="py-3 px-4 font-sans font-medium text-white">
+                            <a href="/matches/{{ pred.match_id }}" class="hover:text-indigo-400 transition-colors">
+                                {{ pred.match.match_title if pred.match else pred.match_id }}
+                            </a>
+                            <div class="text-[10px] text-slate-500 font-mono">Match ID: {{ pred.match_id }}</div>
+                        </td>
+                        <td class="py-3 px-3 font-sans text-slate-300">
+                            {{ pred.source_channel }}
+                        </td>
+                        <td class="py-3 px-3 text-slate-300">
+                            {{ pred.locked_at_ist }}
+                        </td>
+                        <td class="py-3 px-3 font-sans">
+                            {% if pred.action_type == 'PLAY' %}
+                            <span class="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                PLAY
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                                SKIP (50-50)
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-3 font-sans font-medium text-white">
+                            {{ pred.predicted_team.name if pred.predicted_team else (pred.predicted_team_id or 'None / Pass') }}
+                        </td>
+                        <td class="py-3 px-3">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[10px] text-slate-400 font-mono truncate max-w-[120px]" title="{{ pred.snapshot_hash }}">
+                                    {{ pred.snapshot_hash[:16] }}...
+                                </span>
+                                <button onclick="copyToClipboard('{{ pred.snapshot_hash }}')" class="text-slate-500 hover:text-slate-300">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="py-3 px-3 font-sans">
+                            {% if pred.evaluation %}
+                                {% if pred.evaluation.is_correct is true %}
+                                <span class="text-[10px] font-semibold text-emerald-400 font-mono bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                    HIT (WIN)
+                                </span>
+                                {% elif pred.evaluation.is_correct is false %}
+                                <span class="text-[10px] font-semibold text-rose-400 font-mono bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">
+                                    MISS (LOSS)
+                                </span>
+                                {% else %}
+                                <span class="text-[10px] text-amber-400 font-mono bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                                    PASS (NEUTRAL)
+                                </span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-slate-500 text-[10px]">Toss Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-right font-sans">
+                            <button hx-get="/partials/verify-prediction/{{ pred.id }}"
+                                    hx-target="#pred-audit-{{ pred.id }}"
+                                    hx-swap="innerHTML"
+                                    class="text-[11px] font-semibold px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-slate-700 transition-colors">
+                                Verify
+                            </button>
+                            <div id="pred-audit-{{ pred.id }}" class="mt-1"></div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="py-8 text-center text-slate-500 font-sans">
+                            No locked predictions in ledger.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+

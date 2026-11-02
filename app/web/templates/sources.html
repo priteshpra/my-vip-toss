@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Tracked Sources & Tipsters | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Tracked Sources & Tipster Channels</h1>
+            <p class="text-xs sm:text-sm text-slate-400">Audited performance across Telegram tipsters, algorithmic models, and feeds.</p>
+        </div>
+    </div>
+
+    <!-- Leaderboard Table -->
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-900/80 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
+                    <tr>
+                        <th class="py-3 px-4">Channel / Source Name</th>
+                        <th class="py-3 px-3">Total Calls</th>
+                        <th class="py-3 px-3">Play Calls</th>
+                        <th class="py-3 px-3">Skipped</th>
+                        <th class="py-3 px-3">Sample (n)</th>
+                        <th class="py-3 px-3">Hits (Wins)</th>
+                        <th class="py-3 px-3">Misses (Losses)</th>
+                        <th class="py-3 px-3">Measured Accuracy</th>
+                        <th class="py-3 px-3">95% Wilson Interval</th>
+                        <th class="py-3 px-3">p-value vs 50%</th>
+                        <th class="py-3 px-4 text-right">Data Sufficiency</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-800/60 font-mono">
+                    {% for src in leaderboard %}
+                    <tr class="hover:bg-slate-900/40 transition-colors">
+                        <td class="py-3 px-4 font-sans font-medium text-white flex items-center gap-2">
+                            <span>{{ src.source_name }}</span>
+                        </td>
+                        <td class="py-3 px-3 text-slate-300">{{ src.total_calls }}</td>
+                        <td class="py-3 px-3 text-slate-300">{{ src.play_calls }}</td>
+                        <td class="py-3 px-3 text-amber-400">{{ src.skip_calls }}</td>
+                        <td class="py-3 px-3 font-semibold text-white">{{ src.evaluated_calls }}</td>
+                        <td class="py-3 px-3 text-emerald-400 font-semibold">{{ src.wins }}</td>
+                        <td class="py-3 px-3 text-rose-400 font-semibold">{{ src.losses }}</td>
+                        <td class="py-3 px-3 font-bold text-white">
+                            {{ src.measured_accuracy_pct }}%
+                        </td>
+                        <td class="py-3 px-3 text-purple-300">
+                            {{ src.wilson_interval_95.display_str }}
+                        </td>
+                        <td class="py-3 px-3">
+                            <span class="{% if src.binomial_test.is_significant %}text-emerald-400{% else %}text-slate-400{% endif %}">
+                                p = {{ src.binomial_test.p_value }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 text-right font-sans">
+                            {% if src.evaluated_calls >= 30 %}
+                            <span class="text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                SUFFICIENT (n>=30)
+                            </span>
+                            {% else %}
+                            <span class="text-[10px] font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                                LOW SAMPLE (n&lt;30)
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" class="py-8 text-center text-slate-500 font-sans">
+                            No sources tracked yet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+

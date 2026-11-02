@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Matches | Toss Analytics & Tracking Admin Panel{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Cricket Match Centre</h1>
+            <p class="text-xs sm:text-sm text-slate-400">Scheduled fixtures, real-time rates, and pre-toss tracking records.</p>
+        </div>
+    </div>
+
+    <!-- Filter Bar with HTMX Integration -->
+    <div class="glass-card rounded-2xl p-4 border border-slate-800">
+        <form class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+              hx-get="/partials/matches-table"
+              hx-trigger="keyup delay:300ms from:#search-input, change from:select"
+              hx-target="#matches-table-container">
+            
+            <div class="sm:col-span-2">
+                <label for="search-input" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Search Teams or Match</label>
+                <input type="text" id="search-input" name="search" placeholder="Search by team, match name, or ID..."
+                       class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors">
+            </div>
+
+            <div>
+                <label for="status-select" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Status</label>
+                <select id="status-select" name="status" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="">All Statuses</option>
+                    <option value="UPCOMING">Upcoming</option>
+                    <option value="TOSS_PENDING">Toss Pending</option>
+                    <option value="TOSS_COMPLETED">Toss Completed</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="tournament-select" class="block text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">Tournament</label>
+                <select id="tournament-select" name="tournament_id" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+                    <option value="">All Tournaments</option>
+                    {% for t in tournaments %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+
+    <!-- Matches Table Container -->
+    <div class="glass-card rounded-2xl border border-slate-800 overflow-hidden" id="matches-table-container">
+        {% include "partials/matches_table.html" %}
+    </div>
+
+</div>
+{% endblock %}
+

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Cryptographic Hash Audit | Toss Analytics{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-white">Cryptographic Hash Audit & Integrity Verification</h1>
+            <p class="text-xs sm:text-sm text-slate-400">Mathematically audit SHA-256 seals to verify zero retro-active tampering or modifications.</p>
+        </div>
+    </div>
+
+    <!-- Audit Verification Input Box -->
+    <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Inspect Single Prediction Record</h2>
+        <form hx-get="/api/predictions/audit" hx-target="#audit-interactive-result" class="flex flex-col sm:flex-row items-center gap-3">
+            <input type="number" name="prediction_id" placeholder="Enter Prediction ID (e.g. 1)" required
+                   class="w-full sm:w-64 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono">
+            <button type="submit" class="w-full sm:w-auto px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all">
+                Run Integrity Verification
+            </button>
+        </form>
+        <div id="audit-interactive-result" class="mt-4"></div>
+    </div>
+
+    <!-- System-wide Integrity Status -->
+    <div class="glass-card rounded-2xl p-6 border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h2 class="text-base font-bold text-white">System-Wide Audit Proof</h2>
+            <span class="text-xs text-emerald-400 font-mono flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Ledger Locked
+            </span>
+        </div>
+
+        <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
+            <p>
+                Every prediction in this platform is locked via SHA-256 before the match commences:
+            </p>
+            <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-indigo-300">
+                SHA-256(match_id | predicted_team_id | action_type | timestamp_utc | model_version_id | source_channel)
+            </div>
+            <p>
+                The database table <code class="text-slate-200">prediction_snapshots</code> has no update or delete routes.
+                If any record attribute is modified in storage, the hash re-computation fails immediately, flagging data corruption.
+            </p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
