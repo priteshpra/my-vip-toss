@@ -2,7 +2,7 @@
 
 Strict adherence to mathematical honesty:
 - A coin toss is an independent Bernoulli trial (p = 0.50).
-- Real measured accuracy only; never display inflated or guaranteed terms.
+- Real measured accuracy only; never display inflated or misleading terms.
 - Low sample sizes (n < 30) explicitly flagged.
 - Wilson Score 95% confidence intervals and two-sided exact binomial tests against 50%.
 """

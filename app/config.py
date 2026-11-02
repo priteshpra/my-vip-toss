@@ -12,6 +12,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class Settings(BaseSettings):
     """Production application settings with environment variable support and strict typing."""
 
+    BASE_DIR: str = Field(default=BASE_DIR, description="Root directory of workspace")
     environment: str = Field(default="development", description="Environment mode")
     log_level: str = Field(default="INFO", description="Logging verbosity")
 
@@ -71,6 +72,16 @@ class Settings(BaseSettings):
     # Polling & Intervals (in seconds)
     match_poll_interval: int = 300
     toss_poll_interval: int = 60
+    gaming_helper_poll_interval: int = Field(default=90, description="GamingHelper poll interval in seconds (1-2 min)")
+    fixtures_poll_interval: int = Field(default=300, description="Public fixtures refresh interval in seconds")
+    sources_poll_interval: int = Field(default=300, description="External sources poll interval in seconds")
+    cricsheet_sync_interval_hours: int = Field(default=24, description="Cricsheet incremental sync interval in hours")
+    health_check_interval: int = Field(default=300, description="Collector health check interval in seconds")
+
+    # Automated Backups
+    backup_dir: str = Field(default="_backups", description="Directory to store database backups")
+    backup_keep_count: int = Field(default=7, description="Number of nightly database backups to retain")
+    backup_interval_hours: int = Field(default=24, description="Database backup interval in hours")
 
     # Statistical Thresholds & Honesty Gates
     min_sample: int = Field(default=30, description="Minimum sample size threshold for statistical validity")

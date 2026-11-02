@@ -6,8 +6,10 @@ data/gaming_helper_session.json
 
 # Backups
 _backup/
+_backups/
 backups/
 data/backups/
+logs/
 
 # Database & Local Storage
 *.db

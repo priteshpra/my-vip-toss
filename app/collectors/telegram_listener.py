@@ -364,3 +364,86 @@ class TelegramListener:
             session.add(record)
 
         await session.commit()
+
+
+    async def run_listener_loop(self) -> None:
+        """
+        Resilient real-time listening loop with exponential backoff and automatic reconnect.
+        Runs continuously in background.
+        """
+        import asyncio
+        from app.db import AsyncSessionLocal
+
+        if not self.enabled or not TelegramClient:
+            logger.info("Telegram Listener is disabled or missing credentials (set TELEGRAM_API_ID and TELEGRAM_API_HASH in .env). Running health monitor only.")
+            while True:
+                try:
+                    async with AsyncSessionLocal() as session:
+                        await self._update_health(
+                            session=session,
+                            status="OK",
+                            message="Listener configured in passive mode (waiting for credentials/webhook)"
+                        )
+                except Exception as e:
+                    logger.debug(f"Health update notice: {e}")
+                await asyncio.sleep(300)
+
+        backoff = 5
+        max_backoff = 60
+
+        while True:
+            try:
+                logger.info("Connecting to Telegram via Telethon...")
+                session_name = "toss_analytics_telethon"
+                self.client = TelegramClient(session_name, int(self.api_id), self.api_hash)
+
+                if settings.telegram_bot_token:
+                    await self.client.start(bot_token=settings.telegram_bot_token)
+                else:
+                    await self.client.start(phone=settings.telegram_phone)
+
+                logger.info(f"Connected to Telegram! Listening to channels: {self.channels}")
+                backoff = 5
+
+                async with AsyncSessionLocal() as session:
+                    await self._update_health(
+                        session=session,
+                        status="HEALTHY",
+                        message=f"Connected and actively listening to {len(self.channels)} channel(s)"
+                    )
+
+                @self.client.on(events.NewMessage(chats=self.channels))
+                async def handle_new_message(event):
+                    try:
+                        text = event.message.message
+                        msg_id = str(event.message.id)
+                        chat = await event.get_chat()
+                        channel_title = getattr(chat, "title", str(chat.id))
+
+                        async with AsyncSessionLocal() as sess:
+                            await self.process_message(
+                                session=sess,
+                                message_id=msg_id,
+                                text=text,
+                                channel_name=channel_title,
+                                received_at=utc_now()
+                            )
+                    except Exception as handler_err:
+                        logger.error(f"Error handling Telegram message: {handler_err}")
+
+                await self.client.run_until_disconnected()
+
+            except Exception as conn_err:
+                logger.warning(f"Telegram connection lost: {conn_err}. Reconnecting in {backoff}s...")
+                try:
+                    async with AsyncSessionLocal() as session:
+                        await self._update_health(
+                            session=session,
+                            status="DEGRADED",
+                            message=f"Disconnected ({conn_err}). Retrying in {backoff}s..."
+                        )
+                except Exception:
+                    pass
+
+                await asyncio.sleep(backoff)
+                backoff = min(max_backoff, backoff * 2)

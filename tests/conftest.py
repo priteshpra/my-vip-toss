@@ -1,5 +1,8 @@
 """Pytest configuration and shared fixtures for Toss Analytics & Tracking Admin Panel."""
 
+import os
+os.environ["TESTING"] = "1"
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
