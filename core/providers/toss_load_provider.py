@@ -272,7 +272,8 @@ def compute_multi_source_toss_load(
 
         is_major_league = any(k in (tournament or "").lower() for k in [
             "wbbl", "women's big bash", "womens big bash", "bbl", "big bash",
-            "emirates d20", "emirates d10", "cwc", "tri series", "icc"
+            "emirates d20", "emirates d10", "cwc", "tri series", "icc",
+            "abu dhabi t10", "t10 league", "ipl", "wpl", "psl", "cpl"
         ])
 
         if c_prob >= 60 or (c_back > 0 and c_back <= 62):

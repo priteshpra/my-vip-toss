@@ -296,6 +296,14 @@ def _extract_tournament_from_match_name(match_name: str, team_a: str, team_b: st
     if any(t in ta_low or t in tb_low for t in state_women):
         return "Senior Women's T20 Trophy 2026"
 
+    t10_teams = [
+        "deccan gladiators", "new york strikers", "samp army", "morrisville",
+        "northern warriors", "delhi bulls", "team abu dhabi", "bangla tigers",
+        "chennai braves", "ajman bolts", "up nawabs"
+    ]
+    if "abu dhabi t10" in low or "t10 league" in low or any(t in ta_low or t in tb_low for t in t10_teams):
+        return "Abu Dhabi T10 League 2026"
+
     if "super smash" in low:
         return "Super Smash"
     elif "emirates d10" in low or ("emirates" in low and "d10" in low):
