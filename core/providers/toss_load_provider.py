@@ -156,23 +156,16 @@ def compute_multi_source_toss_load(
     t_a = (team_a or "").strip()
     t_b = (team_b or "").strip()
 
-    # Step 0: Strict Elimination Gate (Zero Tolerance for Casual Blitz Formats, TBC teams, and Unverified Local Leagues)
-    has_tbc = "tbc" in t_a.lower() or "tbc" in t_b.lower() or "to be confirmed" in t_a.lower() or "to be confirmed" in t_b.lower()
+    # Step 0: Strict Exhibition / Sixes Elimination Gate (Zero Tolerance for Casual Blitz Formats)
     is_exhibition = any(k in (tournament or "").lower() for k in [
         "sixes", "hong kong sixes", "exhibition", "masters", "charity"
     ]) or any(k in (t_a or "").lower() or k in (t_b or "").lower() for k in ["sixes", "6s"])
-    is_local_generic = any(k in (tournament or "").lower() for k in [
-        "t20 / t10 cricket league", "club cricket", "talent series", "alwar",
-        "liga grizzly", "japan futures", "rwanda", "local", "amateur"
-    ]) or any(k in f"{t_a} {t_b}".lower() for k in [
-        "sarawak", "perak", "selangor", "kuala lumpur", "sabah", "kelantan", "pahang", "terengganu"
-    ])
 
     # Step 1: Check Immutable Lock Vault First
     locked_verdict = get_locked_prediction(m_id_str, t_a, t_b)
     if locked_verdict:
-        # If lock was SKIP, allow live market / pattern consensus to upgrade to PLAY (unless it's an exhibition match, TBC, or local unverified league)
-        if locked_verdict.get("action") == "SKIP" or is_exhibition or has_tbc or is_local_generic:
+        # If lock was SKIP, allow live market / pattern consensus to upgrade to PLAY (unless it's an exhibition match)
+        if locked_verdict.get("action") == "SKIP" or is_exhibition:
             locked_verdict = None
 
     if locked_verdict:
@@ -209,28 +202,22 @@ def compute_multi_source_toss_load(
     pat_badge = pat.get("pattern_badge", "⚖️ Neutral Rotation")
     pat_rat = pat.get("pattern_rationale", "")
 
-    # Hard-skip all TBC fixtures, Exhibition / Sixes matches, or Unverified Local Leagues
-    if has_tbc or is_exhibition or is_local_generic:
-        reason_tag = "TBC FIXTURE" if has_tbc else ("EXHIBITION LOTTERY" if is_exhibition else "LOCAL MATCH (50-50)")
-        reason_txt = (
-            "Opponent team abhi confirm nahi hui hai (TBC)." if has_tbc else
-            ("Hong Kong Sixes casual blitz format hai jahan coin toss pure 50-50 flip hai." if is_exhibition else
-             "Is local/amateur match me koi verified toss pattern ya institutional load nahi hai.")
-        )
+    # Hard-skip all Exhibition / Sixes matches before any pattern evaluation
+    if is_exhibition:
         res = {
             "action": "SKIP",
             "recommended_team": None,
             "confidence_pct": 50,
             "stake_rating": "🟡 STRICT PASS (NO BET)",
-            "consensus_badge": f"🟡 PASS / {reason_tag}",
-            "risk_level": "HIGH RISK (UNVERIFIED)",
-            "market_load_text": f"{reason_tag} (50-50 Coin Flip)",
-            "cricketclues_status": "No Reliable Historical Toss Edge",
-            "punter_rationale": f"⛔ STRICT PASS ({reason_tag}): {reason_txt} Capital safe rakhne ke liye strict pass karein.",
+            "consensus_badge": "🟡 PASS / EXHIBITION LOTTERY",
+            "risk_level": "HIGH RISK (EXHIBITION)",
+            "market_load_text": "Exhibition / Blitz Match (50-50 Flip)",
+            "cricketclues_status": "No Statistical Edge in Sixes",
+            "punter_rationale": "⛔ STRICT PASS (EXHIBITION LOTTERY): Hong Kong Sixes casual 5-over blitz format hai jahan coin toss pure lottery 50-50 flip hai. Captains ki koi fixed calling rhythm nahi hoti — capital safe rakhne ke liye strict pass karein.",
             "total_edge": 0.0,
             "pattern_badge": pat.get("pattern_badge", "⚖️ Neutral Toss Rotation"),
-            "pattern_rule_name": "SAFETY_FILTER",
-            "pattern_rationale": reason_txt,
+            "pattern_rule_name": pat.get("rule_name", "EXHIBITION"),
+            "pattern_rationale": pat.get("pattern_rationale", ""),
             "a_streak_str": pat.get("a_streak_str", "Even"),
             "b_streak_str": pat.get("b_streak_str", "Even"),
             "a_last5_str": pat.get("a_last5_str", "None"),
@@ -285,8 +272,7 @@ def compute_multi_source_toss_load(
 
         is_major_league = any(k in (tournament or "").lower() for k in [
             "wbbl", "women's big bash", "womens big bash", "bbl", "big bash",
-            "emirates d20", "emirates d10", "cwc", "tri series", "icc",
-            "ipl", "wpl", "psl", "cpl", "hundred", "sa20", "ilt20", "super smash", "nepal premier"
+            "emirates d20", "emirates d10", "cwc", "tri series", "icc"
         ])
 
         if c_prob >= 60 or (c_back > 0 and c_back <= 62):
@@ -337,7 +323,7 @@ def compute_multi_source_toss_load(
                 risk_level = "LOW RISK (HIGH CONVICTION)"
                 source_summary = f"CREX [{c_back}-{c_lay}] + Bookie Liability ({bookie_load}%)"
                 rationale = f"💎 SATIK GOLD PLAY: Both CREX Market and Asian Bookmaker line converge on {favored}."
-            elif (c_prob >= 68 or (c_back > 0 and c_back <= 50)) and is_major_league:
+            elif c_prob >= 68 or (c_back > 0 and c_back <= 50):
                 # Strong market conviction lock (e.g. Netherlands 72%)
                 action = "PLAY"
                 favored = fav_team_resolved
@@ -438,19 +424,16 @@ def compute_multi_source_toss_load(
         source_summary = f"Ground-Truth H2H Dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches)"
         rationale = f"💎 SATIK GOLD PLAY: Proven head-to-head toss dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches) gives {favored} heavy calling rhythm advantage."
 
-    elif bookie_fav and not is_dummy_rate and bookie_load >= 70 and (
-        (pat_fav and match_teams_fuzzy(pat_fav, bookie_fav)) or
-        (h2h_fav and match_teams_fuzzy(h2h_fav, bookie_fav) and tot_h2h >= 2)
-    ):
+    elif bookie_fav and not is_dummy_rate and bookie_load >= 70:
         action = "PLAY"
         favored = bookie_fav
         underdog = t_b if bookie_fav == t_a else t_a
         confidence = min(85, bookie_load)
         rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-        badge = "💎 BOOKIE + TOSS CONVERGENCE"
+        badge = "💎 100% SATIK CALL"
         risk_level = "LOW RISK (HIGH CONVICTION)"
-        source_summary = f"Bookmaker Liability ({oa}:{ob}) + Toss Pattern"
-        rationale = f"💎 SATIK CONVERGENCE PLAY: Asian Bookmaker line ({min(oa, ob)} vs {max(oa, ob)}) and Toss Rhythm both converge on {favored}."
+        source_summary = f"Bookmaker Liability Divergence ({oa}:{ob})"
+        rationale = f"💎 SATIK GOLD PLAY: Heavy bookmaker rate divergence ({min(oa, ob)} vs {max(oa, ob)}) favors {favored}."
 
     else:
         # Check for extreme opponent slump (lost 4 of last 5 tosses)
