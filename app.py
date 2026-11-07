@@ -1320,17 +1320,17 @@ with vip_tabs[1]:
         yesterday_done_count = sum(1 for r in completed_results if r.get("match_date") == yesterday_iso and r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
         total_done_count = sum(1 for r in completed_results if r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
 
-        # Smart default: ALWAYS default to Today so punters are never confused by past dates
-        def_pill = f"📅 आज (Today) · {today_done_count}"
+        # Smart default: default to '🌟 सभी तारीखें' so all past passes and history are always visible
+        def_pill = f"🌟 सभी तारीखें ({total_done_count})"
 
         col_df1, col_df2 = st.columns([2.4, 1.2])
         with col_df1:
             date_filter_mode = st.pills(
                 "📅 तारीख फ़िल्टर",
                 options=[
+                    f"🌟 सभी तारीखें ({total_done_count})",
                     f"📅 आज (Today) · {today_done_count}",
                     f"📅 कल (Yesterday) · {yesterday_done_count}",
-                    f"🌟 सभी तारीखें ({total_done_count})",
                     "🗓️ Custom Date"
                 ],
                 default=def_pill,
@@ -1347,10 +1347,10 @@ with vip_tabs[1]:
         custom_picked_iso = custom_picked_date.strftime("%Y-%m-%d") if custom_picked_date else today_iso
 
         # Priority Resolution:
-        # 1. If user explicitly clicked 'सभी तारीखें', show ALL history
-        if date_filter_mode and "सभी" in date_filter_mode:
-            selected_date_val = "ALL"
-            kpi_title_ctx = "सभी तारीखें"
+        # 1. If user clicked Today
+        if date_filter_mode and "आज (Today)" in date_filter_mode:
+            selected_date_val = today_iso
+            kpi_title_ctx = f"आज ({today_iso})"
         # 2. If user clicked Yesterday
         elif date_filter_mode and "कल (Yesterday)" in date_filter_mode:
             selected_date_val = yesterday_iso
@@ -1359,18 +1359,10 @@ with vip_tabs[1]:
         elif date_filter_mode and "Custom" in date_filter_mode:
             selected_date_val = custom_picked_iso
             kpi_title_ctx = f"तारीख: {custom_picked_iso}"
-        # 4. If user clicked Today
-        elif date_filter_mode and "आज (Today)" in date_filter_mode:
-            selected_date_val = today_iso
-            kpi_title_ctx = f"आज ({today_iso})"
-        # 5. If date picker was changed to another date
-        elif custom_picked_iso != today_iso:
-            selected_date_val = custom_picked_iso
-            kpi_title_ctx = f"तारीख: {custom_picked_iso}"
-        # 6. Fallback to Today
+        # 4. Default: All dates history
         else:
-            selected_date_val = today_iso
-            kpi_title_ctx = f"आज ({today_iso})"
+            selected_date_val = "ALL"
+            kpi_title_ctx = "सभी तारीखें"
 
         # Dynamically compute KPIs strictly for the SELECTED DATE!
         if selected_date_val != "ALL":
