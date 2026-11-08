@@ -1329,19 +1329,23 @@ with vip_tabs[1]:
         date_text = cf.get("date") or today_iso
         status_num = cf.get("status", 0)
 
+        # Auto-resolve favorite team if empty but institutional bhav is heavy
+        if not fav and back is not None and back <= 50:
+            fav = t1
+
         t1_sn = cf.get("t1_sn") or t1[:3].upper()
         t2_sn = cf.get("t2_sn") or t2[:3].upper()
         fav_sn = t1_sn if fav == t1 else t2_sn
 
         bhav_display = f"[{fav_sn}] {back}-{lay}" if back is not None and lay is not None else "Market Line Pending"
 
-        if prob >= 85:
+        if prob >= 80:
             verdict_code = "SUPER_LOCK"
             verdict_badge = f"💎 {prob}% SUPER LOCK"
             action_text = f"🟢 HEAVY MATCH WINNER LOCK: {fav.upper()}"
             risk_desc = "VERY LOW RISK (DOMINANT SQUAD)"
             rationale_text = f"💎 संस्थागत CREX भाव {bhav_display} के अनुसार {fav} के जीतने की संभावना {prob}% है। बैटिंग गहराई और टीम स्क्वाड बहुत मजबूत है।"
-        elif prob >= 70:
+        elif prob >= 65:
             verdict_code = "VALUE_PLAY"
             verdict_badge = f"🔥 {prob}% VALUE PLAY"
             action_text = f"🟢 PLAY MATCH WINNER: {fav.upper()}"
@@ -1444,18 +1448,26 @@ with vip_tabs[1]:
     # Filter Bar
     col_mf1, col_mf2 = st.columns([2.5, 1.2])
     with col_mf1:
+        mw_opts = [
+            f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})",
+            f"🔥 सिर्फ एक्शन पिक्स ({super_locks_cnt + value_cnt})",
+            f"🌟 सभी मैच ({tot_mw})"
+        ]
+        if super_locks_cnt > 0:
+            def_mw_f = mw_opts[0]
+        elif (super_locks_cnt + value_cnt) > 0:
+            def_mw_f = mw_opts[1]
+        else:
+            def_mw_f = mw_opts[2]
+
         mw_filter_choice = st.pills(
             "फ़िल्टर बाय विनर वर्डिक्ट",
-            options=[
-                f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})",
-                f"🔥 सिर्फ एक्शन पिक्स ({super_locks_cnt + value_cnt})",
-                f"🌟 सभी मैच ({tot_mw})"
-            ],
-            default=f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})" if super_locks_cnt > 0 else f"🔥 सिर्फ एक्शन पिक्स ({super_locks_cnt + value_cnt})",
+            options=mw_opts,
+            default=def_mw_f,
             key="pills_mw_filter"
         )
     with col_mf2:
-        mw_search = st.text_input("🔍 सर्च टीम / लीग", placeholder="e.g. Netherlands, Dubai...", key="input_mw_search")
+        mw_search = st.text_input("🔍 सर्च टीम / लीग", placeholder="e.g. Netherlands, Titans, Pakistan...", key="input_mw_search")
 
     # Filter Rows
     filtered_mw = date_filtered_mw
@@ -1476,6 +1488,7 @@ with vip_tabs[1]:
             is_value = m["verdict_code"] == "VALUE_PLAY"
 
             border_c = "#10b981" if is_super else ("#38bdf8" if is_value else "#334155")
+            box_glow = "box-shadow: 0 0 25px rgba(16, 185, 129, 0.35);" if is_super else ("box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);" if is_value else "box-shadow: 0 4px 20px rgba(0,0,0,0.4);")
             banner_bg = "linear-gradient(90deg, #064e3b 0%, #022c22 100%)" if is_super else ("linear-gradient(90deg, #0c4a6e 0%, #082f49 100%)" if is_value else "#1e293b")
             banner_color = "#34d399" if is_super else ("#38bdf8" if is_value else "#94a3b8")
 
@@ -1489,7 +1502,7 @@ with vip_tabs[1]:
                 toss_st_badge = '<span style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #64748b; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">✅ MATCH FINISHED</span>'
 
             st.markdown(f"""
-            <div style="background: #0f172a; border: 1.5px solid {border_c}; border-radius: 14px; padding: 20px; margin-bottom: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+            <div style="background: #0f172a; border: 1.5px solid {border_c}; {box_glow} border-radius: 14px; padding: 20px; margin-bottom: 18px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                         <span style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">
