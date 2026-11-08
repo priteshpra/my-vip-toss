@@ -1451,7 +1451,8 @@ with vip_tabs[1]:
         for r in all_done_mw:
             rta = str(r.get("team_a", ""))
             rtb = str(r.get("team_b", ""))
-            if (match_teams_fuzzy(t1, rta) and match_teams_fuzzy(t2, rtb)) or (match_teams_fuzzy(t1, rtb) and match_teams_fuzzy(t2, rta)):
+            r_date = str(r.get("match_date") or "").split("T")[0].strip()
+            if r_date == date_text and ((match_teams_fuzzy(t1, rta) and match_teams_fuzzy(t2, rtb)) or (match_teams_fuzzy(t1, rtb) and match_teams_fuzzy(t2, rta))):
                 matched_done_mw = r
                 break
 
@@ -1660,106 +1661,64 @@ with vip_tabs[1]:
             if m["toss_is_done"]:
                 if m["toss_winner_name"]:
                     dec_label = "बॉलिंग (Chase)" if "bowl" in m["toss_decision_str"].lower() or "field" in m["toss_decision_str"].lower() else ("बैटिंग (Defend)" if "bat" in m["toss_decision_str"].lower() else m["toss_decision_str"])
-                    toss_info_html = f"""
-                    <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid #10b981; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
-                        <span style="font-size: 13px; font-weight: 800; color: #34d399;">
-                            🪙 टॉस अपडेट: <b>{m['toss_winner_name']}</b> ने टॉस जीतकर <b>{dec_label}</b> चुनी
-                        </span>
-                        <span style="font-size: 11px; background: #064e3b; color: #a7f3d0; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
-                            ✅ टॉस संपन्न (Toss Done)
-                        </span>
-                    </div>
-                    """
+                    toss_info_html = f"""<div style="background: rgba(16, 185, 129, 0.12); border: 1px solid #10b981; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+<span style="font-size: 13px; font-weight: 800; color: #34d399;">🪙 टॉस अपडेट: <b>{m['toss_winner_name']}</b> ने टॉस जीतकर <b>{dec_label}</b> चुनी</span>
+<span style="font-size: 11px; background: #064e3b; color: #a7f3d0; padding: 2px 8px; border-radius: 10px; font-weight: 700;">✅ टॉस संपन्न (Toss Done)</span>
+</div>"""
                 else:
-                    toss_info_html = """
-                    <div style="background: rgba(56, 189, 248, 0.12); border: 1px solid #0284c7; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
-                        <span style="font-size: 13px; font-weight: 800; color: #38bdf8;">
-                            🔴 मैच इन-प्ले है / टॉस हो चुका है
-                        </span>
-                        <span style="font-size: 11px; background: #0c4a6e; color: #bae6fd; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
-                            LIVE IN-PLAY
-                        </span>
-                    </div>
-                    """
+                    toss_info_html = """<div style="background: rgba(56, 189, 248, 0.12); border: 1px solid #0284c7; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+<span style="font-size: 13px; font-weight: 800; color: #38bdf8;">🔴 मैच इन-प्ले है / टॉस हो चुका है</span>
+<span style="font-size: 11px; background: #0c4a6e; color: #bae6fd; padding: 2px 8px; border-radius: 10px; font-weight: 700;">LIVE IN-PLAY</span>
+</div>"""
                 toss_st_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">✅ TOSS DONE</span>'
             elif m["status"] == 0:
-                toss_info_html = """
-                <div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed #f59e0b; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
-                    <span style="font-size: 12px; font-weight: 700; color: #fbbf24;">
-                        ⏳ टॉस अभी बाकी है (टॉस होने के बाद प्लेइंग 11 और भाव अपडेट होगा)
-                    </span>
-                    <span style="font-size: 11px; background: #451a03; color: #fde68a; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
-                        TOSS PENDING
-                    </span>
-                </div>
-                """
+                toss_info_html = """<div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed #f59e0b; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+<span style="font-size: 12px; font-weight: 700; color: #fbbf24;">⏳ टॉस अभी बाकी है (टॉस होने के बाद प्लेइंग 11 और भाव अपडेट होगा)</span>
+<span style="font-size: 11px; background: #451a03; color: #fde68a; padding: 2px 8px; border-radius: 10px; font-weight: 700;">TOSS PENDING</span>
+</div>"""
                 toss_st_badge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">⏳ TOSS PENDING</span>'
             else:
-                toss_info_html = """
-                <div style="background: rgba(148, 163, 184, 0.1); border: 1px solid #64748b; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
-                    <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">
-                        🏁 मैच संपन्न हो चुका है (Match Finished)
-                    </span>
-                    <span style="font-size: 11px; background: #334155; color: #e2e8f0; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
-                        FINISHED
-                    </span>
-                </div>
-                """
+                toss_info_html = """<div style="background: rgba(148, 163, 184, 0.1); border: 1px solid #64748b; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+<span style="font-size: 12px; font-weight: 700; color: #94a3b8;">🏁 मैच संपन्न हो चुका है (Match Finished)</span>
+<span style="font-size: 11px; background: #334155; color: #e2e8f0; padding: 2px 8px; border-radius: 10px; font-weight: 700;">FINISHED</span>
+</div>"""
                 toss_st_badge = '<span style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #64748b; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">✅ MATCH FINISHED</span>'
 
-            entry_block_html = f"""
-            <div style="background: #090d16; border: 1px solid #1e293b; border-radius: 10px; padding: 12px 14px; margin-top: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #1e293b; padding-bottom: 6px;">
-                    <span style="font-size: 13px; font-weight: 900; color: #f1f5f9;">
-                        ⏱️ पैसा कब लगाएं और कब नहीं? (Entry Strategy)
-                    </span>
-                    {m['timing_badge']}
-                </div>
-                <div style="font-size: 12px; color: #e2e8f0; line-height: 1.5; margin-bottom: 6px;">
-                    👉 <b>कब लगाएं:</b> {m['timing_advice']}
-                </div>
-                <div style="font-size: 12px; color: #f87171; line-height: 1.5; margin-bottom: 6px;">
-                    ⚠️ <b>कब न लगाएं:</b> {m['when_not_to_bet']}
-                </div>
-                <div style="font-size: 12px; color: #34d399; line-height: 1.5;">
-                    {m['bookset_advice']}
-                </div>
-            </div>
-            """
+            entry_block_html = f"""<div style="background: #090d16; border: 1px solid #1e293b; border-radius: 10px; padding: 12px 14px; margin-top: 10px;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #1e293b; padding-bottom: 6px;">
+<span style="font-size: 13px; font-weight: 900; color: #f1f5f9;">⏱️ पैसा कब लगाएं और कब नहीं? (Entry Strategy)</span>
+{m['timing_badge']}
+</div>
+<div style="font-size: 12px; color: #e2e8f0; line-height: 1.5; margin-bottom: 6px;">👉 <b>कब लगाएं:</b> {m['timing_advice']}</div>
+<div style="font-size: 12px; color: #f87171; line-height: 1.5; margin-bottom: 6px;">⚠️ <b>कब न लगाएं:</b> {m['when_not_to_bet']}</div>
+<div style="font-size: 12px; color: #34d399; line-height: 1.5;">{m['bookset_advice']}</div>
+</div>"""
 
-            st.markdown(f"""
-            <div style="background: #0f172a; border: 1.5px solid {border_c}; {box_glow} border-radius: 14px; padding: 20px; margin-bottom: 18px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
-                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">
-                            🏏 {m['tournament']} · ⏰ {m['time']} ({m['date']})
-                        </span>
-                        {toss_st_badge}
-                    </div>
-                    <span style="color: #f59e0b; font-weight: 800; font-size: 13px;">
-                        📊 CREX भाव: <b>{m['bhav']}</b>
-                    </span>
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin: 14px 0;">
-                    <div style="font-size: 18px; font-weight: 900; color: #ffffff; flex: 1; text-align: right;">{m['team_a']}</div>
-                    <div style="background: #1e293b; color: #e2e8f0; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; margin: 0 16px;">VS</div>
-                    <div style="font-size: 18px; font-weight: 900; color: #ffffff; flex: 1; text-align: left;">{m['team_b']}</div>
-                </div>
-                <div style="background: {banner_bg}; border: 1px solid {border_c}; border-radius: 10px; padding: 12px 16px; margin: 12px 0; text-align: center;">
-                    <div style="font-size: 16px; font-weight: 900; color: {banner_color}; letter-spacing: 0.5px;">
-                        {m['action_text']}
-                    </div>
-                    <div style="font-size: 12px; font-weight: 700; color: #e2e8f0; margin-top: 4px;">
-                        {m['verdict_badge']} · 🛡️ {m['risk_desc']}
-                    </div>
-                </div>
-                {toss_info_html}
-                <div style="background: #020617; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #cbd5e1; margin-top: 8px;">
-                    ℹ️ <b>मैच एनालिसिस:</b> {m['rationale']}
-                </div>
-                {entry_block_html}
-            </div>
-            """, unsafe_allow_html=True)
+            card_markup = f"""<div style="background: #0f172a; border: 1.5px solid {border_c}; {box_glow} border-radius: 14px; padding: 20px; margin-bottom: 18px;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+<span style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">🏏 {m['tournament']} · ⏰ {m['time']} ({m['date']})</span>
+{toss_st_badge}
+</div>
+<span style="color: #f59e0b; font-weight: 800; font-size: 13px;">📊 CREX भाव: <b>{m['bhav']}</b></span>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 14px 0;">
+<div style="font-size: 18px; font-weight: 900; color: #ffffff; flex: 1; text-align: right;">{m['team_a']}</div>
+<div style="background: #1e293b; color: #e2e8f0; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; margin: 0 16px;">VS</div>
+<div style="font-size: 18px; font-weight: 900; color: #ffffff; flex: 1; text-align: left;">{m['team_b']}</div>
+</div>
+<div style="background: {banner_bg}; border: 1px solid {border_c}; border-radius: 10px; padding: 12px 16px; margin: 12px 0; text-align: center;">
+<div style="font-size: 16px; font-weight: 900; color: {banner_color}; letter-spacing: 0.5px;">{m['action_text']}</div>
+<div style="font-size: 12px; font-weight: 700; color: #e2e8f0; margin-top: 4px;">{m['verdict_badge']} · 🛡️ {m['risk_desc']}</div>
+</div>
+{toss_info_html}
+<div style="background: #020617; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #cbd5e1; margin-top: 8px;">
+ℹ️ <b>मैच एनालिसिस:</b> {m['rationale']}
+</div>
+{entry_block_html}
+</div>"""
+            clean_rendered_html = "\n".join(line.strip() for line in card_markup.strip().splitlines() if line.strip())
+            st.markdown(clean_rendered_html, unsafe_allow_html=True)
 
     st.markdown("""
     <div style="background: #1e293b; border: 1px dashed #475569; border-radius: 10px; padding: 14px; font-size: 12px; color: #94a3b8; text-align: center; margin-top: 16px;">
