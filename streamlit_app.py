@@ -1373,18 +1373,48 @@ with vip_tabs[1]:
             "rationale": rationale_text
         })
 
+    # Date Filtering (Aaj vs Kal vs Sabhi)
+    c_today_mw = sum(1 for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == today_iso)
+    c_tom_mw = sum(1 for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == tomorrow_iso)
+
+    mw_date_opts = [
+        f"📅 Aaj ({format_ist(cur_ist, '%d %b')}) [{c_today_mw}]",
+        f"📅 Kal ({format_ist(cur_ist + timedelta(days=1), '%d %b')}) [{c_tom_mw}]",
+        f"🌟 Sabhi Dates [{len(mw_match_list)}]"
+    ]
+    def_mw_date_idx = 0 if c_today_mw > 0 else 1
+
+    col_mwd_pill, col_mw_spc = st.columns([2.5, 1])
+    with col_mwd_pill:
+        sel_mw_date = st.pills(
+            "Match Date",
+            mw_date_opts,
+            default=mw_date_opts[def_mw_date_idx],
+            key="mw_date_pill",
+            label_visibility="collapsed"
+        )
+    if not sel_mw_date:
+        sel_mw_date = mw_date_opts[def_mw_date_idx]
+
+    if "Aaj" in sel_mw_date:
+        date_filtered_mw = [m for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == today_iso]
+    elif "Kal" in sel_mw_date:
+        date_filtered_mw = [m for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == tomorrow_iso]
+    else:
+        date_filtered_mw = list(mw_match_list)
+
     # Summary KPIs
-    tot_mw = len(mw_match_list)
-    super_locks_cnt = sum(1 for m in mw_match_list if m["verdict_code"] == "SUPER_LOCK")
-    value_cnt = sum(1 for m in mw_match_list if m["verdict_code"] == "VALUE_PLAY")
-    skip_cnt = sum(1 for m in mw_match_list if m["verdict_code"] == "SKIP")
+    tot_mw = len(date_filtered_mw)
+    super_locks_cnt = sum(1 for m in date_filtered_mw if m["verdict_code"] == "SUPER_LOCK")
+    value_cnt = sum(1 for m in date_filtered_mw if m["verdict_code"] == "VALUE_PLAY")
+    skip_cnt = sum(1 for m in date_filtered_mw if m["verdict_code"] == "SKIP")
 
     col_mk1, col_mk2, col_mk3, col_mk4 = st.columns(4)
     with col_mk1:
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-val" style="color: #38bdf8;">{tot_mw}</div>
-            <div class="kpi-lbl">Total Analyzed Matches</div>
+            <div class="kpi-lbl">Total Matches</div>
         </div>
         """, unsafe_allow_html=True)
     with col_mk2:
@@ -1428,7 +1458,7 @@ with vip_tabs[1]:
         mw_search = st.text_input("🔍 सर्च टीम / लीग", placeholder="e.g. Netherlands, Dubai...", key="input_mw_search")
 
     # Filter Rows
-    filtered_mw = mw_match_list
+    filtered_mw = date_filtered_mw
     if mw_filter_choice and "सुपर" in mw_filter_choice:
         filtered_mw = [m for m in filtered_mw if m["verdict_code"] == "SUPER_LOCK"]
     elif mw_filter_choice and "एक्शन" in mw_filter_choice:
@@ -1451,12 +1481,22 @@ with vip_tabs[1]:
 
             fav_label = m["fav_team"] if m["fav_team"] else "Even"
 
+            if m["status"] == 0:
+                toss_st_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">⏳ TOSS PENDING (टॉस बाकी)</span>'
+            elif m["status"] == 1:
+                toss_st_badge = '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">🔴 LIVE (टॉस हो चुका)</span>'
+            else:
+                toss_st_badge = '<span style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #64748b; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">✅ MATCH FINISHED</span>'
+
             st.markdown(f"""
             <div style="background: #0f172a; border: 1.5px solid {border_c}; border-radius: 14px; padding: 20px; margin-bottom: 18px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
-                    <span style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">
-                        🏏 {m['tournament']} · ⏰ {m['time']} ({m['date']})
-                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="background: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;">
+                            🏏 {m['tournament']} · ⏰ {m['time']} ({m['date']})
+                        </span>
+                        {toss_st_badge}
+                    </div>
                     <span style="color: #f59e0b; font-weight: 800; font-size: 13px;">
                         📊 CREX भाव: <b>{m['bhav']}</b>
                     </span>

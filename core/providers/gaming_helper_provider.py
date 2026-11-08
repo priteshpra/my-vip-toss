@@ -9,6 +9,7 @@ Integrates directly with https://gaminghelperonline.com/live-bets API:
 
 import os
 import re
+import time
 import json
 import hashlib
 import ssl
@@ -496,12 +497,15 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
     res = fetch_gaming_helper_live_bets(force_refresh=force_refresh)
     matches = res.get("matches") or []
 
-    # Enrich with major CREX fixtures that might not be on GamingHelper (e.g. Hong Kong Sixes)
+    today_iso_str = format_ist(now_ist(), "%Y-%m-%d")
+    # Discard stale matches from previous dates so only today & upcoming matches are active
+    matches = [m for m in matches if str(m.get("match_date") or "").split("T")[0].strip() >= today_iso_str]
+
+    # Enrich with major CREX fixtures that might not be on GamingHelper (e.g. Abu Dhabi T10, CSA Pro T20, WBBL)
     try:
         from core.providers.crex_provider import fetch_crex_fixtures, is_match_pair
         crex_fix = fetch_crex_fixtures(force_refresh=force_refresh)
         existing_pairs = [(m.get("team_a_name", ""), m.get("team_b_name", "")) for m in matches]
-        today_iso_str = format_ist(now_ist(), "%Y-%m-%d")
         tomorrow_iso_str = format_ist(now_ist() + timedelta(days=1), "%Y-%m-%d")
         now_ts = time.time()
         for cf in crex_fix:
@@ -524,7 +528,10 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
             already_has = any(is_match_pair(c1, c2, ep[0], ep[1]) for ep in existing_pairs)
             if already_has:
                 continue
-            if any(k in c_ser.lower() or k in c1.lower() or k in c2.lower() for k in ["sixes", "wbbl", "big bash", "tri series", "cwc", "d20", "d10"]):
+            if any(k in c_ser.lower() or k in c1.lower() or k in c2.lower() for k in [
+                "t10", "abu dhabi", "csa", "pro t20", "sixes", "wbbl", "big bash",
+                "tri series", "cwc", "d20", "d10", "trophy", "cup", "tour", "league", "premier"
+            ]):
                 mid = f"crex_{cf.get('sf', 'live')}_{c1[:3].lower()}_{c2[:3].lower()}"
                 v = compute_multi_source_toss_load(
                     team_a=c1,
