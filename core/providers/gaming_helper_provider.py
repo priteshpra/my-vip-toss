@@ -96,13 +96,25 @@ def login_gaming_helper(phone: str = DEFAULT_PHONE, password: str = DEFAULT_PASS
         return {"success": False, "error": str(e)}
 
 
+_MEM_GH_CACHE: Dict[str, Any] = {
+    "timestamp": 0,
+    "res": None
+}
+
+
 def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]:
-    """Fetch live bets from gaminglive.gaminghelperonline.com/api/live-bet."""
-    try:
-        from core.providers.crex_provider import sync_active_series_history_from_crex
-        sync_active_series_history_from_crex()
-    except Exception:
-        pass
+    """Fetch live bets from gaminglive.gaminghelperonline.com/api/live-bet with in-memory caching."""
+    global _MEM_GH_CACHE
+    now_ts = time.time()
+    if not force_refresh and (now_ts - _MEM_GH_CACHE["timestamp"]) < 120 and _MEM_GH_CACHE["res"]:
+        return _MEM_GH_CACHE["res"]
+
+    if force_refresh:
+        try:
+            from core.providers.crex_provider import sync_active_series_history_from_crex
+            sync_active_series_history_from_crex()
+        except Exception:
+            pass
 
     creds = get_stored_credentials()
     auth_token = creds.get("token")
@@ -171,6 +183,13 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
         }
     )
 
+    def _save_mem(res_obj):
+        global _MEM_GH_CACHE
+        if res_obj and res_obj.get("success"):
+            _MEM_GH_CACHE["timestamp"] = time.time()
+            _MEM_GH_CACHE["res"] = res_obj
+        return res_obj
+
     try:
         with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -179,7 +198,7 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
             os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
             with open(CACHE_FILE, "w", encoding="utf-8") as f:
                 json.dump(matches, f, indent=2)
-            return {"success": True, "matches": matches, "raw": data}
+            return _save_mem({"success": True, "matches": matches, "raw": data})
     except urllib.error.HTTPError as e:
         if e.code in (401, 440):
             # Token expired: auto re-login once and retry fetch
@@ -200,14 +219,14 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
                         os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
                         with open(CACHE_FILE, "w", encoding="utf-8") as f:
                             json.dump(matches, f, indent=2)
-                        return {"success": True, "matches": matches, "raw": data}
+                        return _save_mem({"success": True, "matches": matches, "raw": data})
                 except Exception:
                     pass
         # Fallback to local cache if network or HTTP error occurs
         if os.path.exists(CACHE_FILE):
             try:
                 with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                    return {"success": True, "matches": _hydrate_cached(json.load(f)), "cached": True}
+                    return _save_mem({"success": True, "matches": _hydrate_cached(json.load(f)), "cached": True})
             except Exception:
                 pass
         return {"success": False, "error": f"HTTP {e.code}: {e.read().decode('utf-8', errors='ignore')}", "needs_login": e.code in (401, 440)}
@@ -216,7 +235,7 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
         if os.path.exists(CACHE_FILE):
             try:
                 with open(CACHE_FILE, "r", encoding="utf-8") as f:
-                    return {"success": True, "matches": _hydrate_cached(json.load(f)), "cached": True}
+                    return _save_mem({"success": True, "matches": _hydrate_cached(json.load(f)), "cached": True})
             except Exception:
                 pass
         return {"success": False, "error": str(e)}

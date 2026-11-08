@@ -640,7 +640,7 @@ with col_st2:
             punter_data = get_active_punter_matches(force_refresh=True)
             st.session_state["live_punter_matches"] = punter_data.get("matches", [])
             st.session_state["live_gh_connected"] = punter_data.get("connected", False)
-            fetch_crex_fixtures(force_refresh=True)
+            st.session_state["crex_fixtures_mw"] = fetch_crex_fixtures(force_refresh=True)
             sync_completed_tosses_from_gaming_helper()
             st.success("Synced live bets & CREX bhav successfully!")
             st.rerun()
@@ -1390,9 +1390,11 @@ with vip_tabs[1]:
         </div>
         """, unsafe_allow_html=True)
 
-    # Fetch real-time fixtures from CREX
+    # Fetch real-time fixtures from CREX (cached in session state for instant tab switching)
     from core.providers.crex_provider import fetch_crex_fixtures
-    crex_fixtures_mw = fetch_crex_fixtures(force_refresh=False)
+    if "crex_fixtures_mw" not in st.session_state or st.session_state.get("need_live_refresh", False):
+        st.session_state["crex_fixtures_mw"] = fetch_crex_fixtures(force_refresh=False)
+    crex_fixtures_mw = st.session_state.get("crex_fixtures_mw", [])
     all_done_mw = load_toss_results()
 
     mw_match_list = []
