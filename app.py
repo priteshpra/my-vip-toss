@@ -657,31 +657,56 @@ vip_tabs = st.tabs([
 # TAB 1: LIVE BETS & ACTIONABLE VERDICTS
 # ==============================================================================
 with vip_tabs[0]:
-    # Smart Date-Aware Filtering (Today vs Tomorrow vs All Active)
+    # Smart Date-Aware & Live Status Filtering (Only pending, actionable coin tosses in Live Toss)
     cur_ist = now_ist()
     today_iso = format_ist(cur_ist, "%Y-%m-%d")
     tomorrow_iso = format_ist(cur_ist + timedelta(days=1), "%Y-%m-%d")
 
-    c_today = sum(1 for m in all_matches if str(m.get("match_date") or "").split("T")[0].strip() == today_iso)
-    c_tomorrow = sum(1 for m in all_matches if str(m.get("match_date") or "").split("T")[0].strip() == tomorrow_iso)
+    all_done_list = load_toss_results()
+    def _is_toss_completed(m):
+        mid = str(m.get("id"))
+        ta = m.get("team_a_name", "")
+        tb = m.get("team_b_name", "")
+        m_date = str(m.get("match_date") or "").split("T")[0].strip() or today_iso
+        for r in all_done_list:
+            if str(r.get("match_id")) == mid:
+                act_w = str(r.get("actual_winner") or "")
+                if act_w and "pending" not in act_w.lower():
+                    return True
+            if str(r.get("match_date") or "").strip() == m_date and ((match_teams_fuzzy(ta, str(r.get("team_a", ""))) and match_teams_fuzzy(tb, str(r.get("team_b", "")))) or (match_teams_fuzzy(tb, str(r.get("team_a", ""))) and match_teams_fuzzy(ta, str(r.get("team_b", ""))))):
+                act_w = str(r.get("actual_winner") or "")
+                if act_w and "pending" not in act_w.lower():
+                    return True
+        t_clean = (m.get("toss_time_str") or m.get("time_str") or "").replace(" IST", "").strip()
+        try:
+            t_dt = datetime.strptime(f"{m_date} {t_clean}", "%Y-%m-%d %I:%M %p").replace(tzinfo=cur_ist.tzinfo)
+            if (cur_ist - t_dt).total_seconds() > 900:
+                return True
+        except Exception:
+            pass
+        return False
+
+    c_today_pending = sum(1 for m in all_matches if str(m.get("match_date") or "").split("T")[0].strip() == today_iso and not _is_toss_completed(m))
+    c_tomorrow_pending = sum(1 for m in all_matches if str(m.get("match_date") or "").split("T")[0].strip() == tomorrow_iso and not _is_toss_completed(m))
+    c_all_pending = sum(1 for m in all_matches if not _is_toss_completed(m))
 
     date_options = []
     date_iso_map = {}
 
-    lbl_today = f"📅 Aaj ({format_ist(cur_ist, '%d %b')}) [{c_today}]"
+    lbl_today = f"📅 Aaj ({format_ist(cur_ist, '%d %b')}) [{c_today_pending}]"
     date_options.append(lbl_today)
     date_iso_map[lbl_today] = today_iso
 
-    lbl_tomorrow = f"📅 Kal ({format_ist(cur_ist + timedelta(days=1), '%d %b')}) [{c_tomorrow}]"
+    lbl_tomorrow = f"📅 Kal ({format_ist(cur_ist + timedelta(days=1), '%d %b')}) [{c_tomorrow_pending}]"
     date_options.append(lbl_tomorrow)
     date_iso_map[lbl_tomorrow] = tomorrow_iso
 
-    lbl_all = f"🌟 Sabhi Dates [{len(all_matches)}]"
+    lbl_all = f"🌟 Sabhi Dates [{c_all_pending}]"
     date_options.append(lbl_all)
     date_iso_map[lbl_all] = "ALL"
 
-    # Default: if today has matches, show Today. When today's matches finish (e.g. night time), auto-switch to Tomorrow!
-    default_date_idx = 0 if c_today > 0 else 1
+    # Auto-switch: If today has 0 pending tosses, automatically select Tomorrow (Kal)!
+    default_date_idx = 0 if c_today_pending > 0 else 1
 
     col_dpill, col_spc = st.columns([2.5, 1])
     with col_dpill:
@@ -697,12 +722,14 @@ with vip_tabs[0]:
 
     selected_iso = date_iso_map.get(selected_date_lbl, "ALL")
 
+    # STRICT LIVE TOSS: Never show completed coin flips in Live Toss (completed tosses live in 'Toss Done' tab)
     if selected_iso == "ALL":
-        active_matches = list(all_matches)
+        active_matches = [m for m in all_matches if not _is_toss_completed(m)]
     else:
         active_matches = [
             m for m in all_matches
             if str(m.get("match_date") or "").split("T")[0].strip() == selected_iso
+            and not _is_toss_completed(m)
         ]
 
     # Sort matches chronologically by toss time in IST
@@ -732,62 +759,13 @@ with vip_tabs[0]:
 
     active_matches.sort(key=_toss_sort_minutes)
 
-    # Check completed tosses to keep Live Toss clean and focused only on upcoming pending tosses
-    all_done_list = load_toss_results()
-    def _is_toss_completed(m):
-        mid = str(m.get("id"))
-        ta = m.get("team_a_name", "")
-        tb = m.get("team_b_name", "")
-        m_date = str(m.get("match_date") or "").split("T")[0].strip() or today_iso
-        for r in all_done_list:
-            if str(r.get("match_id")) == mid:
-                act_w = str(r.get("actual_winner") or "")
-                if act_w and "pending" not in act_w.lower():
-                    return True
-            if str(r.get("match_date") or "").strip() == m_date and ((match_teams_fuzzy(ta, str(r.get("team_a", ""))) and match_teams_fuzzy(tb, str(r.get("team_b", "")))) or (match_teams_fuzzy(tb, str(r.get("team_a", ""))) and match_teams_fuzzy(ta, str(r.get("team_b", ""))))):
-                act_w = str(r.get("actual_winner") or "")
-                if act_w and "pending" not in act_w.lower():
-                    return True
-        t_clean = (m.get("toss_time_str") or m.get("time_str") or "").replace(" IST", "").strip()
-        try:
-            t_dt = datetime.strptime(f"{m_date} {t_clean}", "%Y-%m-%d %I:%M %p").replace(tzinfo=cur_ist.tzinfo)
-            if (cur_ist - t_dt).total_seconds() > 900:
-                return True
-        except Exception:
-            pass
-        return False
-
-    c_pending_toss = sum(1 for m in active_matches if not _is_toss_completed(m))
-    c_done_toss = sum(1 for m in active_matches if _is_toss_completed(m))
-
-    col_capt, col_toss_pill = st.columns([2.2, 1.8])
-    with col_capt:
-        if selected_iso == today_iso:
-            date_caption_text = f"📅 **लाइव टॉस लिस्ट (आज के मैच):** {format_ist(cur_ist, '%d %b %Y (%A)')}"
-        elif selected_iso == tomorrow_iso:
-            date_caption_text = f"📅 **लाइव टॉस लिस्ट (कल के आगामी मैच):** {format_ist(cur_ist + timedelta(days=1), '%d %b %Y (%A)')}"
-        else:
-            date_caption_text = "📅 **लाइव टॉस लिस्ट (सभी एक्टिव मैच):**"
-        st.caption(f"{date_caption_text} · सभी समय **IST** में हैं")
-
-    with col_toss_pill:
-        toss_view_opts = [
-            f"⏳ सिर्फ आगामी टॉस ({c_pending_toss})",
-            f"🌟 सभी टॉस ({len(active_matches)})"
-        ]
-        def_toss_view_idx = 0 if c_pending_toss > 0 else 1
-        toss_view_choice = st.pills(
-            "Toss View Filter",
-            toss_view_opts,
-            default=toss_view_opts[def_toss_view_idx],
-            key="pills_toss_status_view",
-            label_visibility="collapsed"
-        )
-        if not toss_view_choice:
-            toss_view_choice = toss_view_opts[def_toss_view_idx]
-
-    if "आगामी" in toss_view_choice:
-        active_matches = [m for m in active_matches if not _is_toss_completed(m)]
+    if selected_iso == today_iso:
+        date_caption_text = f"📅 **लाइव टॉस लिस्ट (आज के मैच):** {format_ist(cur_ist, '%d %b %Y (%A)')}"
+    elif selected_iso == tomorrow_iso:
+        date_caption_text = f"📅 **लाइव टॉस लिस्ट (कल के आगामी मैच):** {format_ist(cur_ist + timedelta(days=1), '%d %b %Y (%A)')}"
+    else:
+        date_caption_text = "📅 **लाइव टॉस लिस्ट (सभी एक्टिव आगामी मैच):**"
+    st.caption(f"{date_caption_text} · सभी समय **IST (Indian Standard Time)** में हैं")
 
     # Extract unique tournaments from active matches
     all_live_tournaments = []
@@ -950,8 +928,20 @@ with vip_tabs[0]:
     st.markdown(f"### 🪙 Live Fixtures ({len(filtered_list)} Matches)")
 
     if not filtered_list:
-        if c_done_toss > 0 and "आगामी" in toss_view_choice and not search_q.strip() and selected_live_tour == "🌟 Sabhi Tournaments (All)":
-            st.info(f"✅ आज के सभी टॉस संपन्न हो चुके हैं ({c_done_toss} मैच)। परिणाम देखने के लिए ऊपर '✅ TOSS DONE' टैब देखें या फ़िल्टर में '🌟 सभी टॉस' चुनें। कल के टॉस के लिए ऊपर '📅 Kal' चुनें।")
+        if selected_iso == today_iso and c_today_pending == 0 and not search_q.strip() and selected_live_tour == "🌟 Sabhi Tournaments (All)":
+            st.markdown(f"""
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid #10b981; border-radius: 12px; padding: 22px; text-align: center; margin: 18px 0;">
+                <div style="font-size: 18px; font-weight: 900; color: #34d399; margin-bottom: 6px;">
+                    ✅ आज ({format_ist(cur_ist, '%d %b')}) के सभी टॉस संपन्न हो चुके हैं!
+                </div>
+                <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">
+                    आज के किसी भी मैच का टॉस अब पेंडिंग नहीं है। सभी टॉस के रिज़ल्ट्स और विनिंग रिकॉर्ड देखने के लिए ऊपर <b>'✅ TOSS DONE'</b> टैब देखें।
+                </div>
+                <div style="font-size: 13px; color: #38bdf8; font-weight: 700;">
+                    👉 कल के आगामी 15 मैचों के लाइव टॉस प्रेडिक्शन देखने के लिए ऊपर <b>'📅 Kal'</b> चुनें।
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         elif "100%" in filter_type or "Satik" in filter_type:
             st.info("ℹ️ Is filter/tournament me filhal koi 100% Satik Play nahi hai (teams 50-50 neutral coin flip rotation me hain). Sabhi matches dekhne ke liye '🌟 Sabhi Matches (All)' select karein.")
         else:
