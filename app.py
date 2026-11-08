@@ -732,13 +732,62 @@ with vip_tabs[0]:
 
     active_matches.sort(key=_toss_sort_minutes)
 
-    if selected_iso == today_iso:
-        date_caption_text = f"📅 **लाइव टॉस लिस्ट (आज के मैच):** {format_ist(cur_ist, '%d %b %Y (%A)')}"
-    elif selected_iso == tomorrow_iso:
-        date_caption_text = f"📅 **लाइव टॉस लिस्ट (कल के आगामी मैच):** {format_ist(cur_ist + timedelta(days=1), '%d %b %Y (%A)')}"
-    else:
-        date_caption_text = "📅 **लाइव टॉस लिस्ट (सभी एक्टिव मैच):**"
-    st.caption(f"{date_caption_text} · सभी टॉस समय **IST (Indian Standard Time)** में हैं")
+    # Check completed tosses to keep Live Toss clean and focused only on upcoming pending tosses
+    all_done_list = load_toss_results()
+    def _is_toss_completed(m):
+        mid = str(m.get("id"))
+        ta = m.get("team_a_name", "")
+        tb = m.get("team_b_name", "")
+        m_date = str(m.get("match_date") or "").split("T")[0].strip() or today_iso
+        for r in all_done_list:
+            if str(r.get("match_id")) == mid:
+                act_w = str(r.get("actual_winner") or "")
+                if act_w and "pending" not in act_w.lower():
+                    return True
+            if str(r.get("match_date") or "").strip() == m_date and ((match_teams_fuzzy(ta, str(r.get("team_a", ""))) and match_teams_fuzzy(tb, str(r.get("team_b", "")))) or (match_teams_fuzzy(tb, str(r.get("team_a", ""))) and match_teams_fuzzy(ta, str(r.get("team_b", ""))))):
+                act_w = str(r.get("actual_winner") or "")
+                if act_w and "pending" not in act_w.lower():
+                    return True
+        t_clean = (m.get("toss_time_str") or m.get("time_str") or "").replace(" IST", "").strip()
+        try:
+            t_dt = datetime.strptime(f"{m_date} {t_clean}", "%Y-%m-%d %I:%M %p").replace(tzinfo=cur_ist.tzinfo)
+            if (cur_ist - t_dt).total_seconds() > 900:
+                return True
+        except Exception:
+            pass
+        return False
+
+    c_pending_toss = sum(1 for m in active_matches if not _is_toss_completed(m))
+    c_done_toss = sum(1 for m in active_matches if _is_toss_completed(m))
+
+    col_capt, col_toss_pill = st.columns([2.2, 1.8])
+    with col_capt:
+        if selected_iso == today_iso:
+            date_caption_text = f"📅 **लाइव टॉस लिस्ट (आज के मैच):** {format_ist(cur_ist, '%d %b %Y (%A)')}"
+        elif selected_iso == tomorrow_iso:
+            date_caption_text = f"📅 **लाइव टॉस लिस्ट (कल के आगामी मैच):** {format_ist(cur_ist + timedelta(days=1), '%d %b %Y (%A)')}"
+        else:
+            date_caption_text = "📅 **लाइव टॉस लिस्ट (सभी एक्टिव मैच):**"
+        st.caption(f"{date_caption_text} · सभी समय **IST** में हैं")
+
+    with col_toss_pill:
+        toss_view_opts = [
+            f"⏳ सिर्फ आगामी टॉस ({c_pending_toss})",
+            f"🌟 सभी टॉस ({len(active_matches)})"
+        ]
+        def_toss_view_idx = 0 if c_pending_toss > 0 else 1
+        toss_view_choice = st.pills(
+            "Toss View Filter",
+            toss_view_opts,
+            default=toss_view_opts[def_toss_view_idx],
+            key="pills_toss_status_view",
+            label_visibility="collapsed"
+        )
+        if not toss_view_choice:
+            toss_view_choice = toss_view_opts[def_toss_view_idx]
+
+    if "आगामी" in toss_view_choice:
+        active_matches = [m for m in active_matches if not _is_toss_completed(m)]
 
     # Extract unique tournaments from active matches
     all_live_tournaments = []
@@ -901,7 +950,9 @@ with vip_tabs[0]:
     st.markdown(f"### 🪙 Live Fixtures ({len(filtered_list)} Matches)")
 
     if not filtered_list:
-        if "100%" in filter_type or "Satik" in filter_type:
+        if c_done_toss > 0 and "आगामी" in toss_view_choice and not search_q.strip() and selected_live_tour == "🌟 Sabhi Tournaments (All)":
+            st.info(f"✅ आज के सभी टॉस संपन्न हो चुके हैं ({c_done_toss} मैच)। परिणाम देखने के लिए ऊपर '✅ TOSS DONE' टैब देखें या फ़िल्टर में '🌟 सभी टॉस' चुनें। कल के टॉस के लिए ऊपर '📅 Kal' चुनें।")
+        elif "100%" in filter_type or "Satik" in filter_type:
             st.info("ℹ️ Is filter/tournament me filhal koi 100% Satik Play nahi hai (teams 50-50 neutral coin flip rotation me hain). Sabhi matches dekhne ke liye '🌟 Sabhi Matches (All)' select karein.")
         else:
             st.info("Selected filters ke hisab se koi match nahi mila. 'Sabhi Matches' select karein.")
