@@ -1618,7 +1618,7 @@ with vip_tabs[1]:
     ]
     def_mw_date_idx = 0 if c_today_mw > 0 else 1
 
-    col_mwd_pill, col_mw_spc = st.columns([2.5, 1])
+    col_mwd_pill, col_mw_spc = st.columns([2.4, 1.2])
     with col_mwd_pill:
         sel_mw_date = st.pills(
             "Match Date",
@@ -1627,6 +1627,12 @@ with vip_tabs[1]:
             key="mw_date_pill",
             label_visibility="collapsed"
         )
+    with col_mw_spc:
+        if st.button("⚡ रिफ्रेश लाइव भाव (Sync CREX)", key="btn_sync_crex_mw", use_container_width=True):
+            with st.spinner("CREX से लाइव भाव और टॉस अपडेट हो रहा है..."):
+                st.session_state["crex_fixtures_mw"] = fetch_crex_fixtures(force_refresh=True)
+                sync_live_toss_results_from_crex()
+                st.rerun()
     if not sel_mw_date:
         sel_mw_date = mw_date_opts[def_mw_date_idx]
 
