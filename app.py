@@ -1354,9 +1354,56 @@ with vip_tabs[1]:
     </div>
     """, unsafe_allow_html=True)
 
+    # Interactive Punter Timing Guide Expander
+    with st.expander("💡 🎯 पंटर टाइमिंग गाइड: मैच विनर पर पैसा कब लगाएं और कब नहीं? (Toss & Entry Rules)", expanded=False):
+        st.markdown("""
+        <div style="background: #020617; border: 1px solid #1e293b; border-radius: 10px; padding: 16px; margin-bottom: 8px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                <div style="background: #0f172a; border-left: 4px solid #10b981; border-radius: 6px; padding: 12px;">
+                    <div style="font-weight: 900; color: #34d399; font-size: 14px; margin-bottom: 6px;">
+                        🟢 1. टॉस के बाद बेस्ट एंट्री (Best Entry Window)
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                        • टॉस होने के ठीक <b>5 से 10 मिनट बाद</b> एंट्री लें जब प्लेइंग 11 और पिच कंडीशन साफ हो जाए।<br>
+                        • अगर आपकी पसंदीदा टीम टॉस जीतकर <b>बॉलिंग (Chase)</b> चुनती है, तो तुरंत एंट्री लें क्योंकि टी20/टी10 में चेस करने वाली टीम की जीत की संभावना 70%+ होती है।
+                    </div>
+                </div>
+                <div style="background: #0f172a; border-left: 4px solid #38bdf8; border-radius: 6px; padding: 12px;">
+                    <div style="font-weight: 900; color: #38bdf8; font-size: 14px; margin-bottom: 6px;">
+                        📈 2. लाइव इन-प्ले एंट्री (Jackpot Entry Window)
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                        • अगर मैच से पहले फेवरेट टीम का भाव बहुत कम (30-40 पैसे) है, तो शुरू में पैसा न फंसाएं।<br>
+                        • पहली इनिंग के पावरप्ले में 1-2 विकेट गिरने पर जब भाव <b>75 से 100 पैसे (अंडरडॉग)</b> पर आए, तब बेहतरीन वैल्यू एंट्री लें।
+                    </div>
+                </div>
+                <div style="background: #0f172a; border-left: 4px solid #f59e0b; border-radius: 6px; padding: 12px;">
+                    <div style="font-weight: 900; color: #fbbf24; font-size: 14px; margin-bottom: 6px;">
+                        💰 3. प्रॉफिट लॉक करने का समय (Bookset / Cut-loss)
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                        • जब आपकी टीम <b>20-25 पैसे फेवरेट</b> आ जाए, तो तुरंत 'Both Side Green / Bookset' कर लें।<br>
+                        • कभी भी लालच में आकर मैच की आखिरी गेंद तक न रुकें — सुरक्षित मुनाफा ही पंटर की असली जीत है।
+                    </div>
+                </div>
+                <div style="background: #0f172a; border-left: 4px solid #ef4444; border-radius: 6px; padding: 12px;">
+                    <div style="font-weight: 900; color: #f87171; font-size: 14px; margin-bottom: 6px;">
+                        ⛔ 4. पैसा कब बिल्कुल न लगाएं (Strict NO BET)
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+                        • ❌ <b>टॉस से पहले:</b> जब तक प्लेइंग 11 और बैट/बॉल साफ न हो, कभी बड़ा दांव न लगाएं।<br>
+                        • ❌ <b>50-50 मैच:</b> <code>🟡 STRICT SKIP</code> वाले मैच में टॉस के बाद भी पैसा न लगाएं।<br>
+                        • ❌ <b>10-15 पैसे भाव:</b> इतने कम भाव पर रिस्क 100% होता है और रिटर्न न के बराबर।
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
     # Fetch real-time fixtures from CREX
     from core.providers.crex_provider import fetch_crex_fixtures
     crex_fixtures_mw = fetch_crex_fixtures(force_refresh=False)
+    all_done_mw = load_toss_results()
 
     mw_match_list = []
     seen_pairs_mw = set()
@@ -1409,6 +1456,74 @@ with vip_tabs[1]:
             risk_desc = "HIGH RISK (CLOSE CONTEST)"
             rationale_text = "⛔ दोनों टीमों के बीच कड़ा मुकाबला है (50-50)। किसी स्पष्ट विनर के बिना रिस्क न लें — पास करें।"
 
+        # Toss Status & Real-time Outcome Check
+        matched_done_mw = None
+        for r in all_done_mw:
+            rta = str(r.get("team_a", ""))
+            rtb = str(r.get("team_b", ""))
+            if (match_teams_fuzzy(t1, rta) and match_teams_fuzzy(t2, rtb)) or (match_teams_fuzzy(t1, rtb) and match_teams_fuzzy(t2, rta)):
+                matched_done_mw = r
+                break
+
+        toss_is_done = False
+        toss_winner_name = ""
+        toss_decision_str = ""
+        if matched_done_mw and matched_done_mw.get("actual_winner") and "pending" not in str(matched_done_mw.get("actual_winner")).lower():
+            toss_is_done = True
+            toss_winner_name = str(matched_done_mw.get("actual_winner")).strip()
+            toss_decision_str = str(matched_done_mw.get("toss_decision") or "").strip()
+        elif status_num >= 1:
+            toss_is_done = True
+
+        # Check if favorite team won toss and role
+        fav_won_toss = False
+        fav_is_chasing = False
+        fav_is_defending = False
+
+        if toss_winner_name and fav:
+            if match_teams_fuzzy(fav, toss_winner_name):
+                fav_won_toss = True
+                if "bowl" in toss_decision_str.lower() or "field" in toss_decision_str.lower():
+                    fav_is_chasing = True
+                elif "bat" in toss_decision_str.lower():
+                    fav_is_defending = True
+            else:
+                if "bowl" in toss_decision_str.lower() or "field" in toss_decision_str.lower():
+                    fav_is_defending = True
+                elif "bat" in toss_decision_str.lower():
+                    fav_is_chasing = True
+
+        # Actionable timing guidance based on toss result & match status
+        if verdict_code in ["SUPER_LOCK", "VALUE_PLAY"]:
+            if not toss_is_done:
+                timing_badge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;">⏳ अभी रुकें (TOSS PENDING)</span>'
+                timing_advice = f"टॉस और प्लेइंग 11 का इंतज़ार करें। टॉस होने के ठीक 5 से 10 मिनट बाद जब भाव <b>{bhav_display}</b> स्थिर हो, तब <b>{fav}</b> पर एंट्री लें।"
+                when_not_to_bet = "❌ टॉस से पहले जब तक प्लेइंग 11 और बैट/बॉल का फैसला न हो, बड़ा दांव न लगाएं।"
+            else:
+                if fav_won_toss and fav_is_chasing:
+                    timing_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;">🟢 🔥 BEST ENTRY WINDOW (अभी पैसा लगाएं)</span>'
+                    timing_advice = f"<b>{fav}</b> ने टॉस जीतकर बॉलिंग (Chase) चुनी है! सीमित ओवर क्रिकेट में चेस करने वाली मजबूत टीम का विन रेट 75%+ होता है। मैच शुरू होने से ठीक पहले या पहले 2-3 ओवर में एंट्री लें।"
+                    when_not_to_bet = "❌ अगर भाव गिरकर 20 पैसे से नीचे आ जाए तो भारी रिस्क के कारण एंट्री न लें।"
+                elif fav_is_chasing:
+                    timing_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;">🟢 🎯 PRIME CHASE ENTRY (पैसा लगाएं)</span>'
+                    timing_advice = f"विपक्षी टीम पहले बैटिंग कर रही है और <b>{fav}</b> चेस करेगी। मैच शुरू होने से पहले या पहली इनिंग के पावरप्ले में एंट्री लें।"
+                    when_not_to_bet = "❌ अगर चेस करते समय पावरप्ले में 3+ विकेट गिर जाएं तो नई एंट्री अवॉइड करें।"
+                elif fav_won_toss and fav_is_defending:
+                    timing_badge = '<span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #0284c7; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;">🔵 ⏱️ IN-PLAY ENTRY (संभलकर एंट्री लें)</span>'
+                    timing_advice = f"<b>{fav}</b> पहले बैटिंग कर रही है। शुरू में कम रेट पर पैसा न फंसाएं; पहली इनिंग के 3-4 ओवर देखें और 1 विकेट गिरने पर जब भाव 75-95 पैसे पर आए तब वैल्यू एंट्री लें।"
+                    when_not_to_bet = "❌ 30-40 पैसे के बहुत कम भाव पर पहले ही ओवर में पैसा न फंसाएं।"
+                else:
+                    timing_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;">🟢 🎯 POST-TOSS ENTRY (टॉस के बाद एंट्री)</span>'
+                    timing_advice = f"टॉस हो चुका है! <b>{fav}</b> के जीतने की संभावना {prob}% है। मैच के शुरुआती ओवरों में <b>{bhav_display}</b> भाव पर अपनी एंट्री ले लें।"
+                    when_not_to_bet = "❌ 20 पैसे से नीचे के भाव पर एंट्री न लें (रिस्क ज्यादा, प्रॉफिट कम)।"
+
+            bookset_advice = f"💰 <b>बुकसेट (प्रॉफ़िट बुकिंग):</b> जब <b>{fav}</b> का भाव 20-25 पैसे फेवरेट आ जाए, तुरंत 'Both Side Green / Bookset' करके रिस्क-फ्री हो जाएं।"
+        else:
+            timing_badge = '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;">⛔ ❌ STRICT NO BET (पैसे न लगाएं)</span>'
+            timing_advice = "<b>टॉस के बाद भी इस मैच में पैसा बिल्कुल न लगाएं।</b> दोनों टीमें बराबरी (50-50) पर हैं। यह मैच पंटर ट्रैप साबित हो सकता है।"
+            when_not_to_bet = "❌ किसी भी टीम पर पैसा न लगाएं। पूंजी सुरक्षित रखने के लिए इस मैच को 100% PASS करें।"
+            bookset_advice = "🛡️ <b>सुरक्षा नियम:</b> 50-50 मैचों को छोड़ना ही एक सफल और समझदार पंटर की सबसे बड़ी ताकत होती है।"
+
         mw_match_list.append({
             "tournament": ser,
             "team_a": t1,
@@ -1425,7 +1540,14 @@ with vip_tabs[1]:
             "verdict_badge": verdict_badge,
             "action_text": action_text,
             "risk_desc": risk_desc,
-            "rationale": rationale_text
+            "rationale": rationale_text,
+            "toss_is_done": toss_is_done,
+            "toss_winner_name": toss_winner_name,
+            "toss_decision_str": toss_decision_str,
+            "timing_badge": timing_badge,
+            "timing_advice": timing_advice,
+            "when_not_to_bet": when_not_to_bet,
+            "bookset_advice": bookset_advice
         })
 
     # Date Filtering (Aaj vs Kal vs Sabhi)
@@ -1545,12 +1667,75 @@ with vip_tabs[1]:
 
             fav_label = m["fav_team"] if m["fav_team"] else "Even"
 
-            if m["status"] == 0:
-                toss_st_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">⏳ TOSS PENDING (टॉस बाकी)</span>'
-            elif m["status"] == 1:
-                toss_st_badge = '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">🔴 LIVE (टॉस हो चुका)</span>'
+            if m["toss_is_done"]:
+                if m["toss_winner_name"]:
+                    dec_label = "बॉलिंग (Chase)" if "bowl" in m["toss_decision_str"].lower() or "field" in m["toss_decision_str"].lower() else ("बैटिंग (Defend)" if "bat" in m["toss_decision_str"].lower() else m["toss_decision_str"])
+                    toss_info_html = f"""
+                    <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid #10b981; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px;">
+                        <span style="font-size: 13px; font-weight: 800; color: #34d399;">
+                            🪙 टॉस अपडेट: <b>{m['toss_winner_name']}</b> ने टॉस जीतकर <b>{dec_label}</b> चुनी
+                        </span>
+                        <span style="font-size: 11px; background: #064e3b; color: #a7f3d0; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
+                            ✅ टॉस संपन्न (Toss Done)
+                        </span>
+                    </div>
+                    """
+                else:
+                    toss_info_html = """
+                    <div style="background: rgba(56, 189, 248, 0.12); border: 1px solid #0284c7; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 13px; font-weight: 800; color: #38bdf8;">
+                            🔴 मैच इन-प्ले है / टॉस हो चुका है
+                        </span>
+                        <span style="font-size: 11px; background: #0c4a6e; color: #bae6fd; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
+                            LIVE IN-PLAY
+                        </span>
+                    </div>
+                    """
+                toss_st_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">✅ TOSS DONE</span>'
+            elif m["status"] == 0:
+                toss_info_html = """
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px dashed #f59e0b; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 12px; font-weight: 700; color: #fbbf24;">
+                        ⏳ टॉस अभी बाकी है (टॉस होने के बाद प्लेइंग 11 और भाव अपडेट होगा)
+                    </span>
+                    <span style="font-size: 11px; background: #451a03; color: #fde68a; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
+                        TOSS PENDING
+                    </span>
+                </div>
+                """
+                toss_st_badge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">⏳ TOSS PENDING</span>'
             else:
+                toss_info_html = """
+                <div style="background: rgba(148, 163, 184, 0.1); border: 1px solid #64748b; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 12px; font-weight: 700; color: #94a3b8;">
+                        🏁 मैच संपन्न हो चुका है (Match Finished)
+                    </span>
+                    <span style="font-size: 11px; background: #334155; color: #e2e8f0; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
+                        FINISHED
+                    </span>
+                </div>
+                """
                 toss_st_badge = '<span style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #64748b; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 800;">✅ MATCH FINISHED</span>'
+
+            entry_block_html = f"""
+            <div style="background: #090d16; border: 1px solid #1e293b; border-radius: 10px; padding: 12px 14px; margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid #1e293b; padding-bottom: 6px;">
+                    <span style="font-size: 13px; font-weight: 900; color: #f1f5f9;">
+                        ⏱️ पैसा कब लगाएं और कब नहीं? (Entry Strategy)
+                    </span>
+                    {m['timing_badge']}
+                </div>
+                <div style="font-size: 12px; color: #e2e8f0; line-height: 1.5; margin-bottom: 6px;">
+                    👉 <b>कब लगाएं:</b> {m['timing_advice']}
+                </div>
+                <div style="font-size: 12px; color: #f87171; line-height: 1.5; margin-bottom: 6px;">
+                    ⚠️ <b>कब न लगाएं:</b> {m['when_not_to_bet']}
+                </div>
+                <div style="font-size: 12px; color: #34d399; line-height: 1.5;">
+                    {m['bookset_advice']}
+                </div>
+            </div>
+            """
 
             st.markdown(f"""
             <div style="background: #0f172a; border: 1.5px solid {border_c}; {box_glow} border-radius: 14px; padding: 20px; margin-bottom: 18px;">
@@ -1578,9 +1763,11 @@ with vip_tabs[1]:
                         {m['verdict_badge']} · 🛡️ {m['risk_desc']}
                     </div>
                 </div>
+                {toss_info_html}
                 <div style="background: #020617; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #cbd5e1; margin-top: 8px;">
                     ℹ️ <b>मैच एनालिसिस:</b> {m['rationale']}
                 </div>
+                {entry_block_html}
             </div>
             """, unsafe_allow_html=True)
 
