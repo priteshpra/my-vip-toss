@@ -1,5 +1,22 @@
 [
   {
+    "match_id": "crex_2LV_pok_kar",
+    "match_name": "Pokhara Avengers vs Karnali Yaks",
+    "tournament": "Nepal Premier League 2026",
+    "toss_time_ist": "12:15 PM IST",
+    "match_date": "2026-11-09",
+    "team_a": "Pokhara Avengers",
+    "team_b": "Karnali Yaks",
+    "recommended_team": "Karnali Yaks",
+    "stake_rating": "\ud83d\udc8e 100% SATIK PLAY (GOLDEN LOCK)",
+    "actual_winner": "Pokhara Avengers",
+    "toss_decision": "Bat",
+    "outcome": "FAIL",
+    "outcome_label": "\u274c FAIL (MISSED)",
+    "is_manual": true,
+    "recorded_at": "2026-11-09 11:57 AM IST"
+  },
+  {
     "match_id": "crex_2IO_ara_roy",
     "match_name": "Arabian Aces vs Royal Desert Champions",
     "tournament": "Abu Dhabi T10 League 2026",
