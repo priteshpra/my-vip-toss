@@ -1,0 +1,20 @@
+{
+  "karnaliyaks__pokharaavengers": {
+    "fav_team": "Karnali Yaks",
+    "win_prob": 85,
+    "verdict_code": "SUPER_LOCK",
+    "verdict_badge": "💎 85% SUPER LOCK",
+    "action_text": "🟢 HEAVY MATCH WINNER LOCK: KARNALI YAKS",
+    "risk_desc": "VERY LOW RISK (DOMINANT SQUAD)",
+    "original_bhav": "[KY] 18-69"
+  },
+  "pokhara avengers__vs__karnali yaks": {
+    "fav_team": "Karnali Yaks",
+    "win_prob": 85,
+    "verdict_code": "SUPER_LOCK",
+    "verdict_badge": "💎 85% SUPER LOCK",
+    "action_text": "🟢 HEAVY MATCH WINNER LOCK: KARNALI YAKS",
+    "risk_desc": "VERY LOW RISK (DOMINANT SQUAD)",
+    "original_bhav": "[KY] 18-69"
+  }
+}

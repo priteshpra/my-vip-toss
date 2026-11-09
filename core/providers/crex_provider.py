@@ -50,6 +50,49 @@ def is_match_pair(ta: str, tb: str, c1: str, c2: str) -> bool:
     return dir_match or rev_match
 
 
+MW_LOCK_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "mw_predictions_locked.json")
+
+def load_locked_mw_predictions() -> Dict[str, Any]:
+    if os.path.exists(MW_LOCK_FILE):
+        try:
+            with open(MW_LOCK_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_locked_mw_prediction(t_a: str, t_b: str, data: Dict[str, Any]):
+    locks = load_locked_mw_predictions()
+    clean_a = re.sub(r'[^a-zA-Z0-9]', '', (t_a or "").lower())
+    clean_b = re.sub(r'[^a-zA-Z0-9]', '', (t_b or "").lower())
+    pkey = f"{min(clean_a, clean_b)}__{max(clean_a, clean_b)}"
+    locks[pkey] = data
+    locks[f"{(t_a or '').strip().lower()}__vs__{(t_b or '').strip().lower()}"] = data
+    try:
+        os.makedirs(os.path.dirname(MW_LOCK_FILE), exist_ok=True)
+        with open(MW_LOCK_FILE, "w", encoding="utf-8") as f:
+            json.dump(locks, f, indent=2)
+    except Exception:
+        pass
+
+def get_locked_mw_prediction(t_a: str, t_b: str) -> Optional[Dict[str, Any]]:
+    locks = load_locked_mw_predictions()
+    clean_a = re.sub(r'[^a-zA-Z0-9]', '', (t_a or "").lower())
+    clean_b = re.sub(r'[^a-zA-Z0-9]', '', (t_b or "").lower())
+    pkey = f"{min(clean_a, clean_b)}__{max(clean_a, clean_b)}"
+    if pkey in locks:
+        return locks[pkey]
+    pair_str = f"{(t_a or '').strip().lower()}__vs__{(t_b or '').strip().lower()}"
+    if pair_str in locks:
+        return locks[pair_str]
+    for k, v in locks.items():
+        if "__vs__" in k:
+            parts = k.split("__vs__")
+            if is_match_pair(t_a, t_b, parts[0], parts[1]):
+                return v
+    return None
+
+
 def load_crex_cache_from_disk() -> List[Dict]:
     if os.path.exists(CACHE_FILE):
         try:

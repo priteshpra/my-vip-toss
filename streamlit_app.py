@@ -1469,6 +1469,33 @@ with vip_tabs[1]:
         elif status_num >= 1:
             toss_is_done = True
 
+        # Immutable Match Winner Lock: Never let in-play scoreboard momentum flip the original prediction!
+        from core.providers.crex_provider import get_locked_mw_prediction, save_locked_mw_prediction
+        locked_mw = get_locked_mw_prediction(t1, t2)
+        if not locked_mw and status_num == 0 and not toss_is_done and fav:
+            locked_mw = {
+                "fav_team": fav,
+                "win_prob": prob,
+                "verdict_code": verdict_code,
+                "verdict_badge": verdict_badge,
+                "action_text": action_text,
+                "risk_desc": risk_desc,
+                "rationale": rationale_text
+            }
+            save_locked_mw_prediction(t1, t2, locked_mw)
+
+        if locked_mw:
+            fav = locked_mw.get("fav_team", fav)
+            prob = locked_mw.get("win_prob", prob)
+            verdict_code = locked_mw.get("verdict_code", verdict_code)
+            verdict_badge = locked_mw.get("verdict_badge", verdict_badge)
+            action_text = locked_mw.get("action_text", action_text)
+            risk_desc = locked_mw.get("risk_desc", risk_desc)
+            if toss_is_done or status_num >= 1:
+                rationale_text = f"💎 संस्थागत प्री-मैच प्रेडिक्शन <b>{fav}</b> ({prob}%) पर लॉक है। लाइव इन-प्ले भाव <b>{bhav_display}</b> चल रहा है।"
+            else:
+                rationale_text = locked_mw.get("rationale", rationale_text)
+
         # Check if favorite team won toss and role
         fav_won_toss = False
         fav_is_chasing = False
