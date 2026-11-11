@@ -51,14 +51,33 @@ def load_locked_predictions() -> Dict[str, Any]:
 
 
 def save_locked_prediction(match_id: str, verdict: Dict[str, Any], team_a: str = "", team_b: str = "") -> None:
-    """Freeze and persist a match prediction permanently under ID and Pair Key."""
+    """Freeze and persist a match prediction permanently under ID and Pair Key.
+    
+    IMMUTABLE VAULT RULE:
+    If this match was EVER locked as a PLAY call with a recommended team,
+    it can NEVER be downgraded to SKIP or overwritten with empty picks!
+    """
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
         locked = load_locked_predictions()
-        if match_id:
-            locked[str(match_id)] = verdict
-        if team_a and team_b:
-            pkey = _make_pair_key(team_a, team_b)
+        m_id_str = str(match_id or "").strip()
+        pkey = _make_pair_key(team_a, team_b) if (team_a and team_b) else ""
+
+        # Check existing lock: if it was already a PLAY, NEVER overwrite with SKIP!
+        existing = None
+        if m_id_str and m_id_str in locked:
+            existing = locked[m_id_str]
+        elif pkey and pkey in locked:
+            existing = locked[pkey]
+
+        if existing and existing.get("action") == "PLAY" and existing.get("recommended_team"):
+            if verdict.get("action") != "PLAY" or not verdict.get("recommended_team"):
+                # Preserve the original PLAY call! Do not overwrite with SKIP!
+                return
+
+        if m_id_str:
+            locked[m_id_str] = verdict
+        if pkey:
             locked[pkey] = verdict
             locked[f"{team_a.strip().lower()}__vs__{team_b.strip().lower()}"] = verdict
         with open(LOCKED_PREDICTIONS_FILE, "w", encoding="utf-8") as f:
