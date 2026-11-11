@@ -47,10 +47,18 @@ from core.providers.gaming_helper_provider import (
 from core.engine.toss_results_manager import (
     load_toss_results,
     save_toss_result,
+    delete_toss_result,
     get_toss_accuracy_kpis,
     sync_completed_tosses_from_gaming_helper,
     auto_update_toss_results_from_telegram,
     sync_live_toss_results_from_crex
+)
+from core.engine.match_winner_manager import (
+    load_mw_results,
+    save_mw_result,
+    delete_mw_result,
+    get_mw_accuracy_kpis,
+    sync_mw_results_from_crex
 )
 from core.providers.crex_provider import (
     fetch_crex_fixtures,
@@ -648,7 +656,7 @@ with col_st2:
 # --- 3 Clear Simple Tabs ---
 vip_tabs = st.tabs([
     "🔴 LIVE TOSS (लाइव टॉस)",
-    "🏆 MATCH WINNER (मैच विनर)",
+    "🏆 MATCH WINNER (मैच विनर & रिजल्ट्स)",
     "✅ TOSS DONE (टॉस रिज़ल्ट्स)"
 ])
 
@@ -1438,11 +1446,21 @@ with vip_tabs[1]:
             "syed mushtaq", "pondicherry", "assam", "bengal", "club"
         ])
 
-        if is_high_volatility:
+        if back is None:
+            # CREX exchange market line has not opened yet
+            verdict_code = "PENDING"
+            verdict_badge = "⏳ भाव प्रतीक्षारत (ODDS PENDING)"
+            action_text = "⏳ भाव प्रतीक्षारत: मैच से 2-3 घंटे पहले भाव खुलेगा"
+            risk_desc = "MARKET LINE NOT OPENED YET"
+            rationale_text = (
+                f"⏳ {ser} के लिए CREX एक्सचेंज भाव अभी खुला नहीं है। "
+                f"दोपहर/शाम को मैच शुरू होने से 2-3 घंटे पहले भाव लाइव होते ही स्योर प्रेडिक्शन स्वतः अनलॉक हो जाएगी।"
+            )
+        elif is_high_volatility:
             # High volatility league: Never issue SUPER_LOCK; cap at VALUE_PLAY or SKIP
-            if prob >= 65:
+            if back <= 50 or prob >= 67:
                 verdict_code = "VALUE_PLAY"
-                verdict_badge = f"🔥 {min(prob, 75)}% VALUE PLAY"
+                verdict_badge = f"🔥 {min(prob, 80)}% VALUE PLAY (0.5 LIMIT)"
                 action_text = f"🟢 VALUE PLAY: {fav.upper()} (हाई-वोलेटिलिटी लीग)"
                 risk_desc = "MODERATE RISK (ASSOCIATE/DOMESTIC)"
                 rationale_text = (
@@ -1450,32 +1468,53 @@ with vip_tabs[1]:
                     f"⚠️ नोट: {ser} जैसी एसोसिएट/घरेलू लीगों में 200+ रन बनते हैं और अप्रत्याशित उलटफेर होते हैं। "
                     f"आधी (0.5) लिमिट से खेलें और दोनों तरफ भाव आने पर तुरंत बुकसेट (प्रॉफ़िट लॉक) करें।"
                 )
+            elif back <= 85 or prob >= 54:
+                verdict_code = "VALUE_PLAY"
+                verdict_badge = f"🔥 {prob}% VALUE PLAY (SWEET SPOT)"
+                action_text = f"🟢 VALUE PLAY: {fav.upper()} (65-85 पैसे स्वीट स्पॉट)"
+                risk_desc = "BEST VALUE (ODDS 1.50 - 1.85)"
+                rationale_text = (
+                    f"🎯 मार्केट ऑड्स {bhav_display} {fav} के लिए सबसे बेस्ट वैल्यू स्वीट स्पॉट में हैं। "
+                    f"यहाँ 1 लिमिट से सुरक्षित एंट्री लें और 20-25 पैसे फेवरेट आने पर बुकसेट करें।"
+                )
+            elif back <= 92 or prob >= 52:
+                verdict_code = "VALUE_PLAY"
+                verdict_badge = f"⚡ {prob}% MODERATE VALUE (HALF LIMIT)"
+                action_text = f"🟡 MODERATE LEAN: {fav.upper()} (आधी लिमिट)"
+                risk_desc = "MODERATE RISK (CLOSE CONTEST)"
+                rationale_text = f"⚡ मार्केट भाव {bhav_display} {fav} की तरफ हल्का झुकाव दिखा रहा है। केवल 0.5 लिमिट से खेलें।"
             else:
                 verdict_code = "SKIP"
                 verdict_badge = "🟡 50-50 HIGH VOLATILITY"
                 action_text = "🟡 STRICT SKIP (RISKY VOLATILE LEAGUE)"
                 risk_desc = "HIGH RISK (UNPREDICTABLE)"
-                rationale_text = f"⛔ {ser} में दोनों टीमों में भारी अनिश्चितता है। पूंजी सुरक्षित रखने के लिए पास करें।"
+                rationale_text = f"⛔ {ser} में दोनों टीमों में भारी अनिश्चितता है ({bhav_display})। पूंजी सुरक्षित रखने के लिए पास करें।"
         else:
             # Tier 1 League / International / Premier Franchise
-            if prob >= 80:
+            if back <= 50 or prob >= 67:
                 verdict_code = "SUPER_LOCK"
                 verdict_badge = f"💎 {prob}% SUPER LOCK"
                 action_text = f"🟢 HEAVY MATCH WINNER LOCK: {fav.upper()}"
                 risk_desc = "VERY LOW RISK (DOMINANT SQUAD)"
                 rationale_text = f"💎 संस्थागत CREX भाव {bhav_display} के अनुसार {fav} के जीतने की संभावना {prob}% है। बैटिंग गहराई और टीम स्क्वाड बहुत मजबूत है।"
-            elif prob >= 65:
+            elif back <= 85 or prob >= 54:
                 verdict_code = "VALUE_PLAY"
-                verdict_badge = f"🔥 {prob}% VALUE PLAY"
+                verdict_badge = f"🔥 {prob}% VALUE PLAY (SWEET SPOT)"
                 action_text = f"🟢 PLAY MATCH WINNER: {fav.upper()}"
                 risk_desc = "LOW RISK (FAVORED TEAM)"
-                rationale_text = f"🔥 मार्केट ऑड्स {bhav_display} {fav} को स्पष्ट समर्थन दे रहे हैं ({prob}% विन चांस)।"
+                rationale_text = f"🔥 मार्केट ऑड्स {bhav_display} {fav} को स्पष्ट समर्थन दे रहे हैं ({prob}% विन चांस)। यह 65-85 पैसे का क्लासिक स्वीट स्पॉट है — यहाँ वैल्यू एंट्री लें।"
+            elif back <= 92 or prob >= 52:
+                verdict_code = "VALUE_PLAY"
+                verdict_badge = f"⚡ {prob}% MODERATE VALUE (HALF LIMIT)"
+                action_text = f"🟡 MODERATE LEAN: {fav.upper()} (आधी लिमिट)"
+                risk_desc = "MODERATE RISK (BALANCED SQUADS)"
+                rationale_text = f"⚡ मार्केट भाव {bhav_display} {fav} की तरफ हल्का झुकाव दिखा रहा है। केवल 0.5 लिमिट से खेलें।"
             else:
                 verdict_code = "SKIP"
                 verdict_badge = "🟡 50-50 TIGHT CONTEST"
                 action_text = "🟡 STRICT SKIP (50-50 EVEN MATCH)"
                 risk_desc = "HIGH RISK (CLOSE CONTEST)"
-                rationale_text = "⛔ दोनों टीमों के बीच कड़ा मुकाबला है (50-50)। किसी स्पष्ट विनर के बिना रिस्क न लें — पास करें।"
+                rationale_text = f"⛔ दोनों टीमों के बीच कड़ा मुकाबला है ({bhav_display})। किसी स्पष्ट विनर के बिना रिस्क न लें — पास करें।"
 
         # Toss Status & Real-time Outcome Check
         matched_done_mw = None
@@ -1567,6 +1606,11 @@ with vip_tabs[1]:
                     when_not_to_bet = "❌ 20 पैसे से नीचे के भाव पर एंट्री न लें (रिस्क ज्यादा, प्रॉफिट कम)।"
 
             bookset_advice = f"💰 <b>बुकसेट नियम:</b> जब <b>{fav}</b> का भाव 20-25 पैसे फेवरेट आ जाए, तुरंत 'Both Side Green / Bookset' करके रिस्क-फ्री हो जाएं।"
+        elif verdict_code == "PENDING":
+            timing_badge = '<span style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #64748b; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;">⏳ भाव प्रतीक्षारत (ODDS PENDING)</span>'
+            timing_advice = "एक्सचेंज बुकी भाव अभी नहीं खुला है। मैच शुरू होने से 2-3 घंटे पहले भाव लाइव होते ही स्योर प्रेडिक्शन स्वतः अनलॉक हो जाएगी।"
+            when_not_to_bet = "❌ जब तक मार्केट में भाव न खुले, किसी भी टीम पर आँख बंद करके पैसा न लगाएं।"
+            bookset_advice = "🛡️ <b>धैर्य रखें:</b> भाव और प्लेइंग 11 आने के बाद ही सही एंट्री बनती है।"
         else:
             timing_badge = '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 11px;">⛔ ❌ STRICT NO BET (पैसे न लगाएं)</span>'
             timing_advice = "<b>टॉस के बाद भी इस मैच में पैसा बिल्कुल न लगाएं।</b> दोनों टीमें 50-50 बराबरी पर हैं। यह मैच पंटर ट्रैप साबित हो सकता है।"
@@ -1624,6 +1668,7 @@ with vip_tabs[1]:
             with st.spinner("CREX से लाइव भाव और टॉस अपडेट हो रहा है..."):
                 st.session_state["crex_fixtures_mw"] = fetch_crex_fixtures(force_refresh=True)
                 sync_live_toss_results_from_crex()
+                sync_mw_results_from_crex()
                 st.rerun()
     if not sel_mw_date:
         sel_mw_date = mw_date_opts[def_mw_date_idx]
@@ -1639,6 +1684,7 @@ with vip_tabs[1]:
     tot_mw = len(date_filtered_mw)
     super_locks_cnt = sum(1 for m in date_filtered_mw if m["verdict_code"] == "SUPER_LOCK")
     value_cnt = sum(1 for m in date_filtered_mw if m["verdict_code"] == "VALUE_PLAY")
+    pending_cnt = sum(1 for m in date_filtered_mw if m["verdict_code"] == "PENDING")
     skip_cnt = sum(1 for m in date_filtered_mw if m["verdict_code"] == "SKIP")
 
     col_mk1, col_mk2, col_mk3, col_mk4 = st.columns(4)
@@ -1659,15 +1705,15 @@ with vip_tabs[1]:
     with col_mk3:
         st.markdown(f"""
         <div class="kpi-card">
-            <div class="kpi-val" style="color: #f59e0b;">{value_cnt}</div>
-            <div class="kpi-lbl">🔥 70%-84% Value Plays</div>
+            <div class="kpi-val" style="color: #38bdf8;">{value_cnt}</div>
+            <div class="kpi-lbl">🔥 54%-84% Value Plays</div>
         </div>
         """, unsafe_allow_html=True)
     with col_mk4:
         st.markdown(f"""
         <div class="kpi-card">
-            <div class="kpi-val" style="color: #94a3b8;">{skip_cnt}</div>
-            <div class="kpi-lbl">🟡 50-50 Close Games</div>
+            <div class="kpi-val" style="color: #f59e0b;">{pending_cnt}</div>
+            <div class="kpi-lbl">⏳ भाव प्रतीक्षारत (Pending)</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1677,16 +1723,19 @@ with vip_tabs[1]:
     col_mf1, col_mf2 = st.columns([2.5, 1.2])
     with col_mf1:
         mw_opts = [
-            f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})",
             f"🔥 सिर्फ एक्शन पिक्स ({super_locks_cnt + value_cnt})",
+            f"⏳ भाव प्रतीक्षारत ({pending_cnt})",
             f"🌟 सभी मैच ({tot_mw})"
         ]
         if super_locks_cnt > 0:
-            def_mw_f = mw_opts[0]
-        elif (super_locks_cnt + value_cnt) > 0:
-            def_mw_f = mw_opts[1]
+            mw_opts.insert(0, f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})")
+
+        if (super_locks_cnt + value_cnt) > 0:
+            def_mw_f = f"🔥 सिर्फ एक्शन पिक्स ({super_locks_cnt + value_cnt})"
+        elif pending_cnt > 0:
+            def_mw_f = f"🌟 सभी मैच ({tot_mw})"
         else:
-            def_mw_f = mw_opts[2]
+            def_mw_f = mw_opts[-1]
 
         mw_filter_choice = st.pills(
             "फ़िल्टर बाय विनर वर्डिक्ट",
@@ -1703,6 +1752,8 @@ with vip_tabs[1]:
         filtered_mw = [m for m in filtered_mw if m["verdict_code"] == "SUPER_LOCK"]
     elif mw_filter_choice and "एक्शन" in mw_filter_choice:
         filtered_mw = [m for m in filtered_mw if m["verdict_code"] in ["SUPER_LOCK", "VALUE_PLAY"]]
+    elif mw_filter_choice and "प्रतीक्षारत" in mw_filter_choice:
+        filtered_mw = [m for m in filtered_mw if m["verdict_code"] == "PENDING"]
 
     if mw_search:
         q = mw_search.strip().lower()
@@ -1714,11 +1765,28 @@ with vip_tabs[1]:
         for idx, m in enumerate(filtered_mw):
             is_super = m["verdict_code"] == "SUPER_LOCK"
             is_value = m["verdict_code"] == "VALUE_PLAY"
+            is_pending = m["verdict_code"] == "PENDING"
 
-            border_c = "#10b981" if is_super else ("#38bdf8" if is_value else "#334155")
-            box_glow = "box-shadow: 0 0 25px rgba(16, 185, 129, 0.35);" if is_super else ("box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);" if is_value else "box-shadow: 0 4px 20px rgba(0,0,0,0.4);")
-            banner_bg = "linear-gradient(90deg, #064e3b 0%, #022c22 100%)" if is_super else ("linear-gradient(90deg, #0c4a6e 0%, #082f49 100%)" if is_value else "#1e293b")
-            banner_color = "#34d399" if is_super else ("#38bdf8" if is_value else "#94a3b8")
+            if is_super:
+                border_c = "#10b981"
+                box_glow = "box-shadow: 0 0 25px rgba(16, 185, 129, 0.35);"
+                banner_bg = "linear-gradient(90deg, #064e3b 0%, #022c22 100%)"
+                banner_color = "#34d399"
+            elif is_value:
+                border_c = "#38bdf8"
+                box_glow = "box-shadow: 0 0 20px rgba(56, 189, 248, 0.25);"
+                banner_bg = "linear-gradient(90deg, #0c4a6e 0%, #082f49 100%)"
+                banner_color = "#38bdf8"
+            elif is_pending:
+                border_c = "#f59e0b"
+                box_glow = "box-shadow: 0 0 15px rgba(245, 158, 11, 0.2);"
+                banner_bg = "linear-gradient(90deg, #451a03 0%, #1e293b 100%)"
+                banner_color = "#fbbf24"
+            else:
+                border_c = "#334155"
+                box_glow = "box-shadow: 0 4px 20px rgba(0,0,0,0.4);"
+                banner_bg = "#1e293b"
+                banner_color = "#94a3b8"
 
             fav_label = m["fav_team"] if m["fav_team"] else "Even"
 
@@ -1790,6 +1858,171 @@ with vip_tabs[1]:
     </div>
     """, unsafe_allow_html=True)
 
+    # ==============================================================================
+    # SUBSECTION: PREVIOUS MATCH WINNER RESULTS & ACCURACY AUDIT TRACKER
+    # ==============================================================================
+    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+    st.markdown("""<div style="background: linear-gradient(135deg, #064e3b 0%, #022c22 100%); border: 1.5px solid #10b981; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px;">
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+<div>
+<h3 style="color: #34d399; margin: 0 0 4px 0; font-size: 18px; font-weight: 900;">📜 पिछले मैच विनर रिज़ल्ट्स & एक्यूरेसी ऑडिट (Match Winner Pass/Fail Tracker)</h3>
+<p style="color: #a7f3d0; margin: 0; font-size: 12px;">
+पिछले सभी मैचों के मैच विनर प्रेडिक्शन का 100% पारदर्शी रिकॉर्ड · पास/फेल स्टेटस · असली विनर एवं भाव ऑडिट
+</p>
+</div>
+<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 4px 12px; border-radius: 16px; font-weight: 800; font-size: 12px;">
+✅ 100% TRANSPARENT
+</span>
+</div>
+</div>""", unsafe_allow_html=True)
+
+    mw_res_list = load_mw_results()
+    mw_kpis = get_mw_accuracy_kpis()
+
+    col_mwa1, col_mwa2, col_mwa3, col_mwa4 = st.columns(4)
+    with col_mwa1:
+        st.markdown(f"""<div class="kpi-card">
+<div class="kpi-val" style="color: #38bdf8;">{mw_kpis['total_settled']}</div>
+<div class="kpi-lbl">Total Settled</div>
+</div>""", unsafe_allow_html=True)
+    with col_mwa2:
+        st.markdown(f"""<div class="kpi-card">
+<div class="kpi-val" style="color: #10b981;">{mw_kpis['won_cnt']}</div>
+<div class="kpi-lbl">✅ Pass (Won)</div>
+</div>""", unsafe_allow_html=True)
+    with col_mwa3:
+        st.markdown(f"""<div class="kpi-card">
+<div class="kpi-val" style="color: #ef4444;">{mw_kpis['missed_cnt']}</div>
+<div class="kpi-lbl">❌ Fail (Missed)</div>
+</div>""", unsafe_allow_html=True)
+    with col_mwa4:
+        st.markdown(f"""<div class="kpi-card">
+<div class="kpi-val" style="color: #f59e0b;">{mw_kpis['accuracy_pct']}%</div>
+<div class="kpi-lbl">🎯 Win Rate %</div>
+</div>""", unsafe_allow_html=True)
+
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+
+    # Outcome Filter Pills for Match Winner Results
+    mw_r_filter = st.pills(
+        "रिज़ल्ट फ़िल्टर",
+        options=[
+            f"🌟 सभी रिज़ल्ट्स ({len(mw_res_list)})",
+            f"✅ सिर्फ Pass ({mw_kpis['won_cnt']})",
+            f"❌ सिर्फ Fail ({mw_kpis['missed_cnt']})",
+            f"⏳ Live / Pending ({mw_kpis['pending_cnt']})"
+        ],
+        default=f"🌟 सभी रिज़ल्ट्स ({len(mw_res_list)})",
+        key="pills_mw_res_filter"
+    )
+
+    filtered_mw_res = mw_res_list
+    if mw_r_filter and "Pass" in mw_r_filter:
+        filtered_mw_res = [r for r in filtered_mw_res if r.get("outcome") == "PASS"]
+    elif mw_r_filter and "Fail" in mw_r_filter:
+        filtered_mw_res = [r for r in filtered_mw_res if r.get("outcome") == "FAIL"]
+    elif mw_r_filter and "Pending" in mw_r_filter:
+        filtered_mw_res = [r for r in filtered_mw_res if r.get("outcome") == "PENDING"]
+
+    for r in filtered_mw_res:
+        out = r.get("outcome")
+        if out == "PASS":
+            c_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">✅ PASS (WON)</span>'
+            c_border = "#10b981"
+        elif out == "FAIL":
+            c_badge = '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">❌ FAIL (MISSED)</span>'
+            c_border = "#ef4444"
+        elif out == "PENDING":
+            c_badge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">⏳ LIVE / IN-PLAY</span>'
+            c_border = "#f59e0b"
+        else:
+            c_badge = '<span style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #64748b; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">🟡 SKIPPED</span>'
+            c_border = "#64748b"
+
+        mw_card_html = f"""<div style="background: #0f172a; border: 1.5px solid {c_border}; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+<span style="font-size: 12px; color: #94a3b8; font-weight: 700;">🏏 {r.get('tournament')} · ⏰ {r.get('match_time_ist')} ({r.get('match_date')})</span>
+{c_badge}
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0;">
+<div style="font-size: 16px; font-weight: 900; color: #ffffff;">{r.get('team_a')} vs {r.get('team_b')}</div>
+<div style="font-size: 12px; color: #f59e0b; font-weight: 800;">भाव: <b>{r.get('bhav_entry') or 'N/A'}</b></div>
+</div>
+<div style="background: #020617; border-radius: 8px; padding: 10px 14px; margin-top: 8px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+<div>
+<div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">🔮 प्रेडिक्टेड विनर</div>
+<div style="font-size: 15px; font-weight: 900; color: #38bdf8; margin-top: 2px;">{r.get('predicted_winner')}</div>
+<div style="font-size: 11px; color: #a7f3d0;">{r.get('verdict_badge')}</div>
+</div>
+<div>
+<div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">🏆 असली मैच विनर</div>
+<div style="font-size: 15px; font-weight: 900; color: #34d399; margin-top: 2px;">{r.get('actual_winner')}</div>
+<div style="font-size: 11px; color: #cbd5e1;">{r.get('result_summary')}</div>
+</div>
+</div>"""
+        if r.get("note"):
+            mw_card_html += f"""
+<div style="font-size: 12px; color: #94a3b8; margin-top: 8px; padding-top: 6px; border-top: 1px solid #1e293b;">
+📝 <b>नोट:</b> {r.get('note')}
+</div>"""
+        mw_card_html += "\n</div>"
+        st.markdown("\n".join(l.strip() for l in mw_card_html.splitlines() if l.strip()), unsafe_allow_html=True)
+
+    # Quick MW Result Editor Expander
+    with st.expander("✏️ मैच विनर रिज़ल्ट बदलें या नया रिज़ल्ट दर्ज करें (Quick MW Result Editor)", expanded=False):
+        st.markdown("💡 **यहाँ से आप किसी भी मैच विनर प्रेडिक्शन का रिज़ल्ट अपडेट कर सकते हैं या नया रिज़ल्ट जोड़ सकते हैं:**")
+        if mw_res_list:
+            mw_titles = [f"{r.get('match_name')} ({r.get('match_date')}) · Current: 🏆 {r.get('actual_winner')} [{r.get('outcome_label')}]" for r in mw_res_list]
+            sel_mw_str = st.selectbox("मैच चुनें जिसका रिज़ल्ट बदलना है:", mw_titles, key="select_mw_fix_match")
+            sel_mw_idx = mw_titles.index(sel_mw_str)
+            target_mw = mw_res_list[sel_mw_idx]
+
+            col_me1, col_me2, col_me3, col_me4 = st.columns([2, 2, 1.4, 1.4])
+            with col_me1:
+                new_mw_win = st.selectbox(
+                    "🏆 असली मैच विनर चुनें",
+                    [target_mw.get("team_a"), target_mw.get("team_b")],
+                    index=0 if target_mw.get("actual_winner") == target_mw.get("team_a") else 1,
+                    key="select_new_mw_win"
+                )
+            with col_me2:
+                new_mw_summary = st.text_input(
+                    "मार्जिन / समरी",
+                    value=target_mw.get("result_summary") or f"{new_mw_win} Won",
+                    key="input_new_mw_sum"
+                )
+            with col_me3:
+                st.write("")
+                st.write("")
+                if st.button("💾 अपडेट करें (Save)", key="btn_save_mw_fix", type="primary", use_container_width=True):
+                    save_mw_result(
+                        match_id=target_mw.get("match_id"),
+                        match_name=target_mw.get("match_name"),
+                        tournament=target_mw.get("tournament"),
+                        match_date=target_mw.get("match_date"),
+                        match_time_ist=target_mw.get("match_time_ist"),
+                        team_a=target_mw.get("team_a"),
+                        team_b=target_mw.get("team_b"),
+                        predicted_winner=target_mw.get("predicted_winner"),
+                        verdict_code=target_mw.get("verdict_code"),
+                        verdict_badge=target_mw.get("verdict_badge"),
+                        bhav_entry=target_mw.get("bhav_entry"),
+                        win_prob=target_mw.get("win_prob", 65),
+                        actual_winner=new_mw_win,
+                        result_summary=new_mw_summary,
+                        note=target_mw.get("note", ""),
+                        is_manual=True
+                    )
+                    st.success(f"✅ अपडेट सफल! विनर: {new_mw_win}")
+                    st.rerun()
+            with col_me4:
+                st.write("")
+                st.write("")
+                if st.button("🗑️ हटाएँ (Delete)", key="btn_del_mw_fix", use_container_width=True):
+                    delete_mw_result(target_mw.get("match_id"))
+                    st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
+                    st.rerun()
+
 
 # ==============================================================================
 # TAB 3: TOSS DONE & PASS/FAIL ACCURACY AUDIT TRACKER
@@ -1797,16 +2030,18 @@ with vip_tabs[1]:
 with vip_tabs[2]:
     col_head_t2, col_btn_t2 = st.columns([2.5, 1.2])
     with col_head_t2:
-        st.header("📜 टॉस रिज़ल्ट्स (Toss Done)")
+        st.header("📜 टॉस रिज़ल्ट्स (Toss Outcomes)")
+        st.caption("💡 मैच विनर के पास/फेल रिज़ल्ट्स देखने के लिए ऊपर **🏆 MATCH WINNER** टैब पर जाएं।")
     with col_btn_t2:
         if st.button("⚡ Sync Latest Results", key="btn_tg_sync_tab2", use_container_width=True):
-            with st.spinner("Fetching latest toss outcomes..."):
+            with st.spinner("Fetching latest toss & match winner outcomes..."):
                 sync_completed_tosses_from_gaming_helper()
                 res_count = auto_update_toss_results_from_telegram()
                 crex_count = sync_live_toss_results_from_crex()
-                total_updated = res_count + crex_count
+                crex_mw_count = sync_mw_results_from_crex()
+                total_updated = res_count + crex_count + crex_mw_count
                 if total_updated > 0:
-                    st.success(f"✅ {total_updated} Toss results updated from CREX & Telegram!")
+                    st.success(f"✅ {total_updated} Toss & Match Winner results updated!")
                 else:
                     st.info("ℹ️ All matches up-to-date.")
                 st.rerun()
