@@ -16,5 +16,23 @@
     "action_text": "🟢 HEAVY MATCH WINNER LOCK: KARNALI YAKS",
     "risk_desc": "VERY LOW RISK (DOMINANT SQUAD)",
     "original_bhav": "[KY] 18-69"
+  },
+  "perthscorcherswomen__sydneythunderwomen": {
+    "fav_team": "Sydney Thunder Women",
+    "win_prob": 58,
+    "verdict_code": "VALUE_PLAY",
+    "verdict_badge": "🔥 58% VALUE PLAY",
+    "action_text": "🟢 PLAY MATCH WINNER: SYDNEY THUNDER WOMEN",
+    "risk_desc": "LOW RISK (FAVORED TEAM)",
+    "original_bhav": "[SYT-W] 72-73"
+  },
+  "perth scorchers women__vs__sydney thunder women": {
+    "fav_team": "Sydney Thunder Women",
+    "win_prob": 58,
+    "verdict_code": "VALUE_PLAY",
+    "verdict_badge": "🔥 58% VALUE PLAY",
+    "action_text": "🟢 PLAY MATCH WINNER: SYDNEY THUNDER WOMEN",
+    "risk_desc": "LOW RISK (FAVORED TEAM)",
+    "original_bhav": "[SYT-W] 72-73"
   }
 }

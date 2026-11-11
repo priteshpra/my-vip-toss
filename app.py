@@ -1419,6 +1419,10 @@ with vip_tabs[1]:
             continue
         seen_pairs_mw.add(pk)
 
+        # 1. Immutable Match Winner Lock: Check vault first so in-play momentum never flips original pick!
+        from core.providers.crex_provider import get_locked_mw_prediction, save_locked_mw_prediction
+        locked_mw = get_locked_mw_prediction(t1, t2)
+
         fav = cf.get("fav_team") or ""
         prob = int(cf.get("win_prob") or 50)
         back = cf.get("back")
@@ -1432,89 +1436,15 @@ with vip_tabs[1]:
         if not fav and back is not None and back <= 50:
             fav = t1
 
+        # If locked, enforce locked favorite team permanently!
+        if locked_mw and locked_mw.get("fav_team"):
+            fav = locked_mw.get("fav_team")
+
         t1_sn = cf.get("t1_sn") or t1[:3].upper()
         t2_sn = cf.get("t2_sn") or t2[:3].upper()
         fav_sn = t1_sn if fav == t1 else t2_sn
 
         bhav_display = f"[{fav_sn}] {back}-{lay}" if back is not None and lay is not None else "Market Line Pending"
-
-        # League Tier Analysis: High Volatility Domestic / Associate / T10 Gating
-        ser_lower = (ser or "").lower()
-        is_high_volatility = any(k in ser_lower for k in [
-            "nepal", "npl", "t10", "abu dhabi", "quaid", "u19", "under-19",
-            "ecs", "european", "kuwait", "qatar", "oman", "baroda", "ranji",
-            "syed mushtaq", "pondicherry", "assam", "bengal", "club"
-        ])
-
-        if back is None:
-            # CREX exchange market line has not opened yet
-            verdict_code = "PENDING"
-            verdict_badge = "⏳ भाव प्रतीक्षारत (ODDS PENDING)"
-            action_text = "⏳ भाव प्रतीक्षारत: मैच से 2-3 घंटे पहले भाव खुलेगा"
-            risk_desc = "MARKET LINE NOT OPENED YET"
-            rationale_text = (
-                f"⏳ {ser} के लिए CREX एक्सचेंज भाव अभी खुला नहीं है। "
-                f"दोपहर/शाम को मैच शुरू होने से 2-3 घंटे पहले भाव लाइव होते ही स्योर प्रेडिक्शन स्वतः अनलॉक हो जाएगी।"
-            )
-        elif is_high_volatility:
-            # High volatility league: Never issue SUPER_LOCK; cap at VALUE_PLAY or SKIP
-            if back <= 50 or prob >= 67:
-                verdict_code = "VALUE_PLAY"
-                verdict_badge = f"🔥 {min(prob, 80)}% VALUE PLAY (0.5 LIMIT)"
-                action_text = f"🟢 VALUE PLAY: {fav.upper()} (हाई-वोलेटिलिटी लीग)"
-                risk_desc = "MODERATE RISK (ASSOCIATE/DOMESTIC)"
-                rationale_text = (
-                    f"🔥 मार्केट ऑड्स {bhav_display} {fav} को समर्थन दे रहे हैं। "
-                    f"⚠️ नोट: {ser} जैसी एसोसिएट/घरेलू लीगों में 200+ रन बनते हैं और अप्रत्याशित उलटफेर होते हैं। "
-                    f"आधी (0.5) लिमिट से खेलें और दोनों तरफ भाव आने पर तुरंत बुकसेट (प्रॉफ़िट लॉक) करें।"
-                )
-            elif back <= 85 or prob >= 54:
-                verdict_code = "VALUE_PLAY"
-                verdict_badge = f"🔥 {prob}% VALUE PLAY (SWEET SPOT)"
-                action_text = f"🟢 VALUE PLAY: {fav.upper()} (65-85 पैसे स्वीट स्पॉट)"
-                risk_desc = "BEST VALUE (ODDS 1.50 - 1.85)"
-                rationale_text = (
-                    f"🎯 मार्केट ऑड्स {bhav_display} {fav} के लिए सबसे बेस्ट वैल्यू स्वीट स्पॉट में हैं। "
-                    f"यहाँ 1 लिमिट से सुरक्षित एंट्री लें और 20-25 पैसे फेवरेट आने पर बुकसेट करें।"
-                )
-            elif back <= 92 or prob >= 52:
-                verdict_code = "VALUE_PLAY"
-                verdict_badge = f"⚡ {prob}% MODERATE VALUE (HALF LIMIT)"
-                action_text = f"🟡 MODERATE LEAN: {fav.upper()} (आधी लिमिट)"
-                risk_desc = "MODERATE RISK (CLOSE CONTEST)"
-                rationale_text = f"⚡ मार्केट भाव {bhav_display} {fav} की तरफ हल्का झुकाव दिखा रहा है। केवल 0.5 लिमिट से खेलें।"
-            else:
-                verdict_code = "SKIP"
-                verdict_badge = "🟡 50-50 HIGH VOLATILITY"
-                action_text = "🟡 STRICT SKIP (RISKY VOLATILE LEAGUE)"
-                risk_desc = "HIGH RISK (UNPREDICTABLE)"
-                rationale_text = f"⛔ {ser} में दोनों टीमों में भारी अनिश्चितता है ({bhav_display})। पूंजी सुरक्षित रखने के लिए पास करें।"
-        else:
-            # Tier 1 League / International / Premier Franchise
-            if back <= 50 or prob >= 67:
-                verdict_code = "SUPER_LOCK"
-                verdict_badge = f"💎 {prob}% SUPER LOCK"
-                action_text = f"🟢 HEAVY MATCH WINNER LOCK: {fav.upper()}"
-                risk_desc = "VERY LOW RISK (DOMINANT SQUAD)"
-                rationale_text = f"💎 संस्थागत CREX भाव {bhav_display} के अनुसार {fav} के जीतने की संभावना {prob}% है। बैटिंग गहराई और टीम स्क्वाड बहुत मजबूत है।"
-            elif back <= 85 or prob >= 54:
-                verdict_code = "VALUE_PLAY"
-                verdict_badge = f"🔥 {prob}% VALUE PLAY (SWEET SPOT)"
-                action_text = f"🟢 PLAY MATCH WINNER: {fav.upper()}"
-                risk_desc = "LOW RISK (FAVORED TEAM)"
-                rationale_text = f"🔥 मार्केट ऑड्स {bhav_display} {fav} को स्पष्ट समर्थन दे रहे हैं ({prob}% विन चांस)। यह 65-85 पैसे का क्लासिक स्वीट स्पॉट है — यहाँ वैल्यू एंट्री लें।"
-            elif back <= 92 or prob >= 52:
-                verdict_code = "VALUE_PLAY"
-                verdict_badge = f"⚡ {prob}% MODERATE VALUE (HALF LIMIT)"
-                action_text = f"🟡 MODERATE LEAN: {fav.upper()} (आधी लिमिट)"
-                risk_desc = "MODERATE RISK (BALANCED SQUADS)"
-                rationale_text = f"⚡ मार्केट भाव {bhav_display} {fav} की तरफ हल्का झुकाव दिखा रहा है। केवल 0.5 लिमिट से खेलें।"
-            else:
-                verdict_code = "SKIP"
-                verdict_badge = "🟡 50-50 TIGHT CONTEST"
-                action_text = "🟡 STRICT SKIP (50-50 EVEN MATCH)"
-                risk_desc = "HIGH RISK (CLOSE CONTEST)"
-                rationale_text = f"⛔ दोनों टीमों के बीच कड़ा मुकाबला है ({bhav_display})। किसी स्पष्ट विनर के बिना रिस्क न लें — पास करें।"
 
         # Toss Status & Real-time Outcome Check
         matched_done_mw = None
@@ -1536,32 +1466,107 @@ with vip_tabs[1]:
         elif status_num >= 1:
             toss_is_done = True
 
-        # Immutable Match Winner Lock: Never let in-play scoreboard momentum flip the original prediction!
-        from core.providers.crex_provider import get_locked_mw_prediction, save_locked_mw_prediction
-        locked_mw = get_locked_mw_prediction(t1, t2)
-        if not locked_mw and status_num == 0 and not toss_is_done and fav:
-            locked_mw = {
-                "fav_team": fav,
-                "win_prob": prob,
-                "verdict_code": verdict_code,
-                "verdict_badge": verdict_badge,
-                "action_text": action_text,
-                "risk_desc": risk_desc,
-                "rationale": rationale_text
-            }
-            save_locked_mw_prediction(t1, t2, locked_mw)
-
-        if locked_mw:
-            fav = locked_mw.get("fav_team", fav)
-            prob = locked_mw.get("win_prob", prob)
-            verdict_code = locked_mw.get("verdict_code", verdict_code)
-            verdict_badge = locked_mw.get("verdict_badge", verdict_badge)
-            action_text = locked_mw.get("action_text", action_text)
-            risk_desc = locked_mw.get("risk_desc", risk_desc)
+        if locked_mw and locked_mw.get("fav_team"):
+            # Enforce locked parameters
+            fav = locked_mw.get("fav_team")
+            prob = int(locked_mw.get("win_prob") or prob)
+            verdict_code = locked_mw.get("verdict_code", "VALUE_PLAY")
+            verdict_badge = locked_mw.get("verdict_badge", "🔥 VALUE PLAY")
+            action_text = locked_mw.get("action_text", f"🟢 PLAY MATCH WINNER: {fav.upper()}")
+            risk_desc = locked_mw.get("risk_desc", "LOW RISK (FAVORED TEAM)")
             if toss_is_done or status_num >= 1:
-                rationale_text = f"💎 संस्थागत प्री-मैच प्रेडिक्शन <b>{fav}</b> ({prob}%) पर लॉक है। लाइव इन-प्ले भाव <b>{bhav_display}</b> चल रहा है।"
+                rationale_text = f"💎 संस्थागत प्री-मैच प्रेडिक्शन <b>{fav}</b> ({prob}%) पर सुरक्षित लॉक है। लाइव इन-प्ले भाव <b>{bhav_display}</b> चल रहा है।"
             else:
-                rationale_text = locked_mw.get("rationale", rationale_text)
+                rationale_text = locked_mw.get("rationale", f"💎 संस्थागत प्री-मैच प्रेडिक्शन {fav} ({prob}%) पर लॉक है।")
+        else:
+            # Dynamic Evaluation for new matches
+            ser_lower = (ser or "").lower()
+            is_high_volatility = any(k in ser_lower for k in [
+                "nepal", "npl", "t10", "abu dhabi", "quaid", "u19", "under-19",
+                "ecs", "european", "kuwait", "qatar", "oman", "baroda", "ranji",
+                "syed mushtaq", "pondicherry", "assam", "bengal", "club"
+            ])
+
+            if back is None:
+                verdict_code = "PENDING"
+                verdict_badge = "⏳ भाव प्रतीक्षारत (ODDS PENDING)"
+                action_text = "⏳ भाव प्रतीक्षारत: मैच से 2-3 घंटे पहले भाव खुलेगा"
+                risk_desc = "MARKET LINE NOT OPENED YET"
+                rationale_text = (
+                    f"⏳ {ser} के लिए CREX एक्सचेंज भाव अभी खुला नहीं है। "
+                    f"दोपहर/शाम को मैच शुरू होने से 2-3 घंटे पहले भाव लाइव होते ही स्योर प्रेडिक्शन स्वतः अनलॉक हो जाएगी।"
+                )
+            elif is_high_volatility:
+                if back <= 50 or prob >= 67:
+                    verdict_code = "VALUE_PLAY"
+                    verdict_badge = f"🔥 {min(prob, 80)}% VALUE PLAY (0.5 LIMIT)"
+                    action_text = f"🟢 VALUE PLAY: {fav.upper()} (हाई-वोलेटिलिटी लीग)"
+                    risk_desc = "MODERATE RISK (ASSOCIATE/DOMESTIC)"
+                    rationale_text = (
+                        f"🔥 मार्केट ऑड्स {bhav_display} {fav} को समर्थन दे रहे हैं। "
+                        f"⚠️ नोट: {ser} जैसी एसोसिएट/घरेलू लीगों में 200+ रन बनते हैं और अप्रत्याशित उलटफेर होते हैं। "
+                        f"आधी (0.5) लिमिट से खेलें और दोनों तरफ भाव आने पर तुरंत बुकसेट (प्रॉफ़िट लॉक) करें।"
+                    )
+                elif back <= 85 or prob >= 54:
+                    verdict_code = "VALUE_PLAY"
+                    verdict_badge = f"🔥 {prob}% VALUE PLAY (SWEET SPOT)"
+                    action_text = f"🟢 VALUE PLAY: {fav.upper()} (65-85 पैसे स्वीट स्पॉट)"
+                    risk_desc = "BEST VALUE (ODDS 1.50 - 1.85)"
+                    rationale_text = (
+                        f"🎯 मार्केट ऑड्स {bhav_display} {fav} के लिए सबसे बेस्ट वैल्यू स्वीट स्पॉट में हैं। "
+                        f"यहाँ 1 लिमिट से सुरक्षित एंट्री लें और 20-25 पैसे फेवरेट आने पर बुकसेट करें।"
+                    )
+                elif back <= 92 or prob >= 52:
+                    verdict_code = "VALUE_PLAY"
+                    verdict_badge = f"⚡ {prob}% MODERATE VALUE (HALF LIMIT)"
+                    action_text = f"🟡 MODERATE LEAN: {fav.upper()} (आधी लिमिट)"
+                    risk_desc = "MODERATE RISK (CLOSE CONTEST)"
+                    rationale_text = f"⚡ मार्केट भाव {bhav_display} {fav} की तरफ हल्का झुकाव दिखा रहा है। केवल 0.5 लिमिट से खेलें।"
+                else:
+                    verdict_code = "SKIP"
+                    verdict_badge = "🟡 50-50 HIGH VOLATILITY"
+                    action_text = "🟡 STRICT SKIP (RISKY VOLATILE LEAGUE)"
+                    risk_desc = "HIGH RISK (UNPREDICTABLE)"
+                    rationale_text = f"⛔ {ser} में दोनों टीमों में भारी अनिश्चितता है ({bhav_display})। पूंजी सुरक्षित रखने के लिए पास करें।"
+            else:
+                if back <= 50 or prob >= 67:
+                    verdict_code = "SUPER_LOCK"
+                    verdict_badge = f"💎 {prob}% SUPER LOCK"
+                    action_text = f"🟢 HEAVY MATCH WINNER LOCK: {fav.upper()}"
+                    risk_desc = "VERY LOW RISK (DOMINANT SQUAD)"
+                    rationale_text = f"💎 संस्थागत CREX भाव {bhav_display} के अनुसार {fav} के जीतने की संभावना {prob}% है। बैटिंग गहराई और टीम स्क्वाड बहुत मजबूत है।"
+                elif back <= 85 or prob >= 54:
+                    verdict_code = "VALUE_PLAY"
+                    verdict_badge = f"🔥 {prob}% VALUE PLAY (SWEET SPOT)"
+                    action_text = f"🟢 PLAY MATCH WINNER: {fav.upper()}"
+                    risk_desc = "LOW RISK (FAVORED TEAM)"
+                    rationale_text = f"🔥 मार्केट ऑड्स {bhav_display} {fav} को स्पष्ट समर्थन दे रहे हैं ({prob}% विन चांस)। यह 65-85 पैसे का क्लासिक स्वीट स्पॉट है — यहाँ वैल्यू एंट्री लें।"
+                elif back <= 92 or prob >= 52:
+                    verdict_code = "VALUE_PLAY"
+                    verdict_badge = f"⚡ {prob}% MODERATE VALUE (HALF LIMIT)"
+                    action_text = f"🟡 MODERATE LEAN: {fav.upper()} (आधी लिमिट)"
+                    risk_desc = "MODERATE RISK (BALANCED SQUADS)"
+                    rationale_text = f"⚡ मार्केट भाव {bhav_display} {fav} की तरफ हल्का झुकाव दिखा रहा है। केवल 0.5 लिमिट से खेलें।"
+                else:
+                    verdict_code = "SKIP"
+                    verdict_badge = "🟡 50-50 TIGHT CONTEST"
+                    action_text = "🟡 STRICT SKIP (50-50 EVEN MATCH)"
+                    risk_desc = "HIGH RISK (CLOSE CONTEST)"
+                    rationale_text = f"⛔ दोनों टीमों के बीच कड़ा मुकाबला है ({bhav_display})। किसी स्पष्ट विनर के बिना रिस्क न लें — पास करें।"
+
+            # Instantly lock newly evaluated actionable predictions so they NEVER flip in-play!
+            if fav and verdict_code in ["SUPER_LOCK", "VALUE_PLAY"]:
+                new_lock_payload = {
+                    "fav_team": fav,
+                    "win_prob": prob,
+                    "verdict_code": verdict_code,
+                    "verdict_badge": verdict_badge,
+                    "action_text": action_text,
+                    "risk_desc": risk_desc,
+                    "rationale": rationale_text,
+                    "original_bhav": bhav_display
+                }
+                save_locked_mw_prediction(t1, t2, new_lock_payload)
 
         # Check if favorite team won toss and role
         fav_won_toss = False

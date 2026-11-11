@@ -62,18 +62,32 @@ def load_locked_mw_predictions() -> Dict[str, Any]:
     return {}
 
 def save_locked_mw_prediction(t_a: str, t_b: str, data: Dict[str, Any]):
+    """
+    IMMUTABLE VAULT RULE FOR MATCH WINNER:
+    Once a match is locked with an actionable favorite team (SUPER_LOCK or VALUE_PLAY),
+    no in-play live scoreboard momentum, wicket fall, boundary cluster, or server restart
+    can EVER overwrite or flip the prediction to the opposing team!
+    """
     locks = load_locked_mw_predictions()
     clean_a = re.sub(r'[^a-zA-Z0-9]', '', (t_a or "").lower())
     clean_b = re.sub(r'[^a-zA-Z0-9]', '', (t_b or "").lower())
     pkey = f"{min(clean_a, clean_b)}__{max(clean_a, clean_b)}"
+    pair_str = f"{(t_a or '').strip().lower()}__vs__{(t_b or '').strip().lower()}"
+
+    existing = locks.get(pkey) or locks.get(pair_str)
+    if existing and existing.get("fav_team"):
+        # Vault Protection: Prevent flipping party mid-match!
+        return existing
+
     locks[pkey] = data
-    locks[f"{(t_a or '').strip().lower()}__vs__{(t_b or '').strip().lower()}"] = data
+    locks[pair_str] = data
     try:
         os.makedirs(os.path.dirname(MW_LOCK_FILE), exist_ok=True)
         with open(MW_LOCK_FILE, "w", encoding="utf-8") as f:
-            json.dump(locks, f, indent=2)
+            json.dump(locks, f, indent=2, ensure_ascii=False)
     except Exception:
         pass
+    return data
 
 def get_locked_mw_prediction(t_a: str, t_b: str) -> Optional[Dict[str, Any]]:
     locks = load_locked_mw_predictions()
@@ -90,6 +104,37 @@ def get_locked_mw_prediction(t_a: str, t_b: str) -> Optional[Dict[str, Any]]:
             parts = k.split("__vs__")
             if is_match_pair(t_a, t_b, parts[0], parts[1]):
                 return v
+
+    # Fallback to mw_results_log.json if already recorded in audit history
+    try:
+        mw_res_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "mw_results_log.json")
+        if os.path.exists(mw_res_file):
+            with open(mw_res_file, "r", encoding="utf-8") as f:
+                mw_results = json.load(f)
+            for r in mw_results:
+                if is_match_pair(t_a, t_b, r.get("team_a", ""), r.get("team_b", "")):
+                    pw = r.get("predicted_winner")
+                    if pw and "pending" not in pw.lower():
+                        fav = pw
+                        v_code = r.get("verdict_code", "VALUE_PLAY")
+                        v_badge = r.get("verdict_badge", "🔥 VALUE PLAY")
+                        act_txt = f"🟢 PLAY MATCH WINNER: {fav.upper()}"
+                        prob = int(r.get("win_prob") or 60)
+                        r_desc = "LOW RISK (FAVORED TEAM)" if v_code == "VALUE_PLAY" else "VERY LOW RISK"
+                        recovered = {
+                            "fav_team": fav,
+                            "win_prob": prob,
+                            "verdict_code": v_code,
+                            "verdict_badge": v_badge,
+                            "action_text": act_txt,
+                            "risk_desc": r_desc,
+                            "original_bhav": r.get("bhav_entry", "")
+                        }
+                        save_locked_mw_prediction(t_a, t_b, recovered)
+                        return recovered
+    except Exception:
+        pass
+
     return None
 
 

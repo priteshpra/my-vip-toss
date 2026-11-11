@@ -1,5 +1,5 @@
 {
-  "timestamp": 1794383501.3236294,
+  "timestamp": 1794390323.0290775,
   "fixtures": [
     {
       "t1_name": "Uganda Women",
@@ -12,7 +12,7 @@
       "back": null,
       "lay": null,
       "win_prob": 50,
-      "status_text": "Toss Delayed",
+      "status_text": "Live",
       "status": 1,
       "timestamp": 1794378600,
       "date": "2026-11-11",
@@ -26,9 +26,9 @@
       "series": "Womens Big Bash League 2026",
       "sf": "2KG",
       "fav_team": "Sydney Thunder Women",
-      "back": 72,
-      "lay": 73,
-      "win_prob": 58,
+      "back": 58,
+      "lay": 59,
+      "win_prob": 63,
       "status_text": "Live",
       "status": 1,
       "timestamp": 1794384600,
