@@ -1497,57 +1497,36 @@ with vip_tabs[1]:
                     f"दोपहर/शाम को मैच शुरू होने से 2-3 घंटे पहले भाव लाइव होते ही स्योर प्रेडिक्शन स्वतः अनलॉक हो जाएगी।"
                 )
             elif is_high_volatility:
-                if back <= 50 or prob >= 67:
-                    verdict_code = "VALUE_PLAY"
-                    verdict_badge = f"🔥 {min(prob, 80)}% VALUE PLAY (0.5 LIMIT)"
-                    action_text = f"🟢 VALUE PLAY: {fav.upper()} (हाई-वोलेटिलिटी लीग)"
-                    risk_desc = "MODERATE RISK (ASSOCIATE/DOMESTIC)"
-                    rationale_text = (
-                        f"🔥 मार्केट ऑड्स {bhav_display} {fav} को समर्थन दे रहे हैं। "
-                        f"⚠️ नोट: {ser} जैसी एसोसिएट/घरेलू लीगों में 200+ रन बनते हैं और अप्रत्याशित उलटफेर होते हैं। "
-                        f"आधी (0.5) लिमिट से खेलें और दोनों तरफ भाव आने पर तुरंत बुकसेट (प्रॉफ़िट लॉक) करें।"
-                    )
-                elif back <= 85 or prob >= 54:
-                    verdict_code = "VALUE_PLAY"
-                    verdict_badge = f"🔥 {prob}% VALUE PLAY (SWEET SPOT)"
-                    action_text = f"🟢 VALUE PLAY: {fav.upper()} (65-85 पैसे स्वीट स्पॉट)"
-                    risk_desc = "BEST VALUE (ODDS 1.50 - 1.85)"
-                    rationale_text = (
-                        f"🎯 मार्केट ऑड्स {bhav_display} {fav} के लिए सबसे बेस्ट वैल्यू स्वीट स्पॉट में हैं। "
-                        f"यहाँ 1 लिमिट से सुरक्षित एंट्री लें और 20-25 पैसे फेवरेट आने पर बुकसेट करें।"
-                    )
-                elif back <= 92 or prob >= 52:
-                    verdict_code = "VALUE_PLAY"
-                    verdict_badge = f"⚡ {prob}% MODERATE VALUE (HALF LIMIT)"
-                    action_text = f"🟡 MODERATE LEAN: {fav.upper()} (आधी लिमिट)"
-                    risk_desc = "MODERATE RISK (CLOSE CONTEST)"
-                    rationale_text = f"⚡ मार्केट भाव {bhav_display} {fav} की तरफ हल्का झुकाव दिखा रहा है। केवल 0.5 लिमिट से खेलें।"
-                else:
-                    verdict_code = "SKIP"
-                    verdict_badge = "🟡 50-50 HIGH VOLATILITY"
-                    action_text = "🟡 STRICT SKIP (RISKY VOLATILE LEAGUE)"
-                    risk_desc = "HIGH RISK (UNPREDICTABLE)"
-                    rationale_text = f"⛔ {ser} में दोनों टीमों में भारी अनिश्चितता है ({bhav_display})। पूंजी सुरक्षित रखने के लिए पास करें।"
+                # STRICT HIGH VOLATILITY GATE: T10 leagues (10 overs) and volatile associate domestic cups
+                # have extreme variance. Never issue PLAY picks; enforce STRICT SKIP to protect user's bankroll!
+                verdict_code = "SKIP"
+                verdict_badge = "🟡 STRICT SKIP (T10 / HIGH VOLATILITY)"
+                action_text = f"🟡 STRICT SKIP: {fav.upper()} (T10 / हाई-रिस्क फॉर्मेट)"
+                risk_desc = "HIGH RISK (UNPREDICTABLE VOLATILITY)"
+                rationale_text = (
+                    f"⛔ <b>स्ट्रिक्ट पास (नो-बैट):</b> {ser} एक अत्यधिक वोलेटाइल/अनिश्चित 10-ओवर या घरेलू प्रारूप है। "
+                    f"यहाँ 2-3 गेंदों में मैच पलट जाता है। कोई सांख्यिकीय बढ़त नहीं है — पूंजी सुरक्षित रखने के लिए पास करें।"
+                )
             else:
-                if back <= 50 or prob >= 67:
+                # Tier 1 League / International / Premier Franchise
+                if back <= 50 or prob >= 80:
                     verdict_code = "SUPER_LOCK"
                     verdict_badge = f"💎 {prob}% SUPER LOCK"
                     action_text = f"🟢 HEAVY MATCH WINNER LOCK: {fav.upper()}"
                     risk_desc = "VERY LOW RISK (DOMINANT SQUAD)"
                     rationale_text = f"💎 संस्थागत CREX भाव {bhav_display} के अनुसार {fav} के जीतने की संभावना {prob}% है। बैटिंग गहराई और टीम स्क्वाड बहुत मजबूत है।"
-                elif back <= 85 or prob >= 54:
+                elif back <= 85 or prob >= 65:
                     verdict_code = "VALUE_PLAY"
                     verdict_badge = f"🔥 {prob}% VALUE PLAY (SWEET SPOT)"
                     action_text = f"🟢 PLAY MATCH WINNER: {fav.upper()}"
                     risk_desc = "LOW RISK (FAVORED TEAM)"
                     rationale_text = f"🔥 मार्केट ऑड्स {bhav_display} {fav} को स्पष्ट समर्थन दे रहे हैं ({prob}% विन चांस)। यह 65-85 पैसे का क्लासिक स्वीट स्पॉट है — यहाँ वैल्यू एंट्री लें।"
-                elif back <= 92 or prob >= 52:
-                    verdict_code = "VALUE_PLAY"
-                    verdict_badge = f"⚡ {prob}% MODERATE VALUE (HALF LIMIT)"
-                    action_text = f"🟡 MODERATE LEAN: {fav.upper()} (आधी लिमिट)"
-                    risk_desc = "MODERATE RISK (BALANCED SQUADS)"
-                    rationale_text = f"⚡ मार्केट भाव {bhav_display} {fav} की तरफ हल्का झुकाव दिखा रहा है। केवल 0.5 लिमिट से खेलें।"
                 else:
+                    verdict_code = "SKIP"
+                    verdict_badge = "🟡 50-50 TIGHT CONTEST"
+                    action_text = "🟡 STRICT SKIP (50-50 EVEN MATCH)"
+                    risk_desc = "HIGH RISK (CLOSE CONTEST)"
+                    rationale_text = f"⛔ दोनों टीमों के बीच कड़ा मुकाबला है ({bhav_display})। किसी स्पष्ट विनर के बिना रिस्क न लें — पास करें।"
                     verdict_code = "SKIP"
                     verdict_badge = "🟡 50-50 TIGHT CONTEST"
                     action_text = "🟡 STRICT SKIP (50-50 EVEN MATCH)"
@@ -1648,16 +1627,18 @@ with vip_tabs[1]:
             "bookset_advice": bookset_advice
         })
 
-    # Date Filtering (Aaj vs Kal vs Sabhi)
+    # Date Filtering (Aaj vs Kal Bita Hua vs Kal Aane Wala vs Sabhi)
     c_today_mw = sum(1 for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == today_iso)
+    c_yest_mw = sum(1 for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == yesterday_iso)
     c_tom_mw = sum(1 for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == tomorrow_iso)
 
     mw_date_opts = [
         f"📅 Aaj ({format_ist(cur_ist, '%d %b')}) [{c_today_mw}]",
-        f"📅 Kal ({format_ist(cur_ist + timedelta(days=1), '%d %b')}) [{c_tom_mw}]",
+        f"📅 Kal Bita Hua (Yesterday - {format_ist(cur_ist - timedelta(days=1), '%d %b')}) [{c_yest_mw}]",
+        f"📅 Kal Aane Wala ({format_ist(cur_ist + timedelta(days=1), '%d %b')}) [{c_tom_mw}]",
         f"🌟 Sabhi Dates [{len(mw_match_list)}]"
     ]
-    def_mw_date_idx = 0 if c_today_mw > 0 else 1
+    def_mw_date_idx = 0 if c_today_mw > 0 else (1 if c_yest_mw > 0 else 3)
 
     col_mwd_pill, col_mw_spc = st.columns([2.4, 1.2])
     with col_mwd_pill:
@@ -1680,7 +1661,9 @@ with vip_tabs[1]:
 
     if "Aaj" in sel_mw_date:
         date_filtered_mw = [m for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == today_iso]
-    elif "Kal" in sel_mw_date:
+    elif "Bita Hua" in sel_mw_date or "Yesterday" in sel_mw_date:
+        date_filtered_mw = [m for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == yesterday_iso]
+    elif "Aane Wala" in sel_mw_date or "Kal" in sel_mw_date:
         date_filtered_mw = [m for m in mw_match_list if str(m.get("date") or "").split("T")[0].strip() == tomorrow_iso]
     else:
         date_filtered_mw = list(mw_match_list)
@@ -1724,21 +1707,21 @@ with vip_tabs[1]:
 
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
-    # Filter Bar
+    # Filter Bar - Strict Super-Lock First (User Request)
     col_mf1, col_mf2 = st.columns([2.5, 1.2])
     with col_mf1:
         mw_opts = [
-            f"🔥 सिर्फ एक्शन पिक्स ({super_locks_cnt + value_cnt})",
+            f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})",
+            f"🔥 सभी एक्शन पिक्स ({super_locks_cnt + value_cnt})",
             f"⏳ भाव प्रतीक्षारत ({pending_cnt})",
             f"🌟 सभी मैच ({tot_mw})"
         ]
         if super_locks_cnt > 0:
-            mw_opts.insert(0, f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})")
-
-        if (super_locks_cnt + value_cnt) > 0:
-            def_mw_f = f"🔥 सिर्फ एक्शन पिक्स ({super_locks_cnt + value_cnt})"
+            def_mw_f = f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})"
+        elif (super_locks_cnt + value_cnt) > 0:
+            def_mw_f = f"🔥 सभी एक्शन पिक्स ({super_locks_cnt + value_cnt})"
         elif pending_cnt > 0:
-            def_mw_f = f"🌟 सभी मैच ({tot_mw})"
+            def_mw_f = f"⏳ भाव प्रतीक्षारत ({pending_cnt})"
         else:
             def_mw_f = mw_opts[-1]
 
@@ -1765,7 +1748,19 @@ with vip_tabs[1]:
         filtered_mw = [m for m in filtered_mw if q in m["team_a"].lower() or q in m["team_b"].lower() or q in m["tournament"].lower()]
 
     if not filtered_mw:
-        st.info("ℹ️ कोई मैच इस फ़िल्टर में नहीं मिला। 'सभी मैच' चुनकर देखें।")
+        if mw_filter_choice and "सुपर" in mw_filter_choice:
+            st.markdown("""
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid #10b981; border-radius: 12px; padding: 22px; text-align: center; margin: 16px 0;">
+                <div style="font-size: 32px; margin-bottom: 6px;">🛡️</div>
+                <div style="font-size: 17px; font-weight: 900; color: #34d399;">इस तारीख पर कोई 100% स्योर 'SUPER LOCK' मैच नहीं है</div>
+                <div style="font-size: 13px; color: #cbd5e1; margin-top: 8px; line-height: 1.6; max-width: 650px; margin-left: auto; margin-right: auto;">
+                    <b>अनुशासित पंटर नियम:</b> जब तक किसी मैच में 80%+ संस्थागत स्योरिटी और 30-55 पैसे का मजबूत भाव न हो, तब तक पैसा नहीं लगाना है। बाकी मैच (T10 / हाई-रिस्क लीग) अनिश्चित होते हैं।<br>
+                    आज <b>नो-बैट (Pass Day)</b> रखें और अपनी पूंजी सुरक्षित रखें! ('सभी एक्शन पिक्स' या 'सभी मैच' चुनकर अन्य मैच देख सकते हैं)
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("ℹ️ कोई मैच इस फ़िल्टर में नहीं मिला। 'सभी मैच' चुनकर देखें।")
     else:
         for idx, m in enumerate(filtered_mw):
             is_super = m["verdict_code"] == "SUPER_LOCK"
@@ -1929,22 +1924,60 @@ with vip_tabs[1]:
     elif mw_r_filter and "Pending" in mw_r_filter:
         filtered_mw_res = [r for r in filtered_mw_res if r.get("outcome") == "PENDING"]
 
+    # Date Grouping for Match Winner Results
+    date_groups_mw = {}
     for r in filtered_mw_res:
-        out = r.get("outcome")
-        if out == "PASS":
-            c_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">✅ PASS (WON)</span>'
-            c_border = "#10b981"
-        elif out == "FAIL":
-            c_badge = '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">❌ FAIL (MISSED)</span>'
-            c_border = "#ef4444"
-        elif out == "PENDING":
-            c_badge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">⏳ LIVE / IN-PLAY</span>'
-            c_border = "#f59e0b"
-        else:
-            c_badge = '<span style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #64748b; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">🟡 SKIPPED</span>'
-            c_border = "#64748b"
+        d = r.get("match_date", "Other")
+        if d not in date_groups_mw:
+            date_groups_mw[d] = []
+        date_groups_mw[d].append(r)
 
-        mw_card_html = f"""<div style="background: #0f172a; border: 1.5px solid {c_border}; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+    for d_val, day_matches in date_groups_mw.items():
+        if d_val == today_iso:
+            d_title = f"📅 आज के मैच (Today) — {d_val}"
+            d_color = "#38bdf8"
+        elif d_val == yesterday_iso:
+            d_title = f"📅 कल के मैच (Yesterday) — {d_val}"
+            d_color = "#f59e0b"
+        else:
+            d_title = f"📅 तारीख: {d_val}"
+            d_color = "#a78bfa"
+
+        d_pass = sum(1 for r in day_matches if r.get("outcome") == "PASS")
+        d_fail = sum(1 for r in day_matches if r.get("outcome") == "FAIL")
+        d_settled = d_pass + d_fail
+        d_acc = (d_pass / d_settled * 100) if d_settled > 0 else 0.0
+
+        st.markdown(f"""
+        <div style="background: linear-gradient(90deg, #0f172a, #1e293b); border-left: 6px solid {d_color}; border-radius: 10px; padding: 12px 18px; margin: 20px 0 12px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div>
+                <div style="font-size: 17px; font-weight: 800; color: #ffffff;">{d_title}</div>
+                <div style="font-size: 13px; color: #cbd5e1; margin-top: 2px;">Total: <b>{len(day_matches)} Matches</b> · Settled: <b>{d_settled}</b></div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <span style="background: #064e3b; color: #34d399; border: 1px solid #10b981; padding: 3px 10px; border-radius: 20px; font-weight: 800; font-size: 12px;">✅ {d_pass} Pass</span>
+                <span style="background: #450a0a; color: #f87171; border: 1px solid #ef4444; padding: 3px 10px; border-radius: 20px; font-weight: 800; font-size: 12px;">❌ {d_fail} Fail</span>
+                <span style="background: #1e1b4b; color: #c084fc; border: 1px solid #8b5cf6; padding: 3px 10px; border-radius: 20px; font-weight: 800; font-size: 12px;">🏆 {d_acc:.1f}% Win Rate</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        for r in day_matches:
+            out = r.get("outcome")
+            if out == "PASS":
+                c_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">✅ PASS (WON)</span>'
+                c_border = "#10b981"
+            elif out == "FAIL":
+                c_badge = '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #ef4444; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">❌ FAIL (MISSED)</span>'
+                c_border = "#ef4444"
+            elif out == "PENDING":
+                c_badge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #f59e0b; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">⏳ LIVE / IN-PLAY</span>'
+                c_border = "#f59e0b"
+            else:
+                c_badge = '<span style="background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid #64748b; padding: 4px 10px; border-radius: 12px; font-weight: 800; font-size: 12px;">🟡 SKIPPED</span>'
+                c_border = "#64748b"
+
+            mw_card_html = f"""<div style="background: #0f172a; border: 1.5px solid {c_border}; border-radius: 12px; padding: 16px; margin-bottom: 12px;">
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
 <span style="font-size: 12px; color: #94a3b8; font-weight: 700;">🏏 {r.get('tournament')} · ⏰ {r.get('match_time_ist')} ({r.get('match_date')})</span>
 {c_badge}
@@ -1965,68 +1998,164 @@ with vip_tabs[1]:
 <div style="font-size: 11px; color: #cbd5e1;">{r.get('result_summary')}</div>
 </div>
 </div>"""
-        if r.get("note"):
-            mw_card_html += f"""
+            if r.get("note"):
+                mw_card_html += f"""
 <div style="font-size: 12px; color: #94a3b8; margin-top: 8px; padding-top: 6px; border-top: 1px solid #1e293b;">
 📝 <b>नोट:</b> {r.get('note')}
 </div>"""
-        mw_card_html += "\n</div>"
-        st.markdown("\n".join(l.strip() for l in mw_card_html.splitlines() if l.strip()), unsafe_allow_html=True)
+            mw_card_html += "\n</div>"
+            st.markdown("\n".join(l.strip() for l in mw_card_html.splitlines() if l.strip()), unsafe_allow_html=True)
 
-    # Quick MW Result Editor Expander
-    with st.expander("✏️ मैच विनर रिज़ल्ट बदलें या नया रिज़ल्ट दर्ज करें (Quick MW Result Editor)", expanded=False):
-        st.markdown("💡 **यहाँ से आप किसी भी मैच विनर प्रेडिक्शन का रिज़ल्ट अपडेट कर सकते हैं या नया रिज़ल्ट जोड़ सकते हैं:**")
-        if mw_res_list:
-            mw_titles = [f"{r.get('match_name')} ({r.get('match_date')}) · Current: 🏆 {r.get('actual_winner')} [{r.get('outcome_label')}]" for r in mw_res_list]
-            sel_mw_str = st.selectbox("मैच चुनें जिसका रिज़ल्ट बदलना है:", mw_titles, key="select_mw_fix_match")
-            sel_mw_idx = mw_titles.index(sel_mw_str)
-            target_mw = mw_res_list[sel_mw_idx]
+    # Quick MW Result Editor Expander (Supports both existing matches and custom new additions)
+    with st.expander("✏️ मैच विनर रिज़ल्ट सेट / अपडेट करें (Quick Match Winner Result Fixer)", expanded=False):
+        st.markdown("💡 **यहाँ से आप किसी भी मैच का विनर तुरंत सेट कर सकते हैं ताकि सही Pass/Fail ट्रैक हो सके:**")
+        
+        tab_fix_exist, tab_fix_new = st.tabs(["⚡ मैच चुनकर विनर सेट करें", "➕ नया मैच मैनुअल दर्ज करें"])
+        
+        with tab_fix_exist:
+            # Build list of matches from recorded log + active fixtures
+            known_ids = set()
+            mw_edit_options = []
+            
+            for r in mw_res_list:
+                m_id = r.get("match_id")
+                if m_id and m_id not in known_ids:
+                    known_ids.add(m_id)
+                    mw_edit_options.append({
+                        "label": f"📜 [रिकॉर्ड] {r.get('match_name')} ({r.get('match_date')}) · विनर: {r.get('actual_winner')} [{r.get('outcome_label')}]",
+                        "match_id": m_id,
+                        "team_a": r.get("team_a"),
+                        "team_b": r.get("team_b"),
+                        "tournament": r.get("tournament"),
+                        "match_date": r.get("match_date"),
+                        "match_time_ist": r.get("match_time_ist"),
+                        "predicted_winner": r.get("predicted_winner"),
+                        "actual_winner": r.get("actual_winner"),
+                        "result_summary": r.get("result_summary"),
+                        "verdict_code": r.get("verdict_code"),
+                        "verdict_badge": r.get("verdict_badge"),
+                        "bhav_entry": r.get("bhav_entry"),
+                        "note": r.get("note", "")
+                    })
+                    
+            for m in mw_match_list:
+                t1 = m.get("team_a")
+                t2 = m.get("team_b")
+                dt = str(m.get("date") or today_iso).split("T")[0]
+                m_id = f"mw_{dt.replace('-', '')}_{t1[:3].lower()}_{t2[:3].lower()}"
+                if m_id not in known_ids:
+                    known_ids.add(m_id)
+                    mw_edit_options.append({
+                        "label": f"🏏 [लाइव/आगामी] {t1} vs {t2} ({dt}) · प्रेडिक्शन: {m.get('fav_team') or 'Pending'}",
+                        "match_id": m_id,
+                        "team_a": t1,
+                        "team_b": t2,
+                        "tournament": m.get("tournament"),
+                        "match_date": dt,
+                        "match_time_ist": m.get("time"),
+                        "predicted_winner": m.get("fav_team"),
+                        "actual_winner": "Pending Confirmation",
+                        "result_summary": "",
+                        "verdict_code": m.get("verdict_code"),
+                        "verdict_badge": m.get("verdict_badge"),
+                        "bhav_entry": m.get("bhav"),
+                        "note": ""
+                    })
 
-            col_me1, col_me2, col_me3, col_me4 = st.columns([2, 2, 1.4, 1.4])
-            with col_me1:
-                new_mw_win = st.selectbox(
-                    "🏆 असली मैच विनर चुनें",
-                    [target_mw.get("team_a"), target_mw.get("team_b")],
-                    index=0 if target_mw.get("actual_winner") == target_mw.get("team_a") else 1,
-                    key="select_new_mw_win"
-                )
-            with col_me2:
-                new_mw_summary = st.text_input(
-                    "मार्जिन / समरी",
-                    value=target_mw.get("result_summary") or f"{new_mw_win} Won",
-                    key="input_new_mw_sum"
-                )
-            with col_me3:
-                st.write("")
-                st.write("")
-                if st.button("💾 अपडेट करें (Save)", key="btn_save_mw_fix", type="primary", use_container_width=True):
-                    save_mw_result(
-                        match_id=target_mw.get("match_id"),
-                        match_name=target_mw.get("match_name"),
-                        tournament=target_mw.get("tournament"),
-                        match_date=target_mw.get("match_date"),
-                        match_time_ist=target_mw.get("match_time_ist"),
-                        team_a=target_mw.get("team_a"),
-                        team_b=target_mw.get("team_b"),
-                        predicted_winner=target_mw.get("predicted_winner"),
-                        verdict_code=target_mw.get("verdict_code"),
-                        verdict_badge=target_mw.get("verdict_badge"),
-                        bhav_entry=target_mw.get("bhav_entry"),
-                        win_prob=target_mw.get("win_prob", 65),
-                        actual_winner=new_mw_win,
-                        result_summary=new_mw_summary,
-                        note=target_mw.get("note", ""),
-                        is_manual=True
+            if mw_edit_options:
+                opt_labels = [o["label"] for o in mw_edit_options]
+                sel_lbl = st.selectbox("मैच चुनें जिसका रिज़ल्ट सेट / अपडेट करना है:", opt_labels, key="sel_unified_mw_match")
+                sel_obj = mw_edit_options[opt_labels.index(sel_lbl)]
+
+                col_u1, col_u2, col_u3, col_u4 = st.columns([2, 2, 1.4, 1.4])
+                with col_u1:
+                    new_win = st.selectbox(
+                        "🏆 असली मैच विनर कौन बना?",
+                        [sel_obj["team_a"], sel_obj["team_b"]],
+                        index=0 if sel_obj.get("actual_winner") == sel_obj["team_a"] else 1,
+                        key="sel_u_winner"
                     )
-                    st.success(f"✅ अपडेट सफल! विनर: {new_mw_win}")
-                    st.rerun()
-            with col_me4:
+                with col_u2:
+                    new_sum = st.text_input(
+                        "समरी / मार्जिन (e.g. Won by 4 wickets)",
+                        value=sel_obj.get("result_summary") or f"{new_win} Won",
+                        key="input_u_summary"
+                    )
+                with col_u3:
+                    st.write("")
+                    st.write("")
+                    if st.button("💾 सेव करें (Save)", key="btn_save_unified_mw", type="primary", use_container_width=True):
+                        save_mw_result(
+                            match_id=sel_obj["match_id"],
+                            match_name=f"{sel_obj['team_a']} vs {sel_obj['team_b']}",
+                            tournament=sel_obj["tournament"],
+                            match_date=sel_obj["match_date"],
+                            match_time_ist=sel_obj["match_time_ist"] or "07:00 PM IST",
+                            team_a=sel_obj["team_a"],
+                            team_b=sel_obj["team_b"],
+                            predicted_winner=sel_obj["predicted_winner"] or sel_obj["team_a"],
+                            verdict_code=sel_obj.get("verdict_code") or "VALUE_PLAY",
+                            verdict_badge=sel_obj.get("verdict_badge") or "🔥 VALUE PLAY",
+                            bhav_entry=sel_obj.get("bhav_entry") or "",
+                            win_prob=65,
+                            actual_winner=new_win,
+                            result_summary=new_sum,
+                            note=sel_obj.get("note", "Manually updated by user."),
+                            is_manual=True
+                        )
+                        st.success(f"✅ मैच विनर सफलतापूर्वक सेव हो गया! विनर: {new_win}")
+                        st.rerun()
+                with col_u4:
+                    st.write("")
+                    st.write("")
+                    if st.button("🗑️ हटाएँ (Delete)", key="btn_del_unified_mw", use_container_width=True):
+                        delete_mw_result(sel_obj["match_id"])
+                        st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
+                        st.rerun()
+
+        with tab_fix_new:
+            st.markdown("📝 **कोई अन्य मैच जो लिस्ट में न हो, उसे सीधे यहाँ जोड़ें:**")
+            col_n1, col_n2 = st.columns(2)
+            with col_n1:
+                man_t1 = st.text_input("टीम 1 (Team A)", placeholder="e.g. India", key="input_man_t1")
+                man_tour = st.text_input("टूर्नामेंट / सीरीज", placeholder="e.g. T20 World Cup", key="input_man_tour")
+                man_pred = st.text_input("प्रेडिक्टेड विनर (हमारी टीम)", placeholder="e.g. India", key="input_man_pred")
+            with col_n2:
+                man_t2 = st.text_input("टीम 2 (Team B)", placeholder="e.g. Australia", key="input_man_t2")
+                man_dt = st.text_input("तारीख (YYYY-MM-DD)", value=yesterday_iso, key="input_man_dt")
+                man_act = st.text_input("असली विजेता (Actual Winner)", placeholder="e.g. Australia", key="input_man_act")
+
+            col_n3, col_n4 = st.columns([2, 1])
+            with col_n3:
+                man_sum = st.text_input("समरी / मार्जिन", placeholder="e.g. Won by 5 runs", key="input_man_sum")
+            with col_n4:
                 st.write("")
                 st.write("")
-                if st.button("🗑️ हटाएँ (Delete)", key="btn_del_mw_fix", use_container_width=True):
-                    delete_mw_result(target_mw.get("match_id"))
-                    st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
-                    st.rerun()
+                if st.button("➕ नया रिज़ल्ट जोड़ें (Add)", key="btn_add_man_mw", type="primary", use_container_width=True):
+                    if man_t1.strip() and man_t2.strip() and man_act.strip():
+                        new_id = f"mw_man_{man_dt.replace('-', '')}_{man_t1[:3].lower()}_{man_t2[:3].lower()}"
+                        save_mw_result(
+                            match_id=new_id,
+                            match_name=f"{man_t1.strip()} vs {man_t2.strip()}",
+                            tournament=man_tour.strip() or "Cricket Match",
+                            match_date=man_dt.strip() or yesterday_iso,
+                            match_time_ist="07:00 PM IST",
+                            team_a=man_t1.strip(),
+                            team_b=man_t2.strip(),
+                            predicted_winner=man_pred.strip() or man_t1.strip(),
+                            verdict_code="VALUE_PLAY",
+                            verdict_badge="🔥 VALUE PLAY",
+                            bhav_entry="N/A",
+                            win_prob=65,
+                            actual_winner=man_act.strip(),
+                            result_summary=man_sum.strip() or f"{man_act.strip()} Won",
+                            note="Manually entered by user.",
+                            is_manual=True
+                        )
+                        st.success(f"✅ नया मैच सफलतापूर्वक जुड़ गया! ({man_t1} vs {man_t2})")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ कृपया दोनों टीमों का नाम और असली विनर भरें।")
 
 
 # ==============================================================================
