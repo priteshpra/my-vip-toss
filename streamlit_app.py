@@ -1342,7 +1342,7 @@ with vip_tabs[1]:
             <div>
                 <h2 style="color: #34d399; margin: 0 0 4px 0; font-size: 22px; font-weight: 900;">🏆 VIP मैच विनर प्रेडिक्शन (Match Winner Intelligence)</h2>
                 <p style="color: #a7f3d0; margin: 0; font-size: 13px;">
-                    संस्थागत CREX एक्सचेंज भाव · लाइव बुकमेकर लोड · 85%+ हाई-कन्विकशन स्योर पिक्स (Skill & Team Depth Based)
+                    संस्थागत CREX एक्सचेंज भाव · लाइव बुकमेकर लोड · 70%+ हाई-कन्विकशन स्योर पिक्स (Skill & Team Depth Based)
                 </p>
             </div>
             <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; padding: 6px 14px; border-radius: 20px; font-weight: 800; font-size: 12px;">
@@ -1400,7 +1400,13 @@ with vip_tabs[1]:
         """, unsafe_allow_html=True)
 
     # Fetch real-time fixtures from CREX (cached in session state for instant tab switching)
-    from core.providers.crex_provider import fetch_crex_fixtures
+    from core.providers.crex_provider import fetch_crex_fixtures, is_match_pair
+    from core.engine.match_winner_manager import sync_mw_results_from_crex, load_mw_results
+
+    # Automatically synchronize finished match outcomes into mw_results_log
+    sync_mw_results_from_crex()
+    settled_mw_results = load_mw_results()
+
     if "crex_fixtures_mw" not in st.session_state or st.session_state.get("need_live_refresh", False):
         st.session_state["crex_fixtures_mw"] = fetch_crex_fixtures(force_refresh=False)
     crex_fixtures_mw = st.session_state.get("crex_fixtures_mw", [])
@@ -1418,6 +1424,27 @@ with vip_tabs[1]:
         if pk in seen_pairs_mw:
             continue
         seen_pairs_mw.add(pk)
+
+        status_num = cf.get("status", 0)
+        c_status_text = (cf.get("status_text") or "").strip().lower()
+        c_result_text = (cf.get("result") or "").strip().lower()
+
+        # Check if match is finished / completed
+        is_finished_mw = (
+            status_num == 2
+            or any(w in c_status_text for w in ["won by", "beat", "finished", "complete"])
+            or any(w in c_result_text for w in ["won by", "beat", "finished", "complete"])
+        )
+        if not is_finished_mw:
+            for mr in settled_mw_results:
+                if mr.get("outcome") in ["PASS", "FAIL"] and is_match_pair(t1, t2, mr.get("team_a", ""), mr.get("team_b", "")):
+                    is_finished_mw = True
+                    break
+
+        # User Rule: As soon as a match winner is decided, exclude it from top active section!
+        # It is immediately shown in the bottom result section.
+        if is_finished_mw:
+            continue
 
         # 1. Immutable Match Winner Lock: Check vault first so in-play momentum never flips original pick!
         from core.providers.crex_provider import get_locked_mw_prediction, save_locked_mw_prediction
@@ -1482,9 +1509,7 @@ with vip_tabs[1]:
             # Dynamic Evaluation for new matches
             ser_lower = (ser or "").lower()
             is_high_volatility = any(k in ser_lower for k in [
-                "nepal", "npl", "t10", "abu dhabi", "quaid", "u19", "under-19",
-                "ecs", "european", "kuwait", "qatar", "oman", "baroda", "ranji",
-                "syed mushtaq", "pondicherry", "assam", "bengal", "club"
+                "t10", "10-over", "sixes", "ecs ", "abu dhabi t10"
             ])
 
             if back is None:
@@ -1494,44 +1519,38 @@ with vip_tabs[1]:
                 risk_desc = "MARKET LINE NOT OPENED YET"
                 rationale_text = (
                     f"⏳ {ser} के लिए CREX एक्सचेंज भाव अभी खुला नहीं है। "
-                    f"दोपहर/शाम को मैच शुरू होने से 2-3 घंटे पहले भाव लाइव होते ही स्योर प्रेडिक्शन स्वतः अनलॉक हो जाएगी।"
+                    f"मैच शुरू होने से 2-3 घंटे पहले भाव लाइव होते ही स्योर प्रेडिक्शन स्वतः अनलॉक हो जाएगी।"
                 )
             elif is_high_volatility:
-                # STRICT HIGH VOLATILITY GATE: T10 leagues (10 overs) and volatile associate domestic cups
-                # have extreme variance. Never issue PLAY picks; enforce STRICT SKIP to protect user's bankroll!
+                # STRICT HIGH VOLATILITY GATE: Pure 10-over formats have extreme variance
                 verdict_code = "SKIP"
                 verdict_badge = "🟡 STRICT SKIP (T10 / HIGH VOLATILITY)"
-                action_text = f"🟡 STRICT SKIP: {fav.upper()} (T10 / हाई-रिस्क फॉर्मेट)"
+                action_text = f"🟡 STRICT SKIP: {fav.upper()} (T10 / 10-ओवर प्रारूप)"
                 risk_desc = "HIGH RISK (UNPREDICTABLE VOLATILITY)"
                 rationale_text = (
-                    f"⛔ <b>स्ट्रिक्ट पास (नो-बैट):</b> {ser} एक अत्यधिक वोलेटाइल/अनिश्चित 10-ओवर या घरेलू प्रारूप है। "
-                    f"यहाँ 2-3 गेंदों में मैच पलट जाता है। कोई सांख्यिकीय बढ़त नहीं है — पूंजी सुरक्षित रखने के लिए पास करें।"
+                    f"⛔ <b>स्ट्रिक्ट पास (नो-बैट):</b> {ser} एक अत्यधिक वोलेटाइल 10-ओवर प्रारूप है। "
+                    f"यहाँ 2-3 गेंदों में मैच पलट जाता है — पूंजी सुरक्षित रखने के लिए पास करें।"
                 )
             else:
-                # Tier 1 League / International / Premier Franchise
-                if back <= 50 or prob >= 80:
+                # User Rule: Win Probability >= 70% is a SUPER LOCK!
+                if prob >= 70 or (back is not None and back <= 70):
                     verdict_code = "SUPER_LOCK"
                     verdict_badge = f"💎 {prob}% SUPER LOCK"
                     action_text = f"🟢 HEAVY MATCH WINNER LOCK: {fav.upper()}"
                     risk_desc = "VERY LOW RISK (DOMINANT SQUAD)"
-                    rationale_text = f"💎 संस्थागत CREX भाव {bhav_display} के अनुसार {fav} के जीतने की संभावना {prob}% है। बैटिंग गहराई और टीम स्क्वाड बहुत मजबूत है।"
-                elif back <= 85 or prob >= 65:
+                    rationale_text = f"💎 संस्थागत CREX भाव {bhav_display} के अनुसार {fav} के जीतने की संभावना {prob}% है (70%+ स्योर विनर)। बैटिंग गहराई और टीम स्क्वाड बहुत मजबूत है।"
+                elif prob >= 60 or (back is not None and back <= 85):
                     verdict_code = "VALUE_PLAY"
-                    verdict_badge = f"🔥 {prob}% VALUE PLAY (SWEET SPOT)"
+                    verdict_badge = f"🔥 {prob}% VALUE PLAY"
                     action_text = f"🟢 PLAY MATCH WINNER: {fav.upper()}"
                     risk_desc = "LOW RISK (FAVORED TEAM)"
-                    rationale_text = f"🔥 मार्केट ऑड्स {bhav_display} {fav} को स्पष्ट समर्थन दे रहे हैं ({prob}% विन चांस)। यह 65-85 पैसे का क्लासिक स्वीट स्पॉट है — यहाँ वैल्यू एंट्री लें।"
+                    rationale_text = f"🔥 मार्केट ऑड्स {bhav_display} {fav} को समर्थन दे रहे हैं ({prob}% विन चांस)। यह 60-69% का वैल्यू प्ले है — यहाँ संभलकर एंट्री लें।"
                 else:
                     verdict_code = "SKIP"
                     verdict_badge = "🟡 50-50 TIGHT CONTEST"
                     action_text = "🟡 STRICT SKIP (50-50 EVEN MATCH)"
                     risk_desc = "HIGH RISK (CLOSE CONTEST)"
-                    rationale_text = f"⛔ दोनों टीमों के बीच कड़ा मुकाबला है ({bhav_display})। किसी स्पष्ट विनर के बिना रिस्क न लें — पास करें।"
-                    verdict_code = "SKIP"
-                    verdict_badge = "🟡 50-50 TIGHT CONTEST"
-                    action_text = "🟡 STRICT SKIP (50-50 EVEN MATCH)"
-                    risk_desc = "HIGH RISK (CLOSE CONTEST)"
-                    rationale_text = f"⛔ दोनों टीमों के बीच कड़ा मुकाबला है ({bhav_display})। किसी स्पष्ट विनर के बिना रिस्क न लें — पास करें।"
+                    rationale_text = f"⛔ दोनों टीमों के बीच कड़ा मुकाबला है ({bhav_display})। 70% स्योरिटी के बिना रिस्क न लें — पास करें।"
 
             # Instantly lock newly evaluated actionable predictions so they NEVER flip in-play!
             if fav and verdict_code in ["SUPER_LOCK", "VALUE_PLAY"]:
@@ -1680,21 +1699,21 @@ with vip_tabs[1]:
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-val" style="color: #38bdf8;">{tot_mw}</div>
-            <div class="kpi-lbl">Total Matches</div>
+            <div class="kpi-lbl">Active Matches</div>
         </div>
         """, unsafe_allow_html=True)
     with col_mk2:
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-val" style="color: #10b981;">{super_locks_cnt}</div>
-            <div class="kpi-lbl">💎 85%+ Super Locks</div>
+            <div class="kpi-lbl">💎 70%+ Super Locks</div>
         </div>
         """, unsafe_allow_html=True)
     with col_mk3:
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-val" style="color: #38bdf8;">{value_cnt}</div>
-            <div class="kpi-lbl">🔥 54%-84% Value Plays</div>
+            <div class="kpi-lbl">🔥 60%-69% Value Plays</div>
         </div>
         """, unsafe_allow_html=True)
     with col_mk4:
@@ -1707,17 +1726,17 @@ with vip_tabs[1]:
 
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
-    # Filter Bar - Strict Super-Lock First (User Request)
+    # Filter Bar - Strict 70%+ Super-Lock First (User Request)
     col_mf1, col_mf2 = st.columns([2.5, 1.2])
     with col_mf1:
         mw_opts = [
-            f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})",
+            f"💎 70%+ सुपर लॉक्स ({super_locks_cnt})",
             f"🔥 सभी एक्शन पिक्स ({super_locks_cnt + value_cnt})",
             f"⏳ भाव प्रतीक्षारत ({pending_cnt})",
             f"🌟 सभी मैच ({tot_mw})"
         ]
         if super_locks_cnt > 0:
-            def_mw_f = f"💎 सिर्फ सुपर लॉक्स ({super_locks_cnt})"
+            def_mw_f = f"💎 70%+ सुपर लॉक्स ({super_locks_cnt})"
         elif (super_locks_cnt + value_cnt) > 0:
             def_mw_f = f"🔥 सभी एक्शन पिक्स ({super_locks_cnt + value_cnt})"
         elif pending_cnt > 0:
@@ -1736,7 +1755,7 @@ with vip_tabs[1]:
 
     # Filter Rows
     filtered_mw = date_filtered_mw
-    if mw_filter_choice and "सुपर" in mw_filter_choice:
+    if mw_filter_choice and ("70%+" in mw_filter_choice or "सुपर" in mw_filter_choice):
         filtered_mw = [m for m in filtered_mw if m["verdict_code"] == "SUPER_LOCK"]
     elif mw_filter_choice and "एक्शन" in mw_filter_choice:
         filtered_mw = [m for m in filtered_mw if m["verdict_code"] in ["SUPER_LOCK", "VALUE_PLAY"]]
@@ -1748,14 +1767,14 @@ with vip_tabs[1]:
         filtered_mw = [m for m in filtered_mw if q in m["team_a"].lower() or q in m["team_b"].lower() or q in m["tournament"].lower()]
 
     if not filtered_mw:
-        if mw_filter_choice and "सुपर" in mw_filter_choice:
+        if mw_filter_choice and ("70%+" in mw_filter_choice or "सुपर" in mw_filter_choice):
             st.markdown("""
             <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid #10b981; border-radius: 12px; padding: 22px; text-align: center; margin: 16px 0;">
                 <div style="font-size: 32px; margin-bottom: 6px;">🛡️</div>
-                <div style="font-size: 17px; font-weight: 900; color: #34d399;">इस तारीख पर कोई 100% स्योर 'SUPER LOCK' मैच नहीं है</div>
+                <div style="font-size: 17px; font-weight: 900; color: #34d399;">इस तारीख पर कोई 70%+ स्योर 'SUPER LOCK' एक्टिव मैच नहीं है</div>
                 <div style="font-size: 13px; color: #cbd5e1; margin-top: 8px; line-height: 1.6; max-width: 650px; margin-left: auto; margin-right: auto;">
-                    <b>अनुशासित पंटर नियम:</b> जब तक किसी मैच में 80%+ संस्थागत स्योरिटी और 30-55 पैसे का मजबूत भाव न हो, तब तक पैसा नहीं लगाना है। बाकी मैच (T10 / हाई-रिस्क लीग) अनिश्चित होते हैं।<br>
-                    आज <b>नो-बैट (Pass Day)</b> रखें और अपनी पूंजी सुरक्षित रखें! ('सभी एक्शन पिक्स' या 'सभी मैच' चुनकर अन्य मैच देख सकते हैं)
+                    <b>अनुशासित पंटर नियम:</b> जब तक किसी मैच में 70%+ संस्थागत स्योरिटी और अनुकूल भाव न हो, तब तक पैसा नहीं लगाना है।<br>
+                    जो मैच खत्म हो चुके हैं उनके नतीजे नीचे <b>'पिछले मैच विनर रिज़ल्ट्स'</b> में देखें।
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -1961,6 +1980,20 @@ with vip_tabs[1]:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+        # Day's summary table
+        day_mw_rows = []
+        for r in day_matches:
+            day_mw_rows.append({
+                "⏰ Time": r.get('match_time_ist'),
+                "Match": r.get("match_name"),
+                "Tournament": r.get("tournament"),
+                "🔮 Predicted": f"🟢 {r.get('predicted_winner')} ({r.get('win_prob', '')}%)",
+                "🏆 Actual Winner": f"🏆 {r.get('actual_winner')}",
+                "📊 Result Outcome": r.get("outcome_label", "PASS"),
+                "📝 Result Summary": r.get("result_summary", "")
+            })
+        st.dataframe(pd.DataFrame(day_mw_rows), use_container_width=True, hide_index=True)
 
         for r in day_matches:
             out = r.get("outcome")

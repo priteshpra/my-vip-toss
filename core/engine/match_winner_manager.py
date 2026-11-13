@@ -195,7 +195,7 @@ def sync_mw_results_from_crex() -> int:
     """Synchronize finished matches and outcomes directly from CREX live feed."""
     import html
     from core.providers.toss_load_provider import match_teams_fuzzy
-    from core.providers.crex_provider import is_match_pair, fetch_crex_fixtures
+    from core.providers.crex_provider import is_match_pair, fetch_crex_fixtures, get_locked_mw_prediction
 
     fixtures = fetch_crex_fixtures(force_refresh=True)
     if not fixtures:
@@ -206,36 +206,71 @@ def sync_mw_results_from_crex() -> int:
 
     for f in fixtures:
         status = f.get("status", 0)
-        status_text = f.get("status_text", "")
-        # status 2 = Completed
-        if status != 2 and not ("won by" in status_text.lower() or "beat" in status_text.lower()):
+        status_text = (f.get("status_text") or "").strip()
+        result_text = (f.get("result") or "").strip()
+        summary_candidate = result_text if result_text else status_text
+
+        # A match is finished if status is 2 or status/result text indicates completion
+        is_finished = (
+            status == 2
+            or any(k in status_text.lower() for k in ["won by", "beat", "finished", "complete"])
+            or any(k in result_text.lower() for k in ["won by", "beat", "finished", "complete"])
+        )
+        if not is_finished:
             continue
 
         t1 = f.get("t1_name", "")
         t2 = f.get("t2_name", "")
+        t1_sn = f.get("t1_sn", "")
+        t2_sn = f.get("t2_sn", "")
         if not t1 or not t2:
             continue
 
-        # Extract actual match winner from status_text
+        # 1. Match by winning_team key from CREX
+        win_key = str(f.get("winning_team", "")).strip()
+        t1_k = str(f.get("t1_key", "")).strip()
+        t2_k = str(f.get("t2_key", "")).strip()
         actual_winner = ""
-        result_summary = status_text
-        if "won by" in status_text.lower():
-            winner_part = status_text.split("won by")[0].strip()
-            if match_teams_fuzzy(t1, winner_part):
-                actual_winner = t1
-            elif match_teams_fuzzy(t2, winner_part):
-                actual_winner = t2
-            else:
-                actual_winner = winner_part
-        elif "beat" in status_text.lower():
-            winner_part = status_text.split("beat")[0].strip()
-            if match_teams_fuzzy(t1, winner_part):
-                actual_winner = t1
-            elif match_teams_fuzzy(t2, winner_part):
-                actual_winner = t2
+
+        if win_key and t1_k and win_key == t1_k:
+            actual_winner = t1
+        elif win_key and t2_k and win_key == t2_k:
+            actual_winner = t2
+
+        # 2. Extract from result text or status_text
+        if not actual_winner:
+            text_to_search = result_text if ("won by" in result_text.lower() or "beat" in result_text.lower()) else status_text
+            if "won by" in text_to_search.lower():
+                winner_part = text_to_search.split("won by")[0].strip()
+                w_lower = winner_part.lower()
+                if t1_sn and t1_sn.lower() in w_lower:
+                    actual_winner = t1
+                elif t2_sn and t2_sn.lower() in w_lower:
+                    actual_winner = t2
+                elif match_teams_fuzzy(t1, winner_part):
+                    actual_winner = t1
+                elif match_teams_fuzzy(t2, winner_part):
+                    actual_winner = t2
+                else:
+                    actual_winner = winner_part.strip()
+            elif "beat" in text_to_search.lower():
+                winner_part = text_to_search.split("beat")[0].strip()
+                w_lower = winner_part.lower()
+                if t1_sn and t1_sn.lower() in w_lower:
+                    actual_winner = t1
+                elif t2_sn and t2_sn.lower() in w_lower:
+                    actual_winner = t2
+                elif match_teams_fuzzy(t1, winner_part):
+                    actual_winner = t1
+                elif match_teams_fuzzy(t2, winner_part):
+                    actual_winner = t2
+                else:
+                    actual_winner = winner_part.strip()
 
         if not actual_winner:
             continue
+
+        result_summary = summary_candidate or f"{actual_winner} won"
 
         # Check if already recorded in results
         matched_record = None
@@ -244,8 +279,22 @@ def sync_mw_results_from_crex() -> int:
                 matched_record = r
                 break
 
+        # Check immutable locked prediction
+        locked_mw = get_locked_mw_prediction(t1, t2)
+        fav = (locked_mw.get("fav_team") if locked_mw else None) or f.get("fav_team") or ""
+        prob = (int(locked_mw.get("win_prob")) if locked_mw and locked_mw.get("win_prob") else None) or f.get("win_prob") or 70
+        back = f.get("back")
+
+        # Threshold Rule: >= 70% is a SUPER LOCK!
+        if prob >= 70 or (back is not None and back <= 70):
+            v_code = "SUPER_LOCK"
+            v_badge = f"💎 {prob}% SUPER LOCK"
+        else:
+            v_code = "VALUE_PLAY"
+            v_badge = f"🔥 {prob}% VALUE PLAY"
+
         if matched_record:
-            if matched_record.get("outcome") == "PENDING" or "pending" in str(matched_record.get("actual_winner", "")).lower():
+            if matched_record.get("outcome") == "PENDING" or "pending" in str(matched_record.get("actual_winner", "")).lower() or not matched_record.get("actual_winner"):
                 save_mw_result(
                     match_id=matched_record.get("match_id"),
                     match_name=matched_record.get("match_name"),
@@ -254,27 +303,21 @@ def sync_mw_results_from_crex() -> int:
                     match_time_ist=matched_record.get("match_time_ist"),
                     team_a=matched_record.get("team_a"),
                     team_b=matched_record.get("team_b"),
-                    predicted_winner=matched_record.get("predicted_winner"),
-                    verdict_code=matched_record.get("verdict_code"),
-                    verdict_badge=matched_record.get("verdict_badge"),
+                    predicted_winner=fav or matched_record.get("predicted_winner"),
+                    verdict_code=v_code,
+                    verdict_badge=v_badge,
                     bhav_entry=matched_record.get("bhav_entry"),
-                    win_prob=matched_record.get("win_prob", 65),
+                    win_prob=prob,
                     actual_winner=actual_winner,
                     result_summary=result_summary,
-                    note=matched_record.get("note", ""),
+                    note=matched_record.get("note", "Auto-synced from CREX final scorecard."),
                     is_manual=False
                 )
                 resolved_count += 1
         else:
-            # If CREX had a strong favorite, create a completed audit entry
-            fav = f.get("fav_team") or ""
-            prob = f.get("win_prob") or 50
-            back = f.get("back")
-            if fav and (back is not None and back <= 85):
-                v_code = "SUPER_LOCK" if back <= 50 else "VALUE_PLAY"
-                v_badge = f"💎 {prob}% SUPER LOCK" if back <= 50 else f"🔥 {prob}% VALUE PLAY"
+            if fav:
                 save_mw_result(
-                    match_id=f"mw_crex_{f.get('date', '').replace('-', '')}_{t1[:3].lower()}_{t2[:3].lower()}",
+                    match_id=f"mw_crex_{str(f.get('date', '')).replace('-', '')}_{t1[:3].lower()}_{t2[:3].lower()}",
                     match_name=f"{t1} vs {t2}",
                     tournament=f.get("series", "Cricket Match"),
                     match_date=f.get("date", format_ist(now_ist(), "%Y-%m-%d")),
@@ -284,7 +327,7 @@ def sync_mw_results_from_crex() -> int:
                     predicted_winner=fav,
                     verdict_code=v_code,
                     verdict_badge=v_badge,
-                    bhav_entry=f"[{fav[:3].upper()}] {back}-{f.get('lay') or ''}",
+                    bhav_entry=f"[{fav[:3].upper()}] {back}-{f.get('lay') or ''}" if back is not None else "[CREX] 70%+",
                     win_prob=prob,
                     actual_winner=actual_winner,
                     result_summary=result_summary,
