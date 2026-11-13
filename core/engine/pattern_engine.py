@@ -108,6 +108,21 @@ def match_teams(t1: str, t2: str) -> bool:
     # Subset matching ONLY if both sets have >= 2 core tokens (e.g. 'Hong Kong' in 'Hong Kong China')
     if len(s1) >= 2 and len(s2) >= 2 and (s1.issubset(s2) or s2.issubset(s1)):
         return True
+
+    # Transliteration & phonetic variant normalization (e.g. Gurkhas vs Gorkhas, Royalsmen vs Royals)
+    def _norm_token(tok: str) -> str:
+        t = tok.replace("gurkha", "gorkha").replace("royalsmen", "royals")
+        if t.endswith("s") and len(t) > 4:
+            t = t[:-1]
+        return t
+
+    norm_s1 = {_norm_token(x) for x in s1}
+    norm_s2 = {_norm_token(x) for x in s2}
+    if norm_s1 == norm_s2:
+        return True
+    if len(norm_s1) >= 2 and len(norm_s2) >= 2 and (norm_s1.issubset(norm_s2) or norm_s2.issubset(norm_s1)):
+        return True
+
     return False
 
 

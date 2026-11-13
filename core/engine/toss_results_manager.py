@@ -115,7 +115,14 @@ def save_toss_result(
         outcome = "PENDING"
         outcome_label = "⏳ PENDING (Awaiting Result)"
     elif rec_clean and win_clean:
+        from core.providers.toss_load_provider import match_teams_fuzzy
+        is_won = False
         if rec_clean in win_clean or win_clean in rec_clean:
+            is_won = True
+        elif match_teams_fuzzy(recommended_team, actual_winner):
+            is_won = True
+
+        if is_won:
             outcome = "PASS"
             outcome_label = "✅ PASS (WON)"
         else:

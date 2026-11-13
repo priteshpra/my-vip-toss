@@ -36,7 +36,27 @@ def _make_pair_key(team_a: str, team_b: str) -> str:
 
 def match_teams_fuzzy(t1: str, t2: str) -> bool:
     """Check if two team names refer to the same team using strict category-aware matching."""
-    return match_teams_strict(t1, t2)
+    if not t1 or not t2:
+        return False
+    if match_teams_strict(t1, t2):
+        return True
+
+    # Alphanumeric equality / containment
+    c1 = re.sub(r'[^a-z0-9]', '', (t1 or "").lower())
+    c2 = re.sub(r'[^a-z0-9]', '', (t2 or "").lower())
+    if c1 == c2:
+        return True
+
+    # Transliteration aliases (e.g. gurkha == gorkha, royalsmen == royals)
+    norm1 = c1.replace("gurkha", "gorkha").replace("royalsmen", "royals")
+    norm2 = c2.replace("gurkha", "gorkha").replace("royalsmen", "royals")
+    if norm1 == norm2 or (len(norm1) >= 6 and norm1 in norm2) or (len(norm2) >= 6 and norm2 in norm1):
+        w1 = any(x in (t1 or "").lower() for x in ["women", "womens", "wmn"])
+        w2 = any(x in (t2 or "").lower() for x in ["women", "womens", "wmn"])
+        if w1 == w2:
+            return True
+
+    return False
 
 
 def load_locked_predictions() -> Dict[str, Any]:
