@@ -8,11 +8,21 @@ import re
 import urllib.request
 from typing import List, Dict, Any, Optional
 
-CHANNEL_URL = "https://t.me/s/KINGTOSSLINE111"
+import os
+
+def _get_channel_url() -> str:
+    raw = os.environ.get("TELEGRAM_CHANNEL_URL", "https://t.me/s/SUPERFASTTOSSLINE111").strip()
+    if raw.startswith("@"):
+        return f"https://t.me/s/{raw[1:]}"
+    if raw.startswith("https://t.me/") and not raw.startswith("https://t.me/s/"):
+        return raw.replace("https://t.me/", "https://t.me/s/")
+    return raw
+
+CHANNEL_URL = _get_channel_url()
 
 
-def fetch_telegram_toss_feed(pages: int = 3) -> List[Dict[str, str]]:
-    """Fetch and parse live toss winners from @KINGTOSSLINE111 web preview across multiple pages."""
+def fetch_telegram_toss_feed(pages: int = 3, channel_url: Optional[str] = None) -> List[Dict[str, str]]:
+    """Fetch and parse live toss winners from Telegram channel web preview across multiple pages."""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -20,7 +30,8 @@ def fetch_telegram_toss_feed(pages: int = 3) -> List[Dict[str, str]]:
     }
 
     all_html = []
-    current_url = CHANNEL_URL
+    base_url = channel_url or _get_channel_url()
+    current_url = base_url
 
     for _ in range(max(1, pages)):
         try:
@@ -29,10 +40,10 @@ def fetch_telegram_toss_feed(pages: int = 3) -> List[Dict[str, str]]:
                 h = resp.read().decode("utf-8", errors="ignore")
             all_html.append(h)
 
-            posts = re.findall(r'data-post="KINGTOSSLINE111/(\d+)"', h)
+            posts = re.findall(r'data-post="[^/]+/(\d+)"', h)
             if posts:
                 min_id = posts[0]
-                current_url = f"{CHANNEL_URL}?before={min_id}"
+                current_url = f"{base_url}?before={min_id}"
             else:
                 break
         except Exception as e:

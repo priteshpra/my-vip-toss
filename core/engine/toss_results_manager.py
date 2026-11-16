@@ -50,17 +50,24 @@ def parse_toss_datetime(record: Dict[str, Any]) -> Optional[datetime]:
         return None
 
 
+_TOSS_RESULTS_CACHE = {"mtime": 0, "data": []}
+
 def load_toss_results() -> List[Dict[str, Any]]:
-    """Load all recorded completed toss results. Strictly real matches only, sorted latest first."""
+    """Load all recorded completed toss results with in-memory mtime cache. Strictly real matches only, sorted latest first."""
+    global _TOSS_RESULTS_CACHE
     if os.path.exists(RESULTS_FILE):
         try:
+            mtime = os.path.getmtime(RESULTS_FILE)
+            if _TOSS_RESULTS_CACHE["mtime"] == mtime and _TOSS_RESULTS_CACHE["data"]:
+                return list(_TOSS_RESULTS_CACHE["data"])
             with open(RESULTS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, list):
                     # Filter out any legacy dummy seed matches if they existed
                     filtered = [r for r in data if not str(r.get("match_id", "")).startswith("seed_0")]
                     filtered.sort(key=_parse_toss_time_key, reverse=True)
-                    return filtered
+                    _TOSS_RESULTS_CACHE = {"mtime": mtime, "data": filtered}
+                    return list(filtered)
         except Exception:
             pass
     return []
@@ -103,7 +110,7 @@ def save_toss_result(
     win_clean = (actual_winner or "").strip().lower()
     rating_clean = (stake_rating or "").strip().lower()
 
-    is_skip = bool("skip" in rating_clean or "pass" in rating_clean or not rec_clean or rec_clean in ["none", "skip"])
+    is_skip = bool(not rec_clean or rec_clean in ["none", "skip"] or ("strict pass" in rating_clean and not rec_clean))
 
     if is_skip:
         outcome = "SKIPPED"
@@ -166,6 +173,7 @@ def save_toss_result(
     os.makedirs(os.path.dirname(RESULTS_FILE), exist_ok=True)
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
+    _TOSS_RESULTS_CACHE["mtime"] = 0
 
     return record
 
@@ -179,6 +187,7 @@ def delete_toss_result(match_id: str) -> bool:
         os.makedirs(os.path.dirname(RESULTS_FILE), exist_ok=True)
         with open(RESULTS_FILE, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)
+        _TOSS_RESULTS_CACHE["mtime"] = 0
         return True
     return False
 
@@ -363,18 +372,37 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             # Scheduled toss is in the future; cannot be recorded as completed yet
             continue
 
+        # Check Cricbuzz directly before saving as pending
         # If match was a SKIP, mark as Skipped (50-50 Neutral) immediately so it never shows as Pending
         is_rec_skip = bool("skip" in rating.lower() or "pass" in rating.lower() or not rec_team)
-        win_init = "Skipped (50-50 Neutral)" if is_rec_skip else "Pending Confirmation"
-
-        # Stale Match Guard: If match is older than 48 hours and has no winner, do not pollute log with pending entries
-        if win_init == "Pending Confirmation" and m_date:
+        if is_rec_skip:
+            win_init = "Skipped (50-50 Neutral)"
+            dec_init = "Neutral"
+        else:
+            win_init = None
+            dec_init = "Bowl"
+            # Try to resolve winner immediately from Cricbuzz
             try:
-                m_dt = datetime.strptime(m_date, "%Y-%m-%d").date()
-                if (now_ist().date() - m_dt).days > 1:
-                    continue
+                from core.providers.cricbuzz_toss_provider import fetch_cricbuzz_toss_outcomes
+                cb_list = fetch_cricbuzz_toss_outcomes(force_refresh=False)
+                for cb in cb_list:
+                    if (match_teams_fuzzy(t1, cb.get("team_a", "")) and match_teams_fuzzy(t2, cb.get("team_b", ""))) or \
+                       (match_teams_fuzzy(t1, cb.get("team_b", "")) and match_teams_fuzzy(t2, cb.get("team_a", ""))):
+                        w_raw = cb.get("winner", "")
+                        win_init = t1 if match_teams_fuzzy(w_raw, t1) else (t2 if match_teams_fuzzy(w_raw, t2) else w_raw)
+                        dec_init = cb.get("decision", "Bowl")
+                        break
             except Exception:
                 pass
+
+            if not win_init:
+                # If scheduled toss is today and within last 2 hours, allow temporary pending
+                if toss_dt and abs((now_ist() - toss_dt).total_seconds()) < 7200 and m_date == today_str:
+                    win_init = "Pending Confirmation"
+                    dec_init = "Pending"
+                else:
+                    win_init = "Skipped (50-50 Neutral)"
+                    dec_init = "Neutral"
 
         save_toss_result(
             match_id=m_id,
@@ -387,15 +415,21 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             recommended_team=rec_team,
             stake_rating=rating,
             actual_winner=win_init,
-            toss_decision="Pending" if win_init == "Pending Confirmation" else "Neutral",
+            toss_decision=dec_init,
             is_manual=False
         )
 
-    # Automatically resolve freshly closed matches using Telegram live feed @KINGTOSSLINE111
+    # Automatically resolve freshly closed matches using Telegram live feed @SUPERFASTTOSSLINE111
     try:
         auto_update_toss_results_from_telegram()
     except Exception as e:
         print(f"Error in auto_update_toss_results_from_telegram: {e}")
+
+    # Automatically resolve freshly closed matches using Cricbuzz real-time feed
+    try:
+        sync_live_toss_results_from_cricbuzz()
+    except Exception as e:
+        print(f"Error in sync_live_toss_results_from_cricbuzz: {e}")
 
     # Automatically resolve live and completed matches using CREX real-time feed
     try:
@@ -404,6 +438,112 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         print(f"Error in sync_live_toss_results_from_crex: {e}")
 
     return load_toss_results()
+
+
+def sync_live_toss_results_from_cricbuzz() -> int:
+    """
+    Automatically resolve live & completed match tosses directly from Cricbuzz.
+    Matches team names against pending or today's matches and resolves actual toss winners.
+    """
+    from core.providers.cricbuzz_toss_provider import fetch_cricbuzz_toss_outcomes
+    from core.providers.toss_load_provider import match_teams_fuzzy, load_locked_predictions
+
+    c_tosses = fetch_cricbuzz_toss_outcomes(force_refresh=True)
+    if not c_tosses:
+        return 0
+
+    results = load_toss_results()
+    locked_map = load_locked_predictions()
+    resolved_count = 0
+
+    # Auto-resolve pending matches in results log
+    for r in results:
+        is_pending = (r.get("outcome") == "PENDING" or "pending" in str(r.get("actual_winner", "")).lower())
+        if not is_pending:
+            continue
+
+        m_id = str(r.get("match_id", ""))
+        t1 = r.get("team_a") or ""
+        t2 = r.get("team_b") or ""
+        rec = r.get("recommended_team")
+        rating = r.get("stake_rating", "NORMAL")
+
+        for ct in c_tosses:
+            ca = ct.get("team_a", "")
+            cb = ct.get("team_b", "")
+            winner_raw = ct.get("winner", "")
+            decision = ct.get("decision", "Bowl")
+
+            matched = (
+                (match_teams_fuzzy(t1, ca) and match_teams_fuzzy(t2, cb)) or
+                (match_teams_fuzzy(t1, cb) and match_teams_fuzzy(t2, ca)) or
+                (match_teams_fuzzy(t1, winner_raw) or match_teams_fuzzy(t2, winner_raw))
+            )
+
+            if matched:
+                actual_win = t1 if match_teams_fuzzy(winner_raw, t1) else (t2 if match_teams_fuzzy(winner_raw, t2) else winner_raw)
+                save_toss_result(
+                    match_id=m_id,
+                    match_name=r.get("match_name"),
+                    tournament=r.get("tournament", "General"),
+                    toss_time_ist=r.get("toss_time_ist", ""),
+                    match_date=r.get("match_date", ""),
+                    team_a=t1,
+                    team_b=t2,
+                    recommended_team=rec,
+                    stake_rating=rating,
+                    actual_winner=actual_win,
+                    toss_decision=decision,
+                    is_manual=False
+                )
+                resolved_count += 1
+                break
+
+    # Also resolve today's active matches whose toss just completed on Cricbuzz
+    today_str = format_ist(now_ist(), "%Y-%m-%d")
+    existing_resolved_ids = {str(r.get("match_id")) for r in load_toss_results() if r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower()}
+
+    for lid, lp in locked_map.items():
+        if str(lid) in existing_resolved_ids:
+            continue
+        l_ta = lp.get("team_a", "")
+        l_tb = lp.get("team_b", "")
+        l_date = str(lp.get("match_date", "")).split("T")[0]
+        if l_date and l_date != today_str:
+            continue
+
+        for ct in c_tosses:
+            ca = ct.get("team_a", "")
+            cb = ct.get("team_b", "")
+            winner_raw = ct.get("winner", "")
+            decision = ct.get("decision", "Bowl")
+
+            matched = (
+                (match_teams_fuzzy(l_ta, ca) and match_teams_fuzzy(l_tb, cb)) or
+                (match_teams_fuzzy(l_ta, cb) and match_teams_fuzzy(l_tb, ca))
+            )
+            if matched:
+                actual_win = l_ta if match_teams_fuzzy(winner_raw, l_ta) else (l_tb if match_teams_fuzzy(winner_raw, l_tb) else winner_raw)
+                rec = lp.get("recommended_team")
+                rating = lp.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                save_toss_result(
+                    match_id=str(lid),
+                    match_name=f"{l_ta} vs {l_tb}",
+                    tournament=lp.get("tournament", "General"),
+                    toss_time_ist=lp.get("time_str", format_ist(now_ist(), "%I:%M %p IST")),
+                    match_date=today_str,
+                    team_a=l_ta,
+                    team_b=l_tb,
+                    recommended_team=rec,
+                    stake_rating=rating,
+                    actual_winner=actual_win,
+                    toss_decision=decision,
+                    is_manual=False
+                )
+                resolved_count += 1
+                break
+
+    return resolved_count
 
 
 def auto_update_toss_results_from_telegram() -> int:

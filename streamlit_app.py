@@ -21,21 +21,6 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-# Force-reload core submodules so Streamlit Cloud worker never executes stale cached memory
-import core.engine.pattern_engine
-import core.providers.toss_load_provider
-import core.engine.toss_results_manager
-import core.providers.crex_provider
-import core.providers.gaming_helper_provider
-try:
-    importlib.reload(core.engine.pattern_engine)
-    importlib.reload(core.providers.toss_load_provider)
-    importlib.reload(core.engine.toss_results_manager)
-    importlib.reload(core.providers.crex_provider)
-    importlib.reload(core.providers.gaming_helper_provider)
-except Exception:
-    pass
-
 from core.timezone import now_ist, format_ist
 from core.providers.gaming_helper_provider import (
     get_stored_credentials,
@@ -51,7 +36,8 @@ from core.engine.toss_results_manager import (
     get_toss_accuracy_kpis,
     sync_completed_tosses_from_gaming_helper,
     auto_update_toss_results_from_telegram,
-    sync_live_toss_results_from_crex
+    sync_live_toss_results_from_crex,
+    sync_live_toss_results_from_cricbuzz
 )
 from core.engine.match_winner_manager import (
     load_mw_results,
@@ -79,12 +65,19 @@ except ImportError:
 
 # --- CREX Market Bhav Overrides Storage ---
 CREX_OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), "data", "crex_overrides.json")
+_CREX_OVERRIDES_CACHE = {"mtime": 0, "data": {}}
 
 def load_crex_overrides() -> dict:
+    global _CREX_OVERRIDES_CACHE
     if os.path.exists(CREX_OVERRIDES_FILE):
         try:
+            mtime = os.path.getmtime(CREX_OVERRIDES_FILE)
+            if _CREX_OVERRIDES_CACHE["mtime"] == mtime and _CREX_OVERRIDES_CACHE["data"]:
+                return dict(_CREX_OVERRIDES_CACHE["data"])
             with open(CREX_OVERRIDES_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                _CREX_OVERRIDES_CACHE = {"mtime": mtime, "data": data}
+                return dict(data)
         except Exception:
             pass
     return {}
@@ -106,6 +99,7 @@ def save_crex_override(match_id: str, back_val: int, lay_val: int, team_name: st
             }
         with open(CREX_OVERRIDES_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
+        _CREX_OVERRIDES_CACHE["mtime"] = 0
     except Exception:
         pass
 
@@ -124,6 +118,7 @@ def delete_crex_override(match_id: str, team_name: str = "") -> bool:
         if changed:
             with open(CREX_OVERRIDES_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
+            _CREX_OVERRIDES_CACHE["mtime"] = 0
             return True
     except Exception:
         pass
@@ -649,6 +644,7 @@ with col_st2:
             st.session_state["live_punter_matches"] = punter_data.get("matches", [])
             st.session_state["live_gh_connected"] = punter_data.get("connected", False)
             st.session_state["crex_fixtures_mw"] = fetch_crex_fixtures(force_refresh=True)
+            sync_live_toss_results_from_cricbuzz()
             sync_completed_tosses_from_gaming_helper()
             st.success("Synced live bets & CREX bhav successfully!")
             st.rerun()
@@ -713,8 +709,11 @@ with vip_tabs[0]:
     date_options.append(lbl_all)
     date_iso_map[lbl_all] = "ALL"
 
-    # Auto-switch: If today has 0 pending tosses, automatically select Tomorrow (Kal)!
-    default_date_idx = 0 if c_today_pending > 0 else 1
+    # By default, ALWAYS select 'Aaj' (Today) as requested by the user
+    default_date_idx = 0
+    cur_punter_pill = str(st.session_state.get("punter_date_pill_v2", ""))
+    if not cur_punter_pill or "Kal" in cur_punter_pill or "Sabhi" in cur_punter_pill:
+        st.session_state["punter_date_pill_v2"] = date_options[0]
 
     col_dpill, col_spc = st.columns([2.5, 1])
     with col_dpill:
@@ -722,13 +721,13 @@ with vip_tabs[0]:
             "Fixture Date",
             date_options,
             default=date_options[default_date_idx],
-            key="punter_date_pill",
+            key="punter_date_pill_v2",
             label_visibility="collapsed"
         )
     if not selected_date_lbl:
         selected_date_lbl = date_options[default_date_idx]
 
-    selected_iso = date_iso_map.get(selected_date_lbl, "ALL")
+    selected_iso = date_iso_map.get(selected_date_lbl, today_iso)
 
     # STRICT LIVE TOSS: Never show completed coin flips in Live Toss (completed tosses live in 'Toss Done' tab)
     if selected_iso == "ALL":
@@ -799,12 +798,23 @@ with vip_tabs[0]:
         )
         selected_live_tour = selected_live_tour_raw.rsplit(" (", 1)[0] if selected_live_tour_raw != "🌟 Sabhi Tournaments (All)" else "🌟 Sabhi Tournaments (All)"
 
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(14, 165, 233, 0.08)); border: 1.5px solid rgba(16, 185, 129, 0.4); border-radius: 12px; padding: 12px 18px; margin-bottom: 16px;">
+        <div style="font-size: 15px; font-weight: 800; color: #10b981; display: flex; align-items: center; gap: 8px;">
+            🛡️ 100% सटीक पंटर शील्ड (Ultra-Strict 70%+ Quality Filter Active)
+        </div>
+        <div style="font-size: 13px; color: #94a3b8; margin-top: 4px; line-height: 1.4;">
+            दिन में सिर्फ <b>3 या 4 सबसे मजबूत (70%+ Confluence) सुपर लॉक टॉस</b> ही प्ले करने के लिए दिए जाएंगे। बाकी सभी 50-50 कॉइन-फ्लिप मैचों को कैपिटल सेफ रखने के लिए ऑटो-पास (SKIP) किया गया है।
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     with col_filter:
         filter_type = st.selectbox(
             "🎯 Filter by Verdict",
-            ["🌟 Sabhi Matches (All)", "💎 Sirf 100% Satik Plays (Actionable)", "🟡 Sirf Skips (Pass)"],
+            ["💎 सिर्फ 100% सटीक टॉस (70%+ Super Satik Plays)", "🌟 सभी लाइव आगामी मैच (All Live Matches)", "🟡 सिर्फ 50-50 पास मैच (Strict Skips)"],
             index=0,
-            key="select_punter_filter"
+            key="select_punter_filter_v2"
         )
 
     with col_search:
@@ -834,14 +844,14 @@ with vip_tabs[0]:
 
     # Calculate Counts
     total_matches = len(filtered_matches)
-    play_matches = [m for m in filtered_matches if m.get("action_type") == "PLAY"]
-    skip_matches = [m for m in filtered_matches if m.get("action_type") != "PLAY"]
+    super_satik_matches = [m for m in filtered_matches if (m.get("confidence_pct") or 50) >= 70 and m.get("action_type") == "PLAY"]
+    pass_matches = [m for m in filtered_matches if m.get("action_type") == "SKIP" or (m.get("confidence_pct") or 50) < 70]
 
     # Apply Verdict Filter
-    if "100%" in filter_type or "Satik" in filter_type or "Play" in filter_type:
-        filtered_list = play_matches
-    elif "Skip" in filter_type or "Pass" in filter_type:
-        filtered_list = skip_matches
+    if "70%" in filter_type or "Super Satik" in filter_type or "सटीक" in filter_type:
+        filtered_list = super_satik_matches
+    elif "पास" in filter_type or "Pass" in filter_type or "Skip" in filter_type:
+        filtered_list = pass_matches
     else:
         filtered_list = filtered_matches
 
@@ -857,15 +867,15 @@ with vip_tabs[0]:
     with k2:
         st.markdown(f"""
         <div class="kpi-card">
-            <div class="kpi-val" style="color: #10b981;">{len(play_matches)}</div>
-            <div class="kpi-lbl">💎 100% Satik Gold Plays</div>
+            <div class="kpi-val" style="color: #10b981;">{len(super_satik_matches)}</div>
+            <div class="kpi-lbl">💎 100% सटीक प्ले (3-4 Sure Picks)</div>
         </div>
         """, unsafe_allow_html=True)
     with k3:
         st.markdown(f"""
         <div class="kpi-card">
-            <div class="kpi-val" style="color: #ef4444;">{len(skip_matches)}</div>
-            <div class="kpi-lbl">🟡 Strict Skips (Pass / No Bet)</div>
+            <div class="kpi-val" style="color: #eab308;">{len(pass_matches)}</div>
+            <div class="kpi-lbl">🟡 50-50 पास (Capital Protected)</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -874,6 +884,7 @@ with vip_tabs[0]:
     # --- Quick Scan Summary Drawer ---
     if filtered_list:
         summary_rows = []
+        crex_s_map = load_crex_overrides()
         for m in filtered_list:
             t_str = m.get("toss_time_str") or "30m prior"
             if "IST" not in t_str and t_str and ":" in t_str:
@@ -898,7 +909,6 @@ with vip_tabs[0]:
                 fav_s = m.get("team_b_short") or m['team_b_name'][:3].upper()
                 fav_o_s = ob_s
 
-            crex_s_map = load_crex_overrides()
             ov_s = crex_s_map.get(str(m.get("id")))
             if not ov_s:
                 for k_name, ov in crex_s_map.items():
@@ -914,11 +924,16 @@ with vip_tabs[0]:
                 crex_bhav_str = f"[{fav_s}] {b_s}-{b_s + (1 if b_s < 40 else 2)}"
 
             if act == "PLAY" and pick:
-                verdict_str = f"💎 VIP PICK: {pick.upper()} ({conf}%)"
+                if conf >= 70:
+                    verdict_str = f"💎 VIP: {pick.upper()} ({conf}% Satik)"
+                elif conf >= 60:
+                    verdict_str = f"⚡ LEAN: {pick.upper()} ({conf}% Value)"
+                else:
+                    verdict_str = f"🟡 EDGE: {pick.upper()} ({conf}% Close)"
             elif act == "COMPLETED":
                 verdict_str = f"🏆 TOSS WON: {pick.upper()}"
             else:
-                verdict_str = "🟡 SKIP (50-50 TRAP)"
+                verdict_str = "⛔ SKIP (EXHIBITION)"
 
             summary_rows.append({
                 "🪙 Toss Time (IST)": t_str,
@@ -950,11 +965,15 @@ with vip_tabs[0]:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-        elif "100%" in filter_type or "Satik" in filter_type:
-            st.info("ℹ️ Is filter/tournament me filhal koi 100% Satik Play nahi hai (teams 50-50 neutral coin flip rotation me hain). Sabhi matches dekhne ke liye '🌟 Sabhi Matches (All)' select karein.")
+        elif "70%" in filter_type or "Satik" in filter_type or "Actionable" in filter_type:
+            st.info("ℹ️ Is filter/tournament me filhal koi eligible play nahi mila. Sabhi matches dekhne ke liye '🌟 Sabhi Matches (All)' select karein.")
         else:
             st.info("Selected filters ke hisab se koi match nahi mila. 'Sabhi Matches' select karein.")
     else:
+        crex_map = load_crex_overrides()
+        all_done_list = load_toss_results()
+        done_by_id = {str(r.get("match_id", "")).strip(): r for r in all_done_list if str(r.get("match_id", "")).strip()}
+
         for m in filtered_list:
             mid = m["id"]
             t_a = m["team_a_name"]
@@ -998,7 +1017,6 @@ with vip_tabs[0]:
 
             # Bhav Resolution Hierarchy:
             # 1. Manual User Override (if saved by user)
-            crex_map = load_crex_overrides()
             override = crex_map.get(str(mid))
             if not override:
                 for k_name, ov in crex_map.items():
@@ -1054,7 +1072,6 @@ with vip_tabs[0]:
                 bhav_badge_border = "#0284c7"
 
             # Check if this match was already marked done (Strictly for THIS match ID or THIS DATE)
-            all_done_list = load_toss_results()
             is_already_done = False
             prev_r = {}
             m_target_date = str(m.get("match_date")).split("T")[0].strip() if m.get("match_date") else today_iso
@@ -1069,32 +1086,45 @@ with vip_tabs[0]:
             except Exception:
                 pass
 
-            for r in all_done_list:
-                r_mid = str(r.get("match_id", "")).strip()
-                r_date = str(r.get("match_date", "")).strip()
-
-                # Must match exact ID OR (must be same date AND matching teams)
-                id_matches = bool(r_mid and (r_mid == str(mid).strip()))
-                same_date = bool(r_date and (r_date == m_target_date))
-
-                r_ta = r.get("team_a", "")
-                r_tb = r.get("team_b", "")
-                names_match = (
-                    (match_teams_fuzzy(t_a, r_ta) and match_teams_fuzzy(t_b, r_tb)) or
-                    (match_teams_fuzzy(t_a, r_tb) and match_teams_fuzzy(t_b, r_ta))
-                )
-
-                if id_matches or (same_date and names_match):
-                    # Guard against premature resolutions: If scheduled toss is in future and not manually confirmed, ignore
-                    if is_toss_in_future and not r.get("is_manual"):
-                        continue
-                    act_win = str(r.get("actual_winner", "")).strip()
+            # Fast O(1) ID lookup first
+            mid_str = str(mid).strip()
+            if mid_str in done_by_id:
+                cand_r = done_by_id[mid_str]
+                if not (is_toss_in_future and not cand_r.get("is_manual")):
+                    act_win = str(cand_r.get("actual_winner", "")).strip()
                     if act_win and "pending" not in act_win.lower():
                         is_already_done = True
-                        prev_r = r
-                        break
-                    elif not prev_r:
-                        prev_r = r
+                        prev_r = cand_r
+                    else:
+                        prev_r = cand_r
+
+            if not is_already_done:
+                for r in all_done_list:
+                    r_mid = str(r.get("match_id", "")).strip()
+                    r_date = str(r.get("match_date", "")).strip()
+
+                    # Must match exact ID OR (must be same date AND matching teams)
+                    id_matches = bool(r_mid and (r_mid == mid_str))
+                    same_date = bool(r_date and (r_date == m_target_date))
+
+                    r_ta = r.get("team_a", "")
+                    r_tb = r.get("team_b", "")
+                    names_match = (
+                        (match_teams_fuzzy(t_a, r_ta) and match_teams_fuzzy(t_b, r_tb)) or
+                        (match_teams_fuzzy(t_a, r_tb) and match_teams_fuzzy(t_b, r_ta))
+                    )
+
+                    if id_matches or (same_date and names_match):
+                        # Guard against premature resolutions: If scheduled toss is in future and not manually confirmed, ignore
+                        if is_toss_in_future and not r.get("is_manual"):
+                            continue
+                        act_win = str(r.get("actual_winner", "")).strip()
+                        if act_win and "pending" not in act_win.lower():
+                            is_already_done = True
+                            prev_r = r
+                            break
+                        elif not prev_r:
+                            prev_r = r
 
             if is_already_done:
                 prev_win = prev_r.get("actual_winner", t_a)
@@ -1199,46 +1229,90 @@ with vip_tabs[0]:
                     </div>
                     """, unsafe_allow_html=True)
                 elif act == "PLAY" and pick:
-                    st.markdown(f"""
-                    <div class="verdict-play" style="border: 2.5px solid #10b981; background: linear-gradient(135deg, #022c22 0%, #064e3b 100%); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.45); margin: 10px 0;">
-                        <div class="verdict-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                            <span class="verdict-team-name" style="font-size: 22px; font-weight: 900; color: #34d399; letter-spacing: -0.3px;">
-                                🟢 PLAY THIS TOSS: <span style="color: #ffffff; text-decoration: underline;">{pick.upper()}</span>
-                            </span>
-                            <span class="verdict-badge" style="background: #f59e0b; color: #000000; font-weight: 900; font-size: 13px; padding: 4px 12px; border-radius: 20px;">
-                                💎 {consensus_badge} · {conf}% LOAD
-                            </span>
+                    if conf >= 70:
+                        st.markdown(f"""
+                        <div class="verdict-play" style="border: 2.5px solid #10b981; background: linear-gradient(135deg, #022c22 0%, #064e3b 100%); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.45); margin: 10px 0;">
+                            <div class="verdict-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <span class="verdict-team-name" style="font-size: 22px; font-weight: 900; color: #34d399; letter-spacing: -0.3px;">
+                                    🟢 100% SATIK TOSS: <span style="color: #ffffff; text-decoration: underline;">{pick.upper()}</span>
+                                </span>
+                                <span class="verdict-badge" style="background: #f59e0b; color: #000000; font-weight: 900; font-size: 13px; padding: 4px 12px; border-radius: 20px;">
+                                    💎 {consensus_badge} · {conf}% LOAD
+                                </span>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin: 8px 0 6px 0; flex-wrap: wrap;">
+                                <span style="background: #091e17; border: 1px solid #10b981; color: #a7f3d0; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">
+                                    📊 {load_text}
+                                </span>
+                                <span style="background: #091e2b; border: 1px solid #38bdf8; color: #bae6fd; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                                    🌐 {clues_text}
+                                </span>
+                            </div>
+                            <div class="verdict-reason" style="color: #ffffff; font-size: 14.5px; font-weight: 600; margin-top: 4px;">
+                                💡 <b>Satik Analysis:</b> {rat}
+                            </div>
                         </div>
-                        <div style="display: flex; gap: 8px; margin: 8px 0 6px 0; flex-wrap: wrap;">
-                            <span style="background: #091e17; border: 1px solid #10b981; color: #a7f3d0; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">
-                                📊 {load_text}
-                            </span>
-                            <span style="background: #091e2b; border: 1px solid #38bdf8; color: #bae6fd; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
-                                🌐 {clues_text}
-                            </span>
+                        """, unsafe_allow_html=True)
+                    elif conf >= 60:
+                        st.markdown(f"""
+                        <div class="verdict-play" style="border: 2px solid #0284c7; background: linear-gradient(135deg, #082f49 0%, #0c4a6e 100%); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 15px rgba(2, 132, 199, 0.35); margin: 10px 0;">
+                            <div class="verdict-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <span class="verdict-team-name" style="font-size: 20px; font-weight: 900; color: #38bdf8; letter-spacing: -0.3px;">
+                                    ⚡ VALUE LEAN TOSS: <span style="color: #ffffff; text-decoration: underline;">{pick.upper()}</span>
+                                </span>
+                                <span class="verdict-badge" style="background: #0284c7; color: #ffffff; font-weight: 900; font-size: 13px; padding: 4px 12px; border-radius: 20px;">
+                                    ⚡ {consensus_badge} · {conf}% LOAD
+                                </span>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin: 8px 0 6px 0; flex-wrap: wrap;">
+                                <span style="background: #082f49; border: 1px solid #0284c7; color: #bae6fd; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">
+                                    📊 {load_text}
+                                </span>
+                                <span style="background: #0f172a; border: 1px solid #334155; color: #cbd5e1; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                                    🌐 {clues_text}
+                                </span>
+                            </div>
+                            <div class="verdict-reason" style="color: #e0f2fe; font-size: 14px; font-weight: 600; margin-top: 4px;">
+                                💡 <b>Value Analysis:</b> {rat}
+                            </div>
                         </div>
-                        <div class="verdict-reason" style="color: #ffffff; font-size: 14.5px; font-weight: 600; margin-top: 4px;">
-                            💡 <b>Satik Analysis:</b> {rat}
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                        <div class="verdict-play" style="border: 2px solid #d97706; background: linear-gradient(135deg, #2d1803 0%, #452203 100%); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 15px rgba(217, 119, 6, 0.25); margin: 10px 0;">
+                            <div class="verdict-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                <span class="verdict-team-name" style="font-size: 19px; font-weight: 900; color: #fbbf24; letter-spacing: -0.3px;">
+                                    🟡 SLIGHT EDGE TOSS: <span style="color: #ffffff; text-decoration: underline;">{pick.upper()}</span>
+                                </span>
+                                <span class="verdict-badge" style="background: #d97706; color: #ffffff; font-weight: 900; font-size: 13px; padding: 4px 12px; border-radius: 20px;">
+                                    ⚠️ 50-50 CLOSE CALL · {conf}% LEAN
+                                </span>
+                            </div>
+                            <div style="display: flex; gap: 8px; margin: 8px 0 6px 0; flex-wrap: wrap;">
+                                <span style="background: #2d1803; border: 1px solid #d97706; color: #fde68a; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">
+                                    📊 {load_text}
+                                </span>
+                                <span style="background: #0f172a; border: 1px solid #334155; color: #cbd5e1; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                                    🌐 {clues_text}
+                                </span>
+                            </div>
+                            <div class="verdict-reason" style="color: #fef3c7; font-size: 13.5px; font-weight: 500; margin-top: 4px;">
+                                💡 <b>Edge Analysis:</b> {rat}
+                            </div>
                         </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                        """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
-                    <div class="verdict-skip" style="border: 2px solid #f59e0b; background: linear-gradient(135deg, #2b1103 0%, #451a03 100%); border-radius: 12px; padding: 14px 18px; margin: 10px 0;">
+                    <div class="verdict-skip" style="border: 2px solid #ef4444; background: linear-gradient(135deg, #2b0707 0%, #450a0a 100%); border-radius: 12px; padding: 14px 18px; margin: 10px 0;">
                         <div class="verdict-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                            <span class="verdict-team-name" style="font-size: 18px; font-weight: 900; color: #fbbf24;">
-                                🟡 STRICT SKIP (50-50 NEUTRAL COIN FLIP)
+                            <span class="verdict-team-name" style="font-size: 18px; font-weight: 900; color: #f87171;">
+                                ⛔ EXHIBITION / BLITZ MATCH (STRICT PASS)
                             </span>
-                            <span class="verdict-badge" style="background: #1c1303; color: #fbbf24; border: 1.5px solid #d97706; padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 12px;">
-                                ⛔ AVOID THIS TOSS - ZERO EDGE
-                            </span>
-                        </div>
-                        <div style="margin: 6px 0 4px 0;">
-                            <span style="background: #1c1303; border: 1px solid #d97706; color: #fde68a; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">
-                                ⚠️ Satik Threshold (70%+) meet nahi hua — Capital safe rakhne ke liye STRICT PASS
+                            <span class="verdict-badge" style="background: #1c0303; color: #f87171; border: 1.5px solid #ef4444; padding: 4px 12px; border-radius: 20px; font-weight: 900; font-size: 12px;">
+                                ⛔ NO BET (PURE 50-50 LOTTERY)
                             </span>
                         </div>
-                        <div class="verdict-reason" style="color: #fde68a; font-size: 13.5px; font-weight: 500; margin-top: 4px;">
+                        <div class="verdict-reason" style="color: #fecaca; font-size: 13.5px; font-weight: 500; margin-top: 6px;">
                             💡 {rat}
                         </div>
                     </div>
@@ -1403,8 +1477,12 @@ with vip_tabs[1]:
     from core.providers.crex_provider import fetch_crex_fixtures, is_match_pair
     from core.engine.match_winner_manager import sync_mw_results_from_crex, load_mw_results
 
-    # Automatically synchronize finished match outcomes into mw_results_log
-    sync_mw_results_from_crex()
+    # Automatically synchronize finished match outcomes into mw_results_log (throttled to 10 mins)
+    import time
+    now_ts = time.time()
+    if "mw_synced_at" not in st.session_state or (now_ts - st.session_state.get("mw_synced_at", 0)) > 600:
+        sync_mw_results_from_crex()
+        st.session_state["mw_synced_at"] = now_ts
     settled_mw_results = load_mw_results()
 
     if "crex_fixtures_mw" not in st.session_state or st.session_state.get("need_live_refresh", False):
@@ -2201,16 +2279,17 @@ with vip_tabs[2]:
         st.caption("💡 मैच विनर के पास/फेल रिज़ल्ट्स देखने के लिए ऊपर **🏆 MATCH WINNER** टैब पर जाएं।")
     with col_btn_t2:
         if st.button("⚡ Sync Latest Results", key="btn_tg_sync_tab2", use_container_width=True):
-            with st.spinner("Fetching latest toss & match winner outcomes..."):
+            with st.spinner("Fetching latest toss & match winner outcomes from Telegram (@SUPERFASTTOSSLINE111), Cricbuzz & CREX..."):
+                tg_count = auto_update_toss_results_from_telegram()
+                cb_count = sync_live_toss_results_from_cricbuzz()
                 sync_completed_tosses_from_gaming_helper()
-                res_count = auto_update_toss_results_from_telegram()
                 crex_count = sync_live_toss_results_from_crex()
                 crex_mw_count = sync_mw_results_from_crex()
-                total_updated = res_count + crex_count + crex_mw_count
+                total_updated = tg_count + cb_count + crex_count + crex_mw_count
                 if total_updated > 0:
                     st.success(f"✅ {total_updated} Toss & Match Winner results updated!")
                 else:
-                    st.info("ℹ️ All matches up-to-date.")
+                    st.info("ℹ️ All matches up-to-date. Koi naya toss result pending nahi hai.")
                 st.rerun()
 
     completed_results = load_toss_results()
@@ -2231,21 +2310,24 @@ with vip_tabs[2]:
         yesterday_done_count = sum(1 for r in completed_results if r.get("match_date") == yesterday_iso and r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
         total_done_count = sum(1 for r in completed_results if r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
 
-        # Smart default: default to '🌟 सभी तारीखें' so all past passes and history are always visible
-        def_pill = f"🌟 सभी तारीखें ({total_done_count})"
+        # By default, ALWAYS select 'आज (Today)' as requested by the user
+        today_pill_label = f"📅 आज (Today) · {today_done_count}"
+        cur_done_mode = str(st.session_state.get("pills_done_date_mode_v3", ""))
+        if not cur_done_mode or "तारीखें" in cur_done_mode or "सभी" in cur_done_mode:
+            st.session_state["pills_done_date_mode_v3"] = today_pill_label
 
         col_df1, col_df2 = st.columns([2.4, 1.2])
         with col_df1:
             date_filter_mode = st.pills(
                 "📅 तारीख फ़िल्टर",
                 options=[
-                    f"🌟 सभी तारीखें ({total_done_count})",
-                    f"📅 आज (Today) · {today_done_count}",
+                    today_pill_label,
                     f"📅 कल (Yesterday) · {yesterday_done_count}",
+                    f"🌟 सभी तारीखें ({total_done_count})",
                     "🗓️ Custom Date"
                 ],
-                default=def_pill,
-                key="pills_done_date_mode"
+                default=today_pill_label,
+                key="pills_done_date_mode_v3"
             )
         with col_df2:
             custom_picked_date = st.date_input(
@@ -2270,10 +2352,14 @@ with vip_tabs[2]:
         elif date_filter_mode and "Custom" in date_filter_mode:
             selected_date_val = custom_picked_iso
             kpi_title_ctx = f"तारीख: {custom_picked_iso}"
-        # 4. Default: All dates history
-        else:
+        # 4. If user clicked All dates
+        elif date_filter_mode and "सभी तारीखें" in date_filter_mode:
             selected_date_val = "ALL"
             kpi_title_ctx = "सभी तारीखें"
+        # 5. Default fallback: Always Today!
+        else:
+            selected_date_val = today_iso
+            kpi_title_ctx = f"आज ({today_iso})"
 
         # Dynamically compute KPIs strictly for the SELECTED DATE!
         if selected_date_val != "ALL":
@@ -2477,9 +2563,16 @@ with vip_tabs[2]:
 
         # Completed Summary Table & Cards Grouped by Date
         if filtered_done:
+            # If user explicitly selected ALL dates and list is huge, show latest 50 to maintain 60fps on mobile
+            if selected_date_val == "ALL" and len(filtered_done) > 50:
+                st.caption(f"⚡ *सुपरफास्ट मोबाइल स्पीड के लिए हाल के 50 मैच दिखाए जा रहे हैं (कुल {len(filtered_done)} में से)। किसी खास तारीख के मैच देखने के लिए ऊपर 'Custom Date' या '📅 आज' चुनें।*")
+                display_done_list = filtered_done[:50]
+            else:
+                display_done_list = filtered_done
+
             # Group filtered results by match_date in descending order
             date_groups = {}
-            for r in filtered_done:
+            for r in display_done_list:
                 d = r.get("match_date", "Other")
                 if d not in date_groups:
                     date_groups[d] = []

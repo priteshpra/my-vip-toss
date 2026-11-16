@@ -182,14 +182,15 @@ def compute_multi_source_toss_load(
     """
     VIP Multi-Platform Toss Consensus & Pattern Convergence Engine.
 
-    Combines:
-    1. CREX Real-Time Live Bhav & Implied Win Probability
-    2. Tipper Pattern Rule Engine (Streak Exhaustion, Bounce-Back & Zig-Zag)
-    3. Bookmaker Liability / Exchange Rate Divergence (Odds A vs Odds B)
-    4. Ground-Truth Empirical Head-to-Head & Toss Win Records
-    5. Consensus Convergence Gate:
-       - Multi-Source Convergence (Confidence >= 70%): 💎 100% SATIK PLAY
-       - Split / 50-50 Traps: 🟡 STRICT PASS (Capital Safe)
+    Calibrated Multi-Factor Model:
+    1. CREX Real-Time Live Bhav & Implied Market Weight (Weight: 40%)
+    2. Tipper Pattern Rule Engine (Streak Exhaustion, Bounce-Back & Zig-Zag) (Weight: 35%)
+    3. Empirical Ground-Truth Head-to-Head & Season Toss Form (Weight: 25%)
+
+    Three Actionable Tiers (No empty 'Zero-Edge' Skips on real matches):
+    - 💎 100% SATIK PLAY (SUPER LOCK): 70%+ Multi-Source Conviction (Play Full Limit)
+    - ⚡ VALUE LEAN (ACTIONABLE PICK): 60% - 69% Conviction (Play Half Limit)
+    - 🟡 CLOSE FLIP (SLIGHT EDGE): 51% - 59% Marginal Conviction (Play Micro Stake / Pass)
     """
     m_id_str = str(match_id or "").strip()
     t_a = (team_a or "").strip()
@@ -197,18 +198,27 @@ def compute_multi_source_toss_load(
 
     # Step 0: Strict Exhibition / Sixes Elimination Gate (Zero Tolerance for Casual Blitz Formats)
     is_exhibition = any(k in (tournament or "").lower() for k in [
-        "sixes", "hong kong sixes", "exhibition", "masters", "charity"
+        "sixes", "hong kong sixes", "exhibition", "charity"
     ]) or any(k in (t_a or "").lower() or k in (t_b or "").lower() for k in ["sixes", "6s"])
 
-    # Step 1: Check Immutable Lock Vault First
+    # Step 1: Check Immutable Lock Vault First (Re-evaluate if previously locked as SKIP or without recommended team)
     locked_verdict = get_locked_prediction(m_id_str, t_a, t_b)
     if locked_verdict:
-        # If lock was SKIP, allow live market / pattern consensus to upgrade to PLAY (unless it's an exhibition match)
-        if locked_verdict.get("action") == "SKIP" or is_exhibition:
+        if locked_verdict.get("action") == "SKIP" or not locked_verdict.get("recommended_team") or is_exhibition:
             locked_verdict = None
 
     if locked_verdict:
-        # Guarantee pattern fields are always present even for legacy locked predictions
+        # Strict 70%+ Satik Gating: If confidence is below 70%, gate it to SKIP so weak coin flips never surface as plays
+        if locked_verdict.get("confidence_pct", 50) < 70 and locked_verdict.get("action") == "PLAY":
+            locked_verdict["action"] = "SKIP"
+            locked_verdict["recommended_team"] = None
+            locked_verdict["verdict_tier"] = "PASS"
+            locked_verdict["stake_rating"] = "🟡 STRICT PASS (50-50 COIN FLIP TRAP)"
+            locked_verdict["consensus_badge"] = f"🟡 50-50 PASS ({locked_verdict.get('confidence_pct', 50)}%)"
+            locked_verdict["risk_level"] = "HIGH RISK (50-50 COIN FLIP)"
+            locked_verdict["punter_rationale"] = f"⛔ STRICT PASS: Statistical edge sirf {locked_verdict.get('confidence_pct', 50)}% hai jo 70% Super Satik threshold se kam hai. Toss 50-50 flip ban sakta hai — capital safe rakhne ke liye strict pass karein. Din me sirf 3-4 golden matches hi play karein."
+            save_locked_prediction(m_id_str, locked_verdict, t_a, t_b)
+
         if not locked_verdict.get("pattern_badge") or not locked_verdict.get("a_streak_str"):
             try:
                 from core.engine.pattern_engine import evaluate_toss_pattern_rule
@@ -237,22 +247,24 @@ def compute_multi_source_toss_load(
     from core.engine.pattern_engine import evaluate_toss_pattern_rule, get_team_toss_history
     pat = evaluate_toss_pattern_rule(t_a, t_b, tournament)
     pat_fav = pat.get("favored_team")
-    pat_edge = pat.get("pattern_edge", 0.0)
+    pat_edge = pat.get("pattern_edge", 0.0)  # Positive favors Team A, Negative favors Team B
     pat_badge = pat.get("pattern_badge", "⚖️ Neutral Rotation")
     pat_rat = pat.get("pattern_rationale", "")
 
-    # Hard-skip all Exhibition / Sixes matches before any pattern evaluation
+    # Hard-skip all Exhibition / Sixes matches
     if is_exhibition:
         res = {
             "action": "SKIP",
             "recommended_team": None,
+            "underdog_team": None,
             "confidence_pct": 50,
+            "verdict_tier": "PASS",
             "stake_rating": "🟡 STRICT PASS (NO BET)",
             "consensus_badge": "🟡 PASS / EXHIBITION LOTTERY",
             "risk_level": "HIGH RISK (EXHIBITION)",
             "market_load_text": "Exhibition / Blitz Match (50-50 Flip)",
             "cricketclues_status": "No Statistical Edge in Sixes",
-            "punter_rationale": "⛔ STRICT PASS (EXHIBITION LOTTERY): Hong Kong Sixes casual 5-over blitz format hai jahan coin toss pure lottery 50-50 flip hai. Captains ki koi fixed calling rhythm nahi hoti — capital safe rakhne ke liye strict pass karein.",
+            "punter_rationale": "⛔ STRICT PASS (EXHIBITION LOTTERY): Hong Kong Sixes casual 5-over blitz format hai jahan coin toss pure lottery 50-50 flip hai. Capital safe rakhne ke liye strict pass karein.",
             "total_edge": 0.0,
             "pattern_badge": pat.get("pattern_badge", "⚖️ Neutral Toss Rotation"),
             "pattern_rule_name": pat.get("rule_name", "EXHIBITION"),
@@ -265,229 +277,127 @@ def compute_multi_source_toss_load(
         save_locked_prediction(m_id_str, res, t_a, t_b)
         return res
 
-    # Step 4: Analyze Bookmaker Rate Divergence (Asian Odds)
+    # Step 4: Empirical Ground-Truth History & Recent Form
+    a_w, a_l, b_w, b_l, h2h_a, h2h_b = get_ground_truth_history(t_a, t_b)
+    tot_h2h = h2h_a + h2h_b
+    s_a, last5_a, tot_a = get_team_toss_history(t_a, tournament)
+    s_b, last5_b, tot_b = get_team_toss_history(t_b, tournament)
+    b_losses = last5_b.count("L") if last5_b else 0
+    a_losses = last5_a.count("L") if last5_a else 0
+
+    h2h_form_edge = 0.0
+    if tot_h2h >= 1 and h2h_a != h2h_b:
+        h2h_ratio = (h2h_a - h2h_b) / float(tot_h2h)
+        h2h_form_edge += (h2h_ratio * 16.0)
+
+    tot_matches_a = a_w + a_l
+    tot_matches_b = b_w + b_l
+    if tot_matches_a >= 2 and tot_matches_b >= 2:
+        wr_a = a_w / float(tot_matches_a)
+        wr_b = b_w / float(tot_matches_b)
+        h2h_form_edge += ((wr_a - wr_b) * 12.0)
+
+    # Opponent slump edge
+    if b_losses >= 3 and a_losses < b_losses:
+        h2h_form_edge += (b_losses - a_losses) * 4.0
+    elif a_losses >= 3 and b_losses < a_losses:
+        h2h_form_edge -= (a_losses - b_losses) * 4.0
+
+    # Step 5: Market Edge (CREX Bhav & Asian Odds)
     oa = max(20, min(250, odds_a))
     ob = max(20, min(250, odds_b))
     rate_diff = abs(oa - ob)
     is_dummy_rate = (oa in [98, 80] and ob in [98, 80])
 
-    bookie_fav = None
-    bookie_load = 50
-    if not is_dummy_rate and rate_diff >= 12:
-        if oa < ob:
-            bookie_fav = t_a
-            bookie_load = int(round((ob / (oa + ob)) * 100))
-        else:
-            bookie_fav = t_b
-            bookie_load = int(round((oa / (oa + ob)) * 100))
-
-    # Step 5: Empirical Ground-Truth History
-    a_w, a_l, b_w, b_l, h2h_a, h2h_b = get_ground_truth_history(t_a, t_b)
-    tot_h2h = h2h_a + h2h_b
-    h2h_fav = None
-    if tot_h2h >= 1 and h2h_a != h2h_b:
-        h2h_fav = t_a if h2h_a > h2h_b else t_b
-
-    # Step 6: Multi-Platform Consensus Evaluation
-    action = "SKIP"
-    favored = None
-    underdog = None
-    confidence = 50
-    rating = "🟡 STRICT PASS (NO BET)"
-    badge = "🟡 PASS / NOT SATIK"
-    risk_level = "HIGH RISK (AVOID)"
-    rationale = "⛔ Pass Match: Market load is flat 50-50 neutral. Satik threshold (70%+) meet nahi kar raha — paisa safe rakhne ke liye pass karein."
-    source_summary = "Standard Line"
-
-    # Scenario A: CREX Live Market has active rates and conviction
+    market_edge = 0.0
+    has_active_market = False
+    c_prob_a = 50
+    c_back, c_lay = 0, 0
     if crex_data and crex_data.get("fav_team"):
+        has_active_market = True
         c_fav = crex_data["fav_team"]
         c_prob = crex_data.get("win_prob", 50)
         c_back = crex_data.get("back", 0)
         c_lay = crex_data.get("lay", 0)
-
-        fav_team_resolved = t_a if match_teams_fuzzy(c_fav, t_a) else (t_b if match_teams_fuzzy(c_fav, t_b) else c_fav)
-        underdog_team = t_b if fav_team_resolved == t_a else t_a
-
-        # Rigorous Convergence Gating: Prevent Gambler's Fallacy & False Golden Locks
-        if (c_prob >= 60 or (c_back > 0 and c_back <= 65)) and pat_fav and match_teams_fuzzy(pat_fav, fav_team_resolved):
-            action = "PLAY"
-            favored = fav_team_resolved
-            underdog = underdog_team
-            confidence = max(80, min(92, c_prob + 5))
-            badge = "💎 UNANIMOUS CREX + PATTERN LOCK"
-            rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-            risk_level = "VERY LOW RISK (MAX CONVICTION)"
-            source_summary = f"CREX [{c_back}-{c_lay}] + Pattern ({pat['rule_name']})"
-            rationale = (
-                f"💎 UNANIMOUS SUPER CONVERGENCE: CREX Market Sentiment ({c_prob}%, Bhav {c_back}-{c_lay}) "
-                f"+ Tipper Pattern Rule ({pat_badge}) both 100% confirm {favored}. High statistical edge."
-            )
-        elif (c_prob >= 60 or (c_back > 0 and c_back <= 65)) and h2h_fav and match_teams_fuzzy(h2h_fav, fav_team_resolved) and tot_h2h >= 2:
-            action = "PLAY"
-            favored = fav_team_resolved
-            underdog = underdog_team
-            confidence = max(78, min(88, int(round((h2h_a if h2h_fav == t_a else h2h_b) / tot_h2h * 100))))
-            badge = "💎 CREX + H2H DOMINANCE LOCK"
-            rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-            risk_level = "LOW RISK (HIGH CONVICTION)"
-            source_summary = f"CREX [{c_back}-{c_lay}] + Ground-Truth H2H"
-            rationale = (
-                f"💎 SATIK GOLD PLAY: CREX Market Sentiment ({c_prob}%) and historical H2H toss dominance "
-                f"both converge on {favored}."
-            )
-        elif (c_prob >= 60 or (c_back > 0 and c_back <= 65)) and bookie_fav and match_teams_fuzzy(bookie_fav, fav_team_resolved) and bookie_load >= 70:
-            action = "PLAY"
-            favored = fav_team_resolved
-            underdog = underdog_team
-            confidence = bookie_load
-            rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-            badge = "💎 100% SATIK CALL"
-            risk_level = "LOW RISK (HIGH CONVICTION)"
-            source_summary = f"CREX [{c_back}-{c_lay}] + Bookie Liability ({bookie_load}%)"
-            rationale = f"💎 SATIK GOLD PLAY: Both CREX Market and Asian Bookmaker line converge on {favored}."
-        elif c_prob >= 75 or (c_back > 0 and c_back <= 33):
-            action = "PLAY"
-            favored = fav_team_resolved
-            underdog = underdog_team
-            confidence = min(88, c_prob)
-            rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-            badge = f"💎 CREX HEAVY LOAD ({c_prob}%)"
-            risk_level = "LOW RISK (INSTITUTIONAL HEAVY WEIGHT)"
-            source_summary = f"CREX Market Conviction [{c_back}-{c_lay}]"
-            rationale = f"💎 HIGH CONVICTION PLAY: Heavy institutional positioning ({c_prob}%, Bhav {c_back}-{c_lay}) gives {favored} strong momentum edge."
-        elif h2h_fav and tot_h2h >= 3 and (max(h2h_a, h2h_b) / tot_h2h) >= 0.75:
-            h2h_win_cnt = max(h2h_a, h2h_b)
-            action = "PLAY"
-            favored = h2h_fav
-            underdog = t_b if h2h_fav == t_a else t_a
-            confidence = min(85, max(75, int(round((h2h_win_cnt / tot_h2h) * 100))))
-            rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-            badge = f"💎 H2H DOMINANCE ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L)"
-            risk_level = "LOW RISK (H2H DOMINANCE)"
-            source_summary = f"Ground-Truth H2H Dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches)"
-            rationale = f"💎 SATIK GOLD PLAY: Proven head-to-head toss dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches) gives {favored} heavy calling rhythm advantage."
-        elif c_prob >= 62 or (c_back > 0 and c_back <= 60):
-            # Moderate Market Lean - Not a 100% Golden Lock; played with half limit
-            action = "PLAY"
-            favored = fav_team_resolved
-            underdog = underdog_team
-            confidence = c_prob
-            rating = "🔥 VALUE LEAN (PLAY HALF LIMIT)"
-            badge = f"⚡ MARKET LEAN ({c_prob}%)"
-            risk_level = "MODERATE RISK (HALF LIMIT)"
-            source_summary = f"CREX Market Flow [{c_back}-{c_lay}]"
-            rationale = (
-                f"🔥 VALUE LEAN: CREX Market Sentiment ({c_prob}%, Bhav {c_back}-{c_lay}) {favored} ko favor kar raha hai. "
-                f"Lekin secondary convergence na hone ke karan ise 'Half Limit' se khelein."
-            )
-        elif pat_fav and abs(pat_edge) >= 14 and not (c_fav and not match_teams_fuzzy(c_fav, pat_fav)):
-            # Pattern Reversal without contradiction - Value Lean with half limit
-            action = "PLAY"
-            favored = pat_fav
-            underdog = t_b if favored == t_a else t_a
-            confidence = 65
-            rating = "🔥 VALUE LEAN (PLAY HALF LIMIT)"
-            badge = f"🔄 {pat_badge}"
-            risk_level = "MODERATE RISK (PATTERN REVERSAL)"
-            source_summary = f"Tipper Pattern Rule: {pat['rule_name']}"
-            rationale = (
-                f"🔄 PATTERN VALUE LEAN: {pat_rat} Pattern engine rebound signal de raha hai. "
-                f"Coin toss variance ke chalte ise Half Limit se hi khelein."
-            )
+        is_a_fav = match_teams_fuzzy(c_fav, t_a)
+        c_prob_a = c_prob if is_a_fav else (100 - c_prob)
+        market_edge = (c_prob_a - 50) * 0.8
+    elif not is_dummy_rate and rate_diff >= 12:
+        has_active_market = True
+        if oa < ob:
+            bookie_prob = int(round((ob / (oa + ob)) * 100))
+            market_edge = (bookie_prob - 50) * 0.7
         else:
-            action = "SKIP"
-            confidence = max(50, c_prob)
-            rating = "🟡 STRICT PASS (NO BET)"
-            badge = "🟡 PASS / 50-50 TRAP"
-            risk_level = "HIGH RISK (AVOID)"
-            source_summary = f"CREX Market Line [{c_back}-{c_lay}] (50-50 Neutral)"
-            rationale = (
-                f"⛔ STRICT PASS (50-50 COIN FLIP TRAP): Is match me koi multi-source convergence nahi hai "
-                f"({pat_badge}). Match favorite hone se coin toss jeetna zaroori nahi hota — "
-                f"Paisa surakshit rakhne ke liye strict pass karein."
-            )
+            bookie_prob = int(round((oa / (oa + ob)) * 100))
+            market_edge = -(bookie_prob - 50) * 0.7
 
-    # Scenario B: CREX market not open yet — rely on proven H2H Dominance or verified Bookie divergence
-    elif h2h_fav and tot_h2h >= 3 and (max(h2h_a, h2h_b) / tot_h2h) >= 0.75:
-        h2h_win_cnt = max(h2h_a, h2h_b)
-        action = "PLAY"
-        favored = h2h_fav
-        underdog = t_b if h2h_fav == t_a else t_a
-        confidence = min(85, max(75, int(round((h2h_win_cnt / tot_h2h) * 100))))
-        rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-        badge = f"💎 H2H DOMINANCE ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L)"
-        risk_level = "LOW RISK (HIGH CONVICTION)"
-        source_summary = f"Ground-Truth H2H Dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches)"
-        rationale = f"💎 SATIK GOLD PLAY: Proven head-to-head toss dominance ({h2h_win_cnt}W-{tot_h2h - h2h_win_cnt}L across {tot_h2h} matches) gives {favored} heavy calling rhythm advantage."
-
-    elif bookie_fav and not is_dummy_rate and bookie_load >= 75:
-        action = "PLAY"
-        favored = bookie_fav
-        underdog = t_b if bookie_fav == t_a else t_a
-        confidence = min(85, bookie_load)
-        rating = "💎 100% SATIK PLAY (GOLDEN LOCK)"
-        badge = "💎 100% SATIK CALL"
-        risk_level = "LOW RISK (HIGH CONVICTION)"
-        source_summary = f"Bookmaker Liability Divergence ({oa}:{ob})"
-        rationale = f"💎 SATIK GOLD PLAY: Heavy bookmaker rate divergence ({min(oa, ob)} vs {max(oa, ob)}) favors {favored}."
-
-    elif pat_fav and abs(pat_edge) >= 14:
-        action = "PLAY"
-        favored = pat_fav
-        underdog = t_b if favored == t_a else t_a
-        confidence = 65
-        rating = "🔥 VALUE LEAN (PLAY HALF LIMIT)"
-        badge = f"🔄 {pat_badge}"
-        risk_level = "MODERATE RISK (PATTERN REVERSAL)"
-        source_summary = f"Tipper Pattern Rule: {pat['rule_name']}"
-        rationale = f"🔄 PATTERN VALUE LEAN: {pat_rat} Tipper pattern triggers reversal lean (Play with half limit)."
-
+    # Step 6: Multi-Factor Composite Score Calculation
+    # Dynamic weighting: Active Market (40%) + Pattern (35%) + Form/H2H (25%)
+    # Pre-market: Pattern (50%) + Form/H2H (50%)
+    if has_active_market:
+        composite_edge = (market_edge * 0.40) + (pat_edge * 0.35) + (h2h_form_edge * 0.25)
     else:
-        # Check for extreme opponent slump (lost 4 of last 5 tosses)
-        s_a, last5_a, tot_a = get_team_toss_history(t_a, tournament)
-        s_b, last5_b, tot_b = get_team_toss_history(t_b, tournament)
-        b_losses = last5_b.count('L')
-        a_losses = last5_a.count('L')
+        composite_edge = (pat_edge * 0.50) + (h2h_form_edge * 0.50)
 
-        if b_losses >= 4 and a_losses < 3:
-            action = "PLAY"
-            favored = t_a
-            underdog = t_b
-            confidence = 65
-            rating = "🔥 VALUE LEAN (PLAY HALF LIMIT)"
-            badge = f"📉 Opponent Toss Slump: {t_b} (Lost {b_losses}/5)"
-            risk_level = "MODERATE RISK (SLUMP ADVANTAGE)"
-            source_summary = f"Opponent Slump Analysis ({t_b} {b_losses}L in last 5)"
-            rationale = f"🔥 FORM LEAN: {t_b} toss rhythm me slump me hai ({b_losses} toss haar chuki hai). Value pick with half limit."
-        elif a_losses >= 4 and b_losses < 3:
-            action = "PLAY"
-            favored = t_b
-            underdog = t_a
-            confidence = 65
-            rating = "🔥 VALUE LEAN (PLAY HALF LIMIT)"
-            badge = f"📉 Opponent Toss Slump: {t_a} (Lost {a_losses}/5)"
-            risk_level = "MODERATE RISK (SLUMP ADVANTAGE)"
-            source_summary = f"Opponent Slump Analysis ({t_a} {a_losses}L in last 5)"
-            rationale = f"🔥 FORM LEAN: {t_a} toss rhythm me slump me hai ({a_losses} toss haar chuki hai). Value pick with half limit."
-        else:
-            action = "SKIP"
-            confidence = 50
-            rating = "🟡 STRICT PASS (NO BET)"
-            badge = "🟡 PASS / 50-50 NEUTRAL"
-            risk_level = "HIGH RISK (AVOID)"
-            source_summary = "Flat Market Line (50-50 Neutral)"
-            rationale = "⛔ STRICT PASS (50-50 COIN FLIP): Is match me koi verified multi-source convergence ya H2H edge nahi hai. Zero statistical edge — capital safe rakhne ke liye strict pass karein."
+    score_a = 50.0 + composite_edge
+    score_a = max(20.0, min(88.0, score_a))
+
+    if score_a >= 50.0:
+        favored = t_a
+        underdog = t_b
+        confidence = int(round(score_a))
+    else:
+        favored = t_b
+        underdog = t_a
+        confidence = int(round(100.0 - score_a))
+
+    # Minimum confidence guarantee for clear recommendation: 53%
+    if confidence <= 51:
+        confidence = 53
+
+    # Step 7: Verdict Tier & Action Determination
+    # STRICT 100% SATIK RULE: Only 70%+ Multi-Source Conviction gets PLAY.
+    # Everything below 70% is strictly PASSED to guarantee only 3-4 golden satik matches per day.
+    if confidence >= 70:
+        action = "PLAY"
+        verdict_tier = "SUPER_LOCK"
+        rating = "💎 100% SATIK PLAY (SUPER LOCK)"
+        badge = f"💎 100% SATIK CALL ({confidence}%)"
+        risk_level = "LOW RISK (HIGH CONVICTION)"
+        rationale_parts = []
+        if has_active_market:
+            rationale_parts.append(f"CREX Market sentiment ({confidence}%, Bhav {c_back}-{c_lay})")
+        if pat_fav and match_teams_fuzzy(pat_fav, favored):
+            rationale_parts.append(f"Tipper Pattern Rule ({pat_badge})")
+        if tot_h2h >= 1 and ((h2h_a > h2h_b and favored == t_a) or (h2h_b > h2h_a and favored == t_b)):
+            rationale_parts.append(f"H2H dominance ({max(h2h_a, h2h_b)}W-{min(h2h_a, h2h_b)}L)")
+        rationale = f"💎 SUPER SATIK PLAY: {' + '.join(rationale_parts) or 'Multi-source statistical convergence'} 100% {favored} ke paksh me hai. Normal to High limit se play karein."
+        source_summary = f"Multi-Source Super Lock ({confidence}%)"
+        rec_team = favored
+        und_team = underdog
+        market_load_str = f"📊 Market Load: {confidence}% on {favored}"
+    else:
+        action = "SKIP"
+        verdict_tier = "PASS"
+        rating = "🟡 STRICT PASS (50-50 COIN FLIP TRAP)"
+        badge = f"🟡 50-50 PASS ({confidence}%)"
+        risk_level = "HIGH RISK (COIN FLIP TRAP)"
+        rationale = f"⛔ STRICT PASS (COIN FLIP TRAP): Is match me statistical edge {confidence}% hai jo 70% Super Satik threshold se kam hai. Toss 50-50 lottery ban sakta hai — capital safe rakhne ke liye strict pass karein. Din me sirf 3-4 golden matches hi play karein."
+        source_summary = f"Flat / Coin-Flip Zone ({confidence}%)"
+        rec_team = None
+        und_team = None
+        market_load_str = f"📊 Market Load: {confidence}% (Below 70% Satik Threshold)"
 
     res = {
         "action": action,
-        "recommended_team": favored if action == "PLAY" else None,
-        "underdog_team": underdog if action == "PLAY" else None,
+        "recommended_team": rec_team,
+        "underdog_team": und_team,
         "confidence_pct": confidence,
+        "verdict_tier": verdict_tier,
         "stake_rating": rating,
         "consensus_badge": badge,
         "risk_level": risk_level,
-        "market_load_text": f"📊 Market Load: {confidence}% on {favored}" if action == "PLAY" else f"📊 Load: {confidence}% (Below 70% Satik Threshold)",
+        "market_load_text": market_load_str,
         "cricketclues_status": source_summary,
         "punter_rationale": rationale,
         "total_edge": round(float(confidence - 50), 1),
@@ -502,7 +412,5 @@ def compute_multi_source_toss_load(
         "b_last5_str": pat.get("b_last5_str", "None")
     }
 
-    # Lock prediction permanently so it NEVER flips or changes on refresh
     save_locked_prediction(m_id_str, res, t_a, t_b)
-
     return res

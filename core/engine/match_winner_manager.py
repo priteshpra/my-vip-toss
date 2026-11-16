@@ -38,15 +38,22 @@ def _parse_mw_time_key(record: Dict[str, Any]) -> str:
         return f"{d_str} 00:00"
 
 
+_MW_RESULTS_CACHE = {"mtime": 0, "data": []}
+
 def load_mw_results() -> List[Dict[str, Any]]:
-    """Load all recorded match winner results, sorted latest first."""
+    """Load all recorded match winner results with mtime cache, sorted latest first."""
+    global _MW_RESULTS_CACHE
     if os.path.exists(MW_RESULTS_FILE):
         try:
+            mtime = os.path.getmtime(MW_RESULTS_FILE)
+            if _MW_RESULTS_CACHE["mtime"] == mtime and _MW_RESULTS_CACHE["data"]:
+                return list(_MW_RESULTS_CACHE["data"])
             with open(MW_RESULTS_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, list):
                     data.sort(key=_parse_mw_time_key, reverse=True)
-                    return data
+                    _MW_RESULTS_CACHE = {"mtime": mtime, "data": data}
+                    return list(data)
         except Exception:
             pass
     return []
@@ -134,6 +141,7 @@ def save_mw_result(
         os.makedirs(os.path.dirname(MW_RESULTS_FILE), exist_ok=True)
         with open(MW_RESULTS_FILE, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2, ensure_ascii=False)
+        _MW_RESULTS_CACHE["mtime"] = 0
     except Exception as e:
         print(f"Error persisting MW results: {e}")
 
@@ -148,6 +156,7 @@ def delete_mw_result(match_id: str) -> bool:
         try:
             with open(MW_RESULTS_FILE, "w", encoding="utf-8") as f:
                 json.dump(new_results, f, indent=2, ensure_ascii=False)
+            _MW_RESULTS_CACHE["mtime"] = 0
             return True
         except Exception:
             return False
