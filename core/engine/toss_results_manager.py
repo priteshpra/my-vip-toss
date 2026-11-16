@@ -23,6 +23,19 @@ _SSL_CTX.verify_mode = ssl.CERT_NONE
 
 RESULTS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "toss_results_log.json")
 
+__all__ = [
+    "load_toss_results",
+    "save_toss_result",
+    "delete_toss_result",
+    "get_toss_accuracy_kpis",
+    "sync_completed_tosses_from_gaming_helper",
+    "auto_update_toss_results_from_telegram",
+    "sync_live_toss_results_from_crex",
+    "sync_live_toss_results_from_cricbuzz",
+    "is_winner_unresolved",
+    "parse_toss_datetime",
+]
+
 
 def _parse_toss_time_key(record: Dict[str, Any]) -> str:
     """Sort key for chronological descending order (latest match first)."""

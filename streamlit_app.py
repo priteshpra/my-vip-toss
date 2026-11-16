@@ -21,6 +21,14 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
+# Force-reload or purge cached modules so Streamlit Cloud worker never executes stale in-memory modules
+for mod_name in list(sys.modules.keys()):
+    if mod_name.startswith("core.") or mod_name == "core":
+        try:
+            importlib.reload(sys.modules[mod_name])
+        except Exception:
+            sys.modules.pop(mod_name, None)
+
 from core.timezone import now_ist, format_ist
 from core.providers.gaming_helper_provider import (
     get_stored_credentials,
@@ -29,17 +37,34 @@ from core.providers.gaming_helper_provider import (
     fetch_gaming_helper_live_bets,
     get_active_punter_matches
 )
-from core.engine.toss_results_manager import (
-    load_toss_results,
-    save_toss_result,
-    delete_toss_result,
-    get_toss_accuracy_kpis,
-    sync_completed_tosses_from_gaming_helper,
-    auto_update_toss_results_from_telegram,
-    sync_live_toss_results_from_crex,
-    sync_live_toss_results_from_cricbuzz,
-    is_winner_unresolved
-)
+
+import core.engine.toss_results_manager as _trm
+try:
+    importlib.reload(_trm)
+except Exception:
+    pass
+
+load_toss_results = _trm.load_toss_results
+save_toss_result = _trm.save_toss_result
+delete_toss_result = getattr(_trm, "delete_toss_result", lambda mid: False)
+get_toss_accuracy_kpis = _trm.get_toss_accuracy_kpis
+sync_completed_tosses_from_gaming_helper = _trm.sync_completed_tosses_from_gaming_helper
+auto_update_toss_results_from_telegram = getattr(_trm, "auto_update_toss_results_from_telegram", lambda: 0)
+sync_live_toss_results_from_crex = getattr(_trm, "sync_live_toss_results_from_crex", lambda: 0)
+sync_live_toss_results_from_cricbuzz = getattr(_trm, "sync_live_toss_results_from_cricbuzz", lambda: 0)
+
+def _fallback_is_winner_unresolved(val: Any) -> bool:
+    s = str(val or "").strip().lower()
+    return (
+        not s
+        or "pending" in s
+        or "skipped" in s
+        or "neutral" in s
+        or s in ["none", "tbd", "-", "null", "undefined"]
+    )
+
+is_winner_unresolved = getattr(_trm, "is_winner_unresolved", _fallback_is_winner_unresolved)
+
 from core.engine.match_winner_manager import (
     load_mw_results,
     save_mw_result,
@@ -56,13 +81,6 @@ from core.providers.toss_load_provider import (
     compute_multi_source_toss_load,
     get_locked_prediction
 )
-
-# Safe import with fallback for zero-downtime hot reloading
-try:
-    from core.engine.toss_results_manager import delete_toss_result
-except ImportError:
-    def delete_toss_result(match_id: str) -> bool:
-        return False
 
 # --- CREX Market Bhav Overrides Storage ---
 CREX_OVERRIDES_FILE = os.path.join(os.path.dirname(__file__), "data", "crex_overrides.json")
