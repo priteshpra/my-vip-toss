@@ -37,7 +37,8 @@ from core.engine.toss_results_manager import (
     sync_completed_tosses_from_gaming_helper,
     auto_update_toss_results_from_telegram,
     sync_live_toss_results_from_crex,
-    sync_live_toss_results_from_cricbuzz
+    sync_live_toss_results_from_cricbuzz,
+    is_winner_unresolved
 )
 from core.engine.match_winner_manager import (
     load_mw_results,
@@ -2306,9 +2307,9 @@ with vip_tabs[2]:
         """, unsafe_allow_html=True)
     else:
         # Clean Date Filter: Strictly count confirmed completed tosses
-        today_done_count = sum(1 for r in completed_results if r.get("match_date") == today_iso and r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
-        yesterday_done_count = sum(1 for r in completed_results if r.get("match_date") == yesterday_iso and r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
-        total_done_count = sum(1 for r in completed_results if r.get("outcome") != "PENDING" and "pending" not in str(r.get("actual_winner", "")).lower())
+        today_done_count = sum(1 for r in completed_results if r.get("match_date") == today_iso and r.get("outcome") != "PENDING" and not is_winner_unresolved(r.get("actual_winner")))
+        yesterday_done_count = sum(1 for r in completed_results if r.get("match_date") == yesterday_iso and r.get("outcome") != "PENDING" and not is_winner_unresolved(r.get("actual_winner")))
+        total_done_count = sum(1 for r in completed_results if r.get("outcome") != "PENDING" and not is_winner_unresolved(r.get("actual_winner")))
 
         # By default, ALWAYS select 'आज (Today)' as requested by the user
         today_pill_label = f"📅 आज (Today) · {today_done_count}"
@@ -2444,17 +2445,18 @@ with vip_tabs[2]:
             )
 
         # Count outcomes for the selected date
-        pending_in_active = sum(1 for r in active_date_results if r.get("outcome") == "PENDING" or "pending" in str(r.get("actual_winner", "")).lower())
-        done_in_active = sum(1 for r in active_date_results if r.get("outcome") in ["PASS", "FAIL", "SKIPPED"] and "pending" not in str(r.get("actual_winner", "")).lower())
+        pending_in_active = sum(1 for r in active_date_results if is_winner_unresolved(r.get("actual_winner")))
         pass_in_active = sum(1 for r in active_date_results if r.get("outcome") == "PASS")
         fail_in_active = sum(1 for r in active_date_results if r.get("outcome") == "FAIL")
-        skip_in_active = sum(1 for r in active_date_results if r.get("outcome") == "SKIPPED" and "pending" not in str(r.get("actual_winner", "")).lower())
+        skip_in_active = sum(1 for r in active_date_results if r.get("outcome") == "SKIPPED")
+        played_in_active = pass_in_active + fail_in_active
 
         done_filter_options = [
-            f"🏆 Sabhi Toss Done ({done_in_active})",
-            f"✅ Sirf Pass ({pass_in_active})",
-            f"❌ Sirf Fail ({fail_in_active})",
-            f"🟡 Sirf Skipped ({skip_in_active})"
+            f"💎 खेले गए बेट्स ({played_in_active})",
+            f"✅ Sirf Won ({pass_in_active})",
+            f"❌ Sirf Missed ({fail_in_active})",
+            f"🟡 सिर्फ पास/स्किप मैच ({skip_in_active})",
+            f"🌟 सभी मैच (All: {len(active_date_results)})"
         ]
         if pending_in_active > 0:
             done_filter_options.append(f"⏳ Pending Result ({pending_in_active})")
@@ -2463,7 +2465,7 @@ with vip_tabs[2]:
             "Filter by Toss Outcome",
             options=done_filter_options,
             default=done_filter_options[0],
-            key="pills_done_filter"
+            key="pills_done_filter_v2"
         )
 
         # Filter Rows
@@ -2473,18 +2475,23 @@ with vip_tabs[2]:
         if selected_done_tour != "🌟 Sabhi Tournaments (All)":
             filtered_done = [r for r in filtered_done if r.get("tournament") == selected_done_tour]
 
-        # 2. Outcome Filter: STRICTLY SHOW COMPLETED TOSSES by default!
-        if done_filter and "Pass" in done_filter:
+        # 2. Outcome Filter
+        if done_filter and "Won" in done_filter:
             filtered_done = [r for r in filtered_done if r.get("outcome") == "PASS"]
-        elif done_filter and "Fail" in done_filter:
+        elif done_filter and "Missed" in done_filter:
             filtered_done = [r for r in filtered_done if r.get("outcome") == "FAIL"]
         elif done_filter and "Pending" in done_filter:
-            filtered_done = [r for r in filtered_done if r.get("outcome") == "PENDING" or "pending" in str(r.get("actual_winner", "")).lower()]
-        elif done_filter and "Skipped" in done_filter:
-            filtered_done = [r for r in filtered_done if r.get("outcome") == "SKIPPED" and "pending" not in str(r.get("actual_winner", "")).lower()]
+            filtered_done = [r for r in filtered_done if is_winner_unresolved(r.get("actual_winner"))]
+        elif done_filter and "पास/स्किप" in done_filter:
+            filtered_done = [r for r in filtered_done if r.get("outcome") == "SKIPPED"]
+        elif done_filter and "सभी" in done_filter:
+            filtered_done = filtered_done
         else:
-            # Default "🏆 Sabhi Toss Done": ONLY SHOW MATCHES WHOSE TOSS HAS ACTUALLY HAPPENED!
-            filtered_done = [r for r in filtered_done if r.get("outcome") in ["PASS", "FAIL", "SKIPPED"] and "pending" not in str(r.get("actual_winner", "")).lower()]
+            # Default "💎 खेले गए बेट्स": show only Played bets (Pass + Fail), unless 0 played bets, then show all
+            if played_in_active > 0:
+                filtered_done = [r for r in filtered_done if r.get("outcome") in ["PASS", "FAIL"]]
+            else:
+                filtered_done = filtered_done
 
         # 3. Search Filter
         if search_done.strip():
@@ -2613,12 +2620,17 @@ with vip_tabs[2]:
                 # Day's summary table
                 day_table_rows = []
                 for r in day_matches:
+                    act_win = str(r.get("actual_winner") or "").strip()
+                    is_unres = is_winner_unresolved(act_win)
+                    dec = r.get("toss_decision", "Bowl")
+                    win_display = "⏳ Pending Confirmation" if is_unres else f"🏆 {act_win} ({dec})"
+
                     day_table_rows.append({
                         "⏰ Toss Time": r.get('toss_time_ist'),
                         "Match": r.get("match_name"),
                         "Tournament": r.get("tournament"),
                         "🎯 Recommended Play": f"🟢 {r.get('recommended_team')}" if r.get('recommended_team') else "🟡 Skip (50-50)",
-                        "🏆 Actual Toss Winner": f"🏆 {r.get('actual_winner')} ({r.get('toss_decision', 'Bowl')})",
+                        "🏆 Actual Toss Winner": win_display,
                         "📊 Result Outcome": r.get("outcome_label", "PASS")
                     })
                 st.dataframe(pd.DataFrame(day_table_rows), use_container_width=True, hide_index=True)
@@ -2628,7 +2640,9 @@ with vip_tabs[2]:
                     out = r.get("outcome")
                     is_pass = (out == "PASS")
                     is_fail = (out == "FAIL")
-                    is_pending = (out == "PENDING")
+                    act_win = str(r.get("actual_winner") or "").strip()
+                    is_unres = is_winner_unresolved(act_win)
+                    is_pending = (out == "PENDING" or is_unres)
 
                     if is_pass:
                         card_border = "#10b981"
@@ -2652,6 +2666,9 @@ with vip_tabs[2]:
                         badge_color = "#fbbf24"
 
                     rec_display = f"🟢 PLAY: {r.get('recommended_team')}" if r.get('recommended_team') else "🟡 SKIP (50-50 NEUTRAL)"
+                    dec = r.get("toss_decision", "Bowl")
+                    win_card_label = "⏳ Pending Confirmation" if is_unres else f"🏆 {act_win} ({dec})"
+                    win_color = "#f59e0b" if is_unres else "#38bdf8"
 
                     st.markdown(f"""
                     <div class="vip-match-card" style="border-left: 6px solid {card_border};">
@@ -2673,13 +2690,13 @@ with vip_tabs[2]:
                             </div>
                             <div style="background: #090d16; border: 1px solid #1e293b; padding: 10px 14px; border-radius: 8px;">
                                 <div style="font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">Toss Winner</div>
-                                <div style="font-size: 16px; font-weight: 900; color: #38bdf8; margin-top: 2px;">🏆 {r.get('actual_winner')}</div>
+                                <div style="font-size: 15px; font-weight: 900; color: {win_color}; margin-top: 2px;">{win_card_label}</div>
                             </div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
 
-                    if is_pending:
+                    if is_pending or is_unres:
                         st.caption("⚡ **टॉस हो गया है — असली विनर कौन बना? बस 1 क्लिक करें:**")
                         q_c1, q_c2 = st.columns(2)
                         with q_c1:
