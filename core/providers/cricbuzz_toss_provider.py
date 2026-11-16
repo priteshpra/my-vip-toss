@@ -79,47 +79,47 @@ def fetch_cricbuzz_toss_outcomes(force_refresh: bool = False) -> List[Dict[str, 
         except Exception:
             pass
 
-    # 2. Extract match links from the page
-    links = re.findall(r'href="(/live-cricket-scores/(\d+)/([a-z0-9\-]+))"', html)
-    seen_ids = set()
-    uniq_links = []
-    for href, mid, slug in links:
-        if mid not in seen_ids:
-            seen_ids.add(mid)
-            uniq_links.append((mid, slug))
+    # 2. Extract match links from the page (scrape only up to 4 recent matches if not found in ld+json)
+    if len(tosses) < 5:
+        links = re.findall(r'href="(/live-cricket-scores/(\d+)/([a-z0-9\-]+))"', html)
+        seen_ids = set()
+        uniq_links = []
+        for href, mid, slug in links:
+            if mid not in seen_ids:
+                seen_ids.add(mid)
+                uniq_links.append((mid, slug))
 
-    # Scrape match facts for up to 20 active / recent matches
-    for mid, slug in uniq_links[:20]:
-        facts_url = f"https://m.cricbuzz.com/cricket-match-facts/{mid}/{slug}"
-        try:
-            f_req = urllib.request.Request(facts_url, headers=HEADERS)
-            with urllib.request.urlopen(f_req, timeout=4, context=_SSL_CTX) as f_resp:
-                f_html = f_resp.read().decode("utf-8", errors="ignore")
+        for mid, slug in uniq_links[:4]:
+            facts_url = f"https://m.cricbuzz.com/cricket-match-facts/{mid}/{slug}"
+            try:
+                f_req = urllib.request.Request(facts_url, headers=HEADERS)
+                with urllib.request.urlopen(f_req, timeout=2, context=_SSL_CTX) as f_resp:
+                    f_html = f_resp.read().decode("utf-8", errors="ignore")
 
-            toss_m = re.search(r'<div[^>]*>Toss</div>\s*<div[^>]*>(.*?)</div>', f_html, re.DOTALL | re.IGNORECASE)
-            if toss_m:
-                toss_text = toss_m.group(1).strip()
-                p_win = re.search(r'([A-Za-z0-9\s]+?)\s+(?:won the toss and opt to|opt to|won toss)\s+(bat|bowl)', toss_text, re.IGNORECASE)
-                if p_win:
-                    w = p_win.group(1).strip()
-                    dec = p_win.group(2).strip().capitalize()
-                    slug_parts = slug.split("-vs-")
-                    s1 = slug_parts[0] if len(slug_parts) >= 2 else ""
-                    s2 = slug_parts[1].split("-")[0] if len(slug_parts) >= 2 else ""
-                    key = f"{s1.lower()}_{s2.lower()}_{mid}"
-                    if key not in seen:
-                        seen.add(key)
-                        tosses.append({
-                            "match_id": mid,
-                            "team_a": s1,
-                            "team_b": s2,
-                            "winner": w,
-                            "decision": dec,
-                            "raw_text": toss_text,
-                            "source": "cricbuzz_facts"
-                        })
-        except Exception:
-            pass
+                toss_m = re.search(r'<div[^>]*>Toss</div>\s*<div[^>]*>(.*?)</div>', f_html, re.DOTALL | re.IGNORECASE)
+                if toss_m:
+                    toss_text = toss_m.group(1).strip()
+                    p_win = re.search(r'([A-Za-z0-9\s]+?)\s+(?:won the toss and opt to|opt to|won toss)\s+(bat|bowl)', toss_text, re.IGNORECASE)
+                    if p_win:
+                        w = p_win.group(1).strip()
+                        dec = p_win.group(2).strip().capitalize()
+                        slug_parts = slug.split("-vs-")
+                        s1 = slug_parts[0] if len(slug_parts) >= 2 else ""
+                        s2 = slug_parts[1].split("-")[0] if len(slug_parts) >= 2 else ""
+                        key = f"{s1.lower()}_{s2.lower()}_{mid}"
+                        if key not in seen:
+                            seen.add(key)
+                            tosses.append({
+                                "match_id": mid,
+                                "team_a": s1,
+                                "team_b": s2,
+                                "winner": w,
+                                "decision": dec,
+                                "raw_text": toss_text,
+                                "source": "cricbuzz_facts"
+                            })
+            except Exception:
+                pass
 
     _CACHE["timestamp"] = now
     _CACHE["tosses"] = tosses

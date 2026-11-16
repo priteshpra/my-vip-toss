@@ -401,45 +401,9 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             # Scheduled toss is in the future; cannot be recorded as completed yet
             continue
 
-        # Resolve actual toss winner from Cricbuzz, Telegram, or mark Pending Confirmation
-        win_init = None
-        dec_init = "Bowl"
-
-        # 1. Try to resolve winner immediately from Cricbuzz
-        try:
-            from core.providers.cricbuzz_toss_provider import fetch_cricbuzz_toss_outcomes
-            cb_list = fetch_cricbuzz_toss_outcomes(force_refresh=False)
-            for cb in cb_list:
-                if (match_teams_fuzzy(t1, cb.get("team_a", "")) and match_teams_fuzzy(t2, cb.get("team_b", ""))) or \
-                   (match_teams_fuzzy(t1, cb.get("team_b", "")) and match_teams_fuzzy(t2, cb.get("team_a", ""))):
-                    w_raw = cb.get("winner", "")
-                    win_init = t1 if match_teams_fuzzy(w_raw, t1) else (t2 if match_teams_fuzzy(w_raw, t2) else w_raw)
-                    dec_init = cb.get("decision", "Bowl")
-                    break
-        except Exception:
-            pass
-
-        # 2. Try Telegram feed if Cricbuzz didn't have it
-        if not win_init:
-            try:
-                from core.providers.telegram_toss_feed import fetch_telegram_toss_feed, match_team_with_tg_winner
-                tg_feed = fetch_telegram_toss_feed(pages=2)
-                for tg in tg_feed:
-                    w_raw = tg.get("winner_raw", "")
-                    if match_team_with_tg_winner(t1, w_raw):
-                        win_init = t1
-                        dec_init = tg.get("decision", "Bowl")
-                        break
-                    elif match_team_with_tg_winner(t2, w_raw):
-                        win_init = t2
-                        dec_init = tg.get("decision", "Bowl")
-                        break
-            except Exception:
-                pass
-
-        if not win_init:
-            win_init = "Pending Confirmation"
-            dec_init = "Pending"
+        # Initialize as Pending Confirmation (bulk auto-resolvers Cricbuzz/Telegram run right after the loop)
+        win_init = "Pending Confirmation"
+        dec_init = "Pending"
 
         save_toss_result(
             match_id=m_id,

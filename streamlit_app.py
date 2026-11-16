@@ -643,11 +643,6 @@ all_matches = st.session_state.get("live_punter_matches", [])
 is_gh_connected = st.session_state.get("live_gh_connected", False)
 creds = get_stored_credentials()
 
-# Automatically sync completed/closed matches once per session
-if is_gh_connected and not st.session_state.get("has_synced_closed"):
-    sync_completed_tosses_from_gaming_helper()
-    st.session_state["has_synced_closed"] = True
-
 # Account Status Bar
 col_st1, col_st2 = st.columns([3, 1])
 with col_st1:
@@ -728,11 +723,25 @@ with vip_tabs[0]:
     date_options.append(lbl_all)
     date_iso_map[lbl_all] = "ALL"
 
-    # By default, ALWAYS select 'Aaj' (Today) as requested by the user
-    default_date_idx = 0
-    cur_punter_pill = str(st.session_state.get("punter_date_pill_v2", ""))
-    if not cur_punter_pill or "Kal" in cur_punter_pill or "Sabhi" in cur_punter_pill:
-        st.session_state["punter_date_pill_v2"] = date_options[0]
+    # Smart default: Auto-switch to 'Kal' (Tomorrow) if today's matches are completed (0 pending), otherwise 'Aaj'
+    if c_today_pending > 0:
+        default_date_idx = 0
+    elif c_tomorrow_pending > 0:
+        default_date_idx = 1
+    else:
+        default_date_idx = 0
+
+    cur_punter_pill = st.session_state.get("punter_date_pill_v2")
+    matched_pill_opt = None
+    if cur_punter_pill:
+        for opt in date_options:
+            if opt.split(" [")[0] == str(cur_punter_pill).split(" [")[0]:
+                matched_pill_opt = opt
+                break
+    if matched_pill_opt:
+        st.session_state["punter_date_pill_v2"] = matched_pill_opt
+    elif not cur_punter_pill:
+        st.session_state["punter_date_pill_v2"] = date_options[default_date_idx]
 
     col_dpill, col_spc = st.columns([2.5, 1])
     with col_dpill:
@@ -806,17 +815,6 @@ with vip_tabs[0]:
         for t in all_live_tournaments
     ]
 
-    # --- Search & Filter Bar ---
-    col_t_live, col_filter, col_search = st.columns([1.5, 1.3, 1.2])
-    with col_t_live:
-        selected_live_tour_raw = st.selectbox(
-            "🏏 Filter by Tournament",
-            tour_live_opts,
-            index=0,
-            key="select_live_tournament"
-        )
-        selected_live_tour = selected_live_tour_raw.rsplit(" (", 1)[0] if selected_live_tour_raw != "🌟 Sabhi Tournaments (All)" else "🌟 Sabhi Tournaments (All)"
-
     st.markdown("""
     <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(14, 165, 233, 0.08)); border: 1.5px solid rgba(16, 185, 129, 0.4); border-radius: 12px; padding: 12px 18px; margin-bottom: 16px;">
         <div style="font-size: 15px; font-weight: 800; color: #10b981; display: flex; align-items: center; gap: 8px;">
@@ -828,13 +826,16 @@ with vip_tabs[0]:
     </div>
     """, unsafe_allow_html=True)
 
-    with col_filter:
-        filter_type = st.selectbox(
-            "🎯 Filter by Verdict",
-            ["💎 सिर्फ 100% सटीक टॉस (70%+ Super Satik Plays)", "🌟 सभी लाइव आगामी मैच (All Live Matches)", "🟡 सिर्फ 50-50 पास मैच (Strict Skips)"],
+    # --- Search & Filter Bar ---
+    col_t_live, col_filter, col_search = st.columns([1.4, 1.4, 1.2])
+    with col_t_live:
+        selected_live_tour_raw = st.selectbox(
+            "🏏 Filter by Tournament",
+            tour_live_opts,
             index=0,
-            key="select_punter_filter_v2"
+            key="select_live_tournament"
         )
+        selected_live_tour = selected_live_tour_raw.rsplit(" (", 1)[0] if selected_live_tour_raw != "🌟 Sabhi Tournaments (All)" else "🌟 Sabhi Tournaments (All)"
 
     with col_search:
         search_q = st.text_input(
@@ -865,6 +866,35 @@ with vip_tabs[0]:
     total_matches = len(filtered_matches)
     super_satik_matches = [m for m in filtered_matches if (m.get("confidence_pct") or 50) >= 70 and m.get("action_type") == "PLAY"]
     pass_matches = [m for m in filtered_matches if m.get("action_type") == "SKIP" or (m.get("confidence_pct") or 50) < 70]
+
+    opt_satik = f"💎 सिर्फ 100% सटीक टॉस ({len(super_satik_matches)})"
+    opt_all = f"🌟 सभी लाइव आगामी मैच ({total_matches})"
+    opt_skip = f"🟡 सिर्फ 50-50 पास मैच ({len(pass_matches)})"
+    verdict_options = [opt_satik, opt_all, opt_skip]
+
+    # Default to 100% Satik if available, else default to All Live Matches so screen is never blank
+    default_v_idx = 0 if len(super_satik_matches) > 0 else 1
+    cur_v_pref = st.session_state.get("select_punter_filter_v2")
+    matched_v_opt = None
+    if cur_v_pref:
+        if "सटीक" in str(cur_v_pref) or "70%" in str(cur_v_pref) or "Satik" in str(cur_v_pref):
+            matched_v_opt = opt_satik
+        elif "पास" in str(cur_v_pref) or "Pass" in str(cur_v_pref) or "Skip" in str(cur_v_pref):
+            matched_v_opt = opt_skip
+        elif "सभी" in str(cur_v_pref) or "All" in str(cur_v_pref):
+            matched_v_opt = opt_all
+
+    if matched_v_opt:
+        st.session_state["select_punter_filter_v2"] = matched_v_opt
+    elif not cur_v_pref:
+        st.session_state["select_punter_filter_v2"] = verdict_options[default_v_idx]
+
+    with col_filter:
+        filter_type = st.selectbox(
+            "🎯 Filter by Verdict",
+            verdict_options,
+            key="select_punter_filter_v2"
+        )
 
     # Apply Verdict Filter
     if "70%" in filter_type or "Super Satik" in filter_type or "सटीक" in filter_type:
@@ -2329,23 +2359,36 @@ with vip_tabs[2]:
         yesterday_done_count = sum(1 for r in completed_results if r.get("match_date") == yesterday_iso and r.get("outcome") != "PENDING" and not is_winner_unresolved(r.get("actual_winner")))
         total_done_count = sum(1 for r in completed_results if r.get("outcome") != "PENDING" and not is_winner_unresolved(r.get("actual_winner")))
 
-        # By default, ALWAYS select 'आज (Today)' as requested by the user
+        # Smart default: Auto-select 'आज (Today)' if today has completed tosses, otherwise 'कल (Yesterday)' or 'सभी तारीखें'
         today_pill_label = f"📅 आज (Today) · {today_done_count}"
-        cur_done_mode = str(st.session_state.get("pills_done_date_mode_v3", ""))
-        if not cur_done_mode or "तारीखें" in cur_done_mode or "सभी" in cur_done_mode:
-            st.session_state["pills_done_date_mode_v3"] = today_pill_label
+        yesterday_pill_label = f"📅 कल (Yesterday) · {yesterday_done_count}"
+        all_done_pill_label = f"🌟 सभी तारीखें ({total_done_count})"
+        tab3_date_options = [
+            today_pill_label,
+            yesterday_pill_label,
+            all_done_pill_label,
+            "🗓️ Custom Date"
+        ]
+
+        default_done_pill = today_pill_label if today_done_count > 0 else (yesterday_pill_label if yesterday_done_count > 0 else all_done_pill_label)
+        cur_done_mode = st.session_state.get("pills_done_date_mode_v3")
+        matched_done_opt = None
+        if cur_done_mode:
+            for opt in tab3_date_options:
+                if opt.split(" · ")[0] == str(cur_done_mode).split(" · ")[0]:
+                    matched_done_opt = opt
+                    break
+        if matched_done_opt:
+            st.session_state["pills_done_date_mode_v3"] = matched_done_opt
+        elif not cur_done_mode:
+            st.session_state["pills_done_date_mode_v3"] = default_done_pill
 
         col_df1, col_df2 = st.columns([2.4, 1.2])
         with col_df1:
             date_filter_mode = st.pills(
                 "📅 तारीख फ़िल्टर",
-                options=[
-                    today_pill_label,
-                    f"📅 कल (Yesterday) · {yesterday_done_count}",
-                    f"🌟 सभी तारीखें ({total_done_count})",
-                    "🗓️ Custom Date"
-                ],
-                default=today_pill_label,
+                options=tab3_date_options,
+                default=default_done_pill,
                 key="pills_done_date_mode_v3"
             )
         with col_df2:
