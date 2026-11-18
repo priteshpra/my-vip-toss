@@ -155,6 +155,9 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
             m["b_streak_str"] = v.get("b_streak_str", "Even")
             m["a_last5_str"] = v.get("a_last5_str", "None")
             m["b_last5_str"] = v.get("b_last5_str", "None")
+            m["pillars_total"] = v.get("pillars_total", 7)
+            m["pillars_aligned"] = v.get("pillars_aligned", 0)
+            m["active_pillars_list"] = v.get("active_pillars_list", [])
             if not m.get("match_date"):
                 m["match_date"] = format_ist(now_ist(), "%Y-%m-%d")
         return cached_list
@@ -485,6 +488,9 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
             "b_streak_str": vip_verdict.get("b_streak_str", "Even"),
             "a_last5_str": vip_verdict.get("a_last5_str", "None"),
             "b_last5_str": vip_verdict.get("b_last5_str", "None"),
+            "pillars_total": vip_verdict.get("pillars_total", 7),
+            "pillars_aligned": vip_verdict.get("pillars_aligned", 0),
+            "active_pillars_list": vip_verdict.get("active_pillars_list", []),
             "is_live": item.get("isLive", 1),
             "status": "UPCOMING" if item.get("status") == 1 else "LIVE",
             "source": "GamingHelper Online"

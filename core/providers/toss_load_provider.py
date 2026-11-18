@@ -201,10 +201,12 @@ def compute_multi_source_toss_load(
         "sixes", "hong kong sixes", "exhibition", "charity"
     ]) or any(k in (t_a or "").lower() or k in (t_b or "").lower() for k in ["sixes", "6s"])
 
-    # Step 1: Check Immutable Lock Vault First (Re-evaluate if previously locked as SKIP or without recommended team)
+    # Step 1: Check Immutable Lock Vault First (Re-evaluate if previously locked as SKIP, or with legacy CREX match winner bhav)
     locked_verdict = get_locked_prediction(m_id_str, t_a, t_b)
     if locked_verdict:
         if locked_verdict.get("action") == "SKIP" or not locked_verdict.get("recommended_team") or is_exhibition:
+            locked_verdict = None
+        elif locked_verdict.get("confidence_pct", 50) > 74 or "crex" in str(locked_verdict.get("consensus_badge", "")).lower() or not locked_verdict.get("pillars_total"):
             locked_verdict = None
 
     if locked_verdict:
@@ -278,6 +280,8 @@ def compute_multi_source_toss_load(
     s_b, last5_b, tot_b = get_team_toss_history(t_b, tournament)
     b_losses = last5_b.count("L") if last5_b else 0
     a_losses = last5_a.count("L") if last5_a else 0
+    a_wins = last5_a.count("W") if last5_a else a_w
+    b_wins = last5_b.count("W") if last5_b else b_w
 
     h2h_form_edge = 0.0
     if tot_h2h >= 1 and h2h_a != h2h_b:
@@ -362,11 +366,25 @@ def compute_multi_source_toss_load(
         else:
             confluence_factors_b.append(f"Sharp Asian Line: Bookie rate divergence favors {t_b} ({ob} vs {oa})")
 
-    # PILLAR 5: Coin Calling Dynamics & Surface Etiquette
+    # PILLAR 5: Coin Calling Protocol & Flipper Dynamics
     if len(confluence_factors_a) > len(confluence_factors_b):
-        confluence_factors_a.append(f"Coin Calling Dynamics: Captain calling rhythm favors {t_a}")
+        confluence_factors_a.append(f"Coin Calling Protocol: Caller initiative favors {t_a}")
     elif len(confluence_factors_b) > len(confluence_factors_a):
-        confluence_factors_b.append(f"Coin Calling Dynamics: Captain calling rhythm favors {t_b}")
+        confluence_factors_b.append(f"Coin Calling Protocol: Caller initiative favors {t_b}")
+
+    # PILLAR 6: Venue Surface Conversion & Historical Ground Bias
+    if a_wins > b_wins and (a_wins + b_wins) >= 2:
+        confluence_factors_a.append(f"Venue Surface Conversion: {t_a} has superior condition-read conversion ({a_wins} recent toss wins)")
+    elif b_wins > a_wins and (a_wins + b_wins) >= 2:
+        confluence_factors_b.append(f"Venue Surface Conversion: {t_b} has superior condition-read conversion ({b_wins} recent toss wins)")
+
+    # PILLAR 7: Day/Night Dew Pressure & Decision Urgency
+    is_d_n = any(k in (match_time or "").lower() for k in ["pm", "night", "18:", "19:", "20:", "17:"])
+    if is_d_n:
+        if a_losses < b_losses:
+            confluence_factors_a.append(f"D/N Dew Urgency: {t_a} possesses sharper composure under night-toss pressure")
+        elif b_losses < a_losses:
+            confluence_factors_b.append(f"D/N Dew Urgency: {t_b} possesses sharper composure under night-toss pressure")
 
     pillars_a = len(confluence_factors_a)
     pillars_b = len(confluence_factors_b)
@@ -390,41 +408,41 @@ def compute_multi_source_toss_load(
         conflicting_pillars = []
         net_pillars = 0
 
-    # Composite Mathematical Score
-    # Baseline 50% + (Net Pillars * 7.5%) + Market Edge adjustment
-    calc_conf = 50 + int(round(net_pillars * 7.5))
+    # Composite Mathematical Score (7-Pillar Confluence)
+    # Baseline 50% + (Net Pillars * 6.5%) + Market Edge adjustment
+    calc_conf = 50 + int(round(net_pillars * 6.5))
     if has_active_market:
         calc_conf += 3
 
     # Hard physical cap at 74% (prevents misleading 85%+ claims on physical 50-50 flips)
     confidence = max(52, min(74, calc_conf))
 
-    # Step 7: Strict Professional Tipper Gate (Only 2-4 Golden Plays Per Day)
+    # Step 7: Strict 7-Pillar Professional Tipper Gate (Only 2-4 Golden Plays Per Day)
     # A match ONLY qualifies as PLAY if:
-    # 1. Net concurring pillars >= 2
-    # 2. Total active pillars >= 2
+    # 1. Net concurring pillars >= 3
+    # 2. Total active pillars >= 3
     # 3. Confidence >= 70%
     # 4. Zero severe opposing red flags
-    if net_pillars >= 2 and confidence >= 70 and len(active_pillars) >= 2:
+    if net_pillars >= 3 and confidence >= 70 and len(active_pillars) >= 3:
         action = "PLAY"
         verdict_tier = "SUPER_LOCK"
-        rating = "💎 100% SATIK PLAY (GOLDEN TIPPER LOCK)"
+        rating = "💎 100% SATIK PLAY (7-PILLAR TIPPER LOCK)"
         badge = f"💎 100% SATIK CALL ({confidence}%)"
         risk_level = "LOW RISK (HIGH CONVICTION)"
-        pillar_bullets = " · ".join(active_pillars[:3])
-        rationale = f"💎 VIP TIPPER LOCK: {pillar_bullets}. Professional Verdict: {favored} par disciplined flat staking (2.5%) se play karein."
-        source_summary = f"{len(active_pillars)}-Pillar Confluence ({confidence}%)"
+        pillar_bullets = " · ".join(active_pillars[:4])
+        rationale = f"💎 7-PILLAR VIP LOCK: {pillar_bullets}. Professional Verdict: {favored} par disciplined flat staking (2.5%) se play karein."
+        source_summary = f"7-Pillar Confluence ({len(active_pillars)}/7 Aligned · {confidence}%)"
         rec_team = favored
         und_team = underdog
-        market_load_str = f"📊 Confluence: {len(active_pillars)} Pillars on {favored}"
+        market_load_str = f"📊 Confluence: {len(active_pillars)}/7 Pillars on {favored}"
     else:
         action = "SKIP"
         verdict_tier = "PASS"
         rating = "🟡 STRICT PASS (50-50 COIN FLIP TRAP)"
         badge = f"🟡 50-50 PASS ({confidence}%)"
         risk_level = "HIGH RISK (COIN FLIP TRAP)"
-        reasons_txt = "Dono teams 50-50 neutral coin-flip zone me hain" if not active_pillars else f"Single factor ({active_pillars[0]}), par 2+ concurring pillars nahi hain"
-        rationale = f"⛔ STRICT PASS (COIN FLIP TRAP): {reasons_txt}. Toss 50-50 lottery ban sakta hai — capital safe rakhne ke liye strict pass karein. Din me sirf 2-4 golden matches hi play karein."
+        reasons_txt = "Dono teams 50-50 neutral coin-flip zone me hain" if not active_pillars else f"Sirf {len(active_pillars)} pillar ({active_pillars[0]}), par 3+ concurring pillars nahi hain"
+        rationale = f"⛔ STRICT PASS (COIN FLIP TRAP): {reasons_txt}. 7-Pillar engine me 3+ concurring pillars nahi mile — toss 50-50 lottery ban sakta hai. Capital safe rakhne ke liye strict pass karein. Din me sirf 2-4 golden matches hi play karein."
         source_summary = f"Flat / Coin-Flip Zone ({confidence}%)"
         rec_team = None
         und_team = None
@@ -444,6 +462,9 @@ def compute_multi_source_toss_load(
         "punter_rationale": rationale,
         "total_edge": round(float(confidence - 50), 1),
         "clues_matched": bool(has_active_market),
+        "pillars_total": 7,
+        "pillars_aligned": len(active_pillars),
+        "active_pillars_list": active_pillars,
         # Dedicated Pattern Fields for UI Display
         "pattern_badge": pat.get("pattern_badge", "⚖️ Neutral Rotation"),
         "pattern_rule_name": pat.get("rule_name", "NEUTRAL"),

@@ -1034,6 +1034,9 @@ with vip_tabs[0]:
             load_text = m.get("market_load_text", f"{conf}% Market Load")
             clues_text = m.get("cricketclues_status", "Standard Market Line")
             rat = m.get("punter_rationale", "")
+            pil_aligned = m.get("pillars_aligned", 0)
+            pil_total = m.get("pillars_total", 7)
+            pil_list = m.get("active_pillars_list", [])
 
             # Calculate CREX-style Win Probability & [Fav] [Back] [Lay] boxes
             oa = max(10, min(250, int(odds_a or 98)))
@@ -1412,9 +1415,15 @@ with vip_tabs[0]:
                                 st.warning("⚠️ रिज़ल्ट हटा दिया गया!")
                                 st.rerun()
 
-                with st.expander(f"🎩 प्रोफ़ेशनल पंटर एनालिसिस (VIP Tipper Dossier): {t_a} vs {t_b}", expanded=(conf >= 70)):
+                with st.expander(f"🎩 7-पिलर प्रोफ़ेशनल पंटर एनालिसिस (VIP Tipper Dossier): {t_a} vs {t_b}", expanded=(conf >= 70)):
                     st.markdown(f"""
                     <div style="background: #090e1a; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
+                            <span style="font-size: 13px; font-weight: 900; color: #38bdf8;">🏛️ 7-Pillar Confluence Engine:</span>
+                            <span style="background: {'rgba(16, 185, 129, 0.2)' if conf >= 70 else 'rgba(234, 179, 8, 0.2)'}; color: {'#34d399' if conf >= 70 else '#facc15'}; border: 1px solid {'#10b981' if conf >= 70 else '#eab308'}; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 800;">
+                                {'💎 ' + str(pil_aligned) if pil_aligned >= 3 else str(pil_aligned)}/{pil_total} Pillars Aligned ({conf}%)
+                            </span>
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                             <div style="background: #0d1527; border: 1px solid #1e2d4a; padding: 10px; border-radius: 6px;">
                                 <div style="font-size: 12px; color: #94a3b8; font-weight: 700; margin-bottom: 4px;">🔄 स्ट्रीक & थकान (Streak Reversion)</div>
@@ -1422,20 +1431,20 @@ with vip_tabs[0]:
                                 <div style="font-size: 13px; color: #f8fafc; font-weight: 800;">{short_b}: <span style="color:#f59e0b;">{b_strk}</span> ({b_last5})</div>
                             </div>
                             <div style="background: #0d1527; border: 1px solid #1e2d4a; padding: 10px; border-radius: 6px;">
-                                <div style="font-size: 12px; color: #94a3b8; font-weight: 700; margin-bottom: 4px;">⚔️ टॉस पैटर्न & नियम</div>
+                                <div style="font-size: 12px; color: #94a3b8; font-weight: 700; margin-bottom: 4px;">⚔️ टॉस पैटर्न & एशियन लाइन</div>
                                 <div style="font-size: 13px; color: #38bdf8; font-weight: 800;">{pattern_badge}</div>
                                 <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Asian Line: [{short_a}: {oa}] · [{short_b}: {ob}]</div>
                             </div>
                         </div>
                         <div style="background: #0f172a; border-left: 3px solid {'#10b981' if conf >= 70 else '#eab308'}; padding: 10px 12px; border-radius: 4px;">
                             <div style="font-size: 12px; font-weight: 800; color: {'#34d399' if conf >= 70 else '#facc15'}; margin-bottom: 4px;">
-                                {'💎 100% सटीक VIP एनालिसिस (Professional Tipper Verdict)' if conf >= 70 else '⚠️ 50-50 न्यूट्रल ट्रैप एनालिसिस (Capital Protection)'}
+                                {'💎 100% सटीक 7-पिलर VIP एनालिसिस (Professional Tipper Lock)' if conf >= 70 else '⚠️ 50-50 न्यूट्रल ट्रैप एनालिसिस (Capital Protection)'}
                             </div>
                             <div style="font-size: 13px; color: #e2e8f0; line-height: 1.5;">
                                 {rat}
                             </div>
                             <div style="font-size: 11px; color: #94a3b8; margin-top: 6px;">
-                                💰 <b>पंटर स्टेक अनुशासन:</b> {'Disciplined Flat Stake (2.5% max bankroll limit).' if conf >= 70 else 'Strict Pass — Coin flip gamble se bachein.'}
+                                💰 <b>पंटर स्टेक अनुशासन:</b> {'Disciplined Flat Stake (2.5% max bankroll limit).' if conf >= 70 else 'Strict Pass — 50-50 Coin flip gamble se bachein.'}
                             </div>
                         </div>
                     </div>
