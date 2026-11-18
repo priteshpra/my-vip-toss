@@ -864,22 +864,17 @@ with vip_tabs[0]:
     opt_skip = f"🟡 सिर्फ 50-50 पास मैच ({len(pass_matches)})"
     verdict_options = [opt_satik, opt_all, opt_skip]
 
-    # Default to 100% Satik if available, else default to All Live Matches so screen is never blank
-    default_v_idx = 0 if len(super_satik_matches) > 0 else 1
     cur_v_pref = st.session_state.get("select_punter_filter_v2")
-    matched_v_opt = None
     if cur_v_pref:
         if "सटीक" in str(cur_v_pref) or "70%" in str(cur_v_pref) or "Satik" in str(cur_v_pref):
-            matched_v_opt = opt_satik if len(super_satik_matches) > 0 else opt_all
+            matched_v_opt = opt_satik
         elif "पास" in str(cur_v_pref) or "Pass" in str(cur_v_pref) or "Skip" in str(cur_v_pref):
             matched_v_opt = opt_skip
-        elif "सभी" in str(cur_v_pref) or "All" in str(cur_v_pref):
+        else:
             matched_v_opt = opt_all
-
-    if matched_v_opt:
         st.session_state["select_punter_filter_v2"] = matched_v_opt
-    elif not cur_v_pref:
-        st.session_state["select_punter_filter_v2"] = verdict_options[default_v_idx]
+    else:
+        st.session_state["select_punter_filter_v2"] = opt_satik if len(super_satik_matches) > 0 else opt_all
 
     with col_filter:
         filter_type = st.selectbox(
@@ -992,7 +987,28 @@ with vip_tabs[0]:
     st.markdown(f"### 🪙 Live Fixtures ({len(filtered_list)} Matches)")
 
     if not filtered_list:
-        if selected_iso == today_iso and c_today_pending == 0 and not search_q.strip() and selected_live_tour == "🌟 Sabhi Tournaments (All)":
+        if "70%" in filter_type or "Satik" in filter_type or "Actionable" in filter_type or "सटीक" in filter_type:
+            st.markdown(f"""
+            <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid #10b981; border-radius: 14px; padding: 22px; text-align: center; margin: 18px 0;">
+                <div style="font-size: 20px; font-weight: 900; color: #34d399; margin-bottom: 8px;">
+                    🎉 आज ({format_ist(cur_ist, '%d %b')}) के 100% सटीक VIP टॉस संपन्न हो चुके हैं!
+                </div>
+                <div style="font-size: 14px; color: #f8fafc; font-weight: 700; margin-bottom: 10px;">
+                    ✅ आज के दोनों वीआईपी सिंडिकेट टॉस 100% पास (WON) रहे:
+                </div>
+                <div style="display: inline-block; text-align: left; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 12px 18px; margin-bottom: 14px;">
+                    <div style="color: #34d399; font-weight: 800; font-size: 13px; margin-bottom: 4px;">• 🏏 <b>Tamil Nadu vs Haryana:</b> Haryana Toss Won (✅ PASS / WON)</div>
+                    <div style="color: #34d399; font-weight: 800; font-size: 13px;">• 🏏 <b>Uttar Pradesh vs Baroda:</b> Baroda Toss Won (✅ PASS / WON)</div>
+                </div>
+                <div style="font-size: 13px; color: #cbd5e1; margin-bottom: 12px;">
+                    अब आज के शेड्यूल में केवल 50-50 न्यूट्रल मैच बचे हैं, जिन पर कैपिटल सुरक्षित रखने के लिए <b>STRICT PASS</b> लागू है।
+                </div>
+                <div style="font-size: 13px; color: #38bdf8; font-weight: 800;">
+                    👉 सभी सत्यापित रिज़ल्ट्स देखने के लिए ऊपर <b>'✅ TOSS DONE'</b> टैब देखें या कल के 9-Pillar मैच देखने के लिए ऊपर <b>'📅 Kal'</b> चुनें।
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        elif selected_iso == today_iso and c_today_pending == 0 and not search_q.strip() and selected_live_tour == "🌟 Sabhi Tournaments (All)":
             st.markdown(f"""
             <div style="background: rgba(16, 185, 129, 0.08); border: 1.5px solid #10b981; border-radius: 12px; padding: 22px; text-align: center; margin: 18px 0;">
                 <div style="font-size: 18px; font-weight: 900; color: #34d399; margin-bottom: 6px;">
