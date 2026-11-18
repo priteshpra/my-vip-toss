@@ -235,13 +235,7 @@ def compute_multi_source_toss_load(
                 pass
         return locked_verdict
 
-    # Step 2: Query CREX Real-Time Live Market Data
-    from core.providers.crex_provider import get_crex_live_bhav
-    crex_data = None
-    try:
-        crex_data = get_crex_live_bhav(t_a, t_b, match_id=m_id_str)
-    except Exception:
-        pass
+
 
     # Step 3: Query Tipper Pattern Rule & Streak Engine
     from core.engine.pattern_engine import evaluate_toss_pattern_rule, get_team_toss_history
@@ -303,7 +297,7 @@ def compute_multi_source_toss_load(
     elif a_losses >= 3 and b_losses < a_losses:
         h2h_form_edge -= (a_losses - b_losses) * 4.0
 
-    # Step 5: Market Edge (CREX Bhav & Asian Odds)
+    # Step 5: Market Edge (Asian Bookmaker Toss Odds)
     oa = max(20, min(250, odds_a))
     ob = max(20, min(250, odds_b))
     rate_diff = abs(oa - ob)
@@ -311,18 +305,8 @@ def compute_multi_source_toss_load(
 
     market_edge = 0.0
     has_active_market = False
-    c_prob_a = 50
-    c_back, c_lay = 0, 0
-    if crex_data and crex_data.get("fav_team"):
-        has_active_market = True
-        c_fav = crex_data["fav_team"]
-        c_prob = crex_data.get("win_prob", 50)
-        c_back = crex_data.get("back", 0)
-        c_lay = crex_data.get("lay", 0)
-        is_a_fav = match_teams_fuzzy(c_fav, t_a)
-        c_prob_a = c_prob if is_a_fav else (100 - c_prob)
-        market_edge = (c_prob_a - 50) * 0.8
-    elif not is_dummy_rate and rate_diff >= 12:
+    if not is_dummy_rate and rate_diff >= 10:
+        # Real bookmaker toss market divergence
         has_active_market = True
         if oa < ob:
             bookie_prob = int(round((ob / (oa + ob)) * 100))
@@ -332,15 +316,17 @@ def compute_multi_source_toss_load(
             market_edge = -(bookie_prob - 50) * 0.7
 
     # Step 6: Multi-Factor Composite Score Calculation
-    # Dynamic weighting: Active Market (40%) + Pattern (35%) + Form/H2H (25%)
-    # Pre-market: Pattern (50%) + Form/H2H (50%)
+    # Note: CREX Match Winner odds are strictly decoupled from coin toss physics.
+    # Toss edge is driven by Toss Pattern Rotation (45%), Head-to-Head & Captain Form (40%), and Dedicated Toss Odds (15%).
     if has_active_market:
-        composite_edge = (market_edge * 0.40) + (pat_edge * 0.35) + (h2h_form_edge * 0.25)
+        composite_edge = (market_edge * 0.15) + (pat_edge * 0.45) + (h2h_form_edge * 0.40)
     else:
         composite_edge = (pat_edge * 0.50) + (h2h_form_edge * 0.50)
 
+    # Realistic Physical Bound: Toss is a 50-50 physical coin flip.
+    # Maximum honest statistical edge is capped at 75% to prevent false 85%+ 'lock' traps.
     score_a = 50.0 + composite_edge
-    score_a = max(20.0, min(88.0, score_a))
+    score_a = max(25.0, min(75.0, score_a))
 
     if score_a >= 50.0:
         favored = t_a
@@ -366,7 +352,7 @@ def compute_multi_source_toss_load(
         risk_level = "LOW RISK (HIGH CONVICTION)"
         rationale_parts = []
         if has_active_market:
-            rationale_parts.append(f"CREX Market sentiment ({confidence}%, Bhav {c_back}-{c_lay})")
+            rationale_parts.append(f"Bookmaker Toss Market line divergence ({confidence}%)")
         if pat_fav and match_teams_fuzzy(pat_fav, favored):
             rationale_parts.append(f"Tipper Pattern Rule ({pat_badge})")
         if tot_h2h >= 1 and ((h2h_a > h2h_b and favored == t_a) or (h2h_b > h2h_a and favored == t_b)):
