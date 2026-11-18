@@ -1517,15 +1517,25 @@ with vip_tabs[1]:
             today_pill_label,
             yesterday_pill_label,
             all_done_pill_label,
-            "🗓️ Custom Date"
+            "🗓️ अन्य तारीख (Past Dates)"
         ]
+
+        # Collect distinct historical dates from actual results (excluding today & yesterday)
+        available_past_dates = sorted(list(set(
+            str(r.get("match_date") or "").split("T")[0].strip()
+            for r in completed_results
+            if r.get("match_date") and str(r.get("match_date") or "").split("T")[0].strip() not in [today_iso, yesterday_iso]
+        )), reverse=True)
+
+        if not available_past_dates:
+            available_past_dates = [today_iso]
 
         default_done_pill = today_pill_label if today_done_count > 0 else (yesterday_pill_label if yesterday_done_count > 0 else all_done_pill_label)
         cur_done_mode = st.session_state.get("pills_done_date_mode_v3")
         matched_done_opt = None
         if cur_done_mode:
             for opt in tab3_date_options:
-                if opt.split(" · ")[0] == str(cur_done_mode).split(" · ")[0]:
+                if opt.split(" · ")[0] == str(cur_done_mode).split(" · ")[0] or ("अन्य" in str(cur_done_mode) and "अन्य" in opt):
                     matched_done_opt = opt
                     break
         if matched_done_opt:
@@ -1533,7 +1543,7 @@ with vip_tabs[1]:
         elif not cur_done_mode:
             st.session_state["pills_done_date_mode_v3"] = default_done_pill
 
-        col_df1, col_df2 = st.columns([2.4, 1.2])
+        col_df1, col_df2 = st.columns([2.2, 1.4])
         with col_df1:
             date_filter_mode = st.pills(
                 "📅 तारीख फ़िल्टर",
@@ -1542,14 +1552,15 @@ with vip_tabs[1]:
                 key="pills_done_date_mode_v3"
             )
         with col_df2:
-            custom_picked_date = st.date_input(
-                "🗓️ Date Picker",
-                value=cur_ist.date(),
-                key="input_custom_done_date",
-                label_visibility="collapsed"
-            )
-
-        custom_picked_iso = custom_picked_date.strftime("%Y-%m-%d") if custom_picked_date else today_iso
+            if date_filter_mode and ("अन्य" in date_filter_mode or "Past" in date_filter_mode or "Custom" in date_filter_mode):
+                custom_picked_iso = st.selectbox(
+                    "🗓️ तारीख चुनें",
+                    options=available_past_dates,
+                    key="select_custom_done_date",
+                    label_visibility="collapsed"
+                )
+            else:
+                custom_picked_iso = today_iso
 
         # Priority Resolution:
         # 1. If user clicked Today
@@ -1560,8 +1571,8 @@ with vip_tabs[1]:
         elif date_filter_mode and "कल (Yesterday)" in date_filter_mode:
             selected_date_val = yesterday_iso
             kpi_title_ctx = f"कल ({yesterday_iso})"
-        # 3. If user clicked Custom Date
-        elif date_filter_mode and "Custom" in date_filter_mode:
+        # 3. If user clicked Other Past Date
+        elif date_filter_mode and ("अन्य" in date_filter_mode or "Past" in date_filter_mode or "Custom" in date_filter_mode):
             selected_date_val = custom_picked_iso
             kpi_title_ctx = f"तारीख: {custom_picked_iso}"
         # 4. If user clicked All dates
