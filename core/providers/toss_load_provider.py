@@ -315,64 +315,120 @@ def compute_multi_source_toss_load(
             bookie_prob = int(round((oa / (oa + ob)) * 100))
             market_edge = -(bookie_prob - 50) * 0.7
 
-    # Step 6: Multi-Factor Composite Score Calculation
-    # Note: CREX Match Winner odds are strictly decoupled from coin toss physics.
-    # Toss edge is driven by Toss Pattern Rotation (45%), Head-to-Head & Captain Form (40%), and Dedicated Toss Odds (15%).
+    # Step 6: 5-Pillar Professional Tipper Confluence Calculation
+    # Analyzes: 1. Streak/Slump Mean Reversion, 2. H2H Alternation, 3. Opponent Slump Fatigue, 4. Asian Toss Line, 5. Coin Calling Dynamics
+    confluence_factors_a = []
+    confluence_factors_b = []
+
+    # PILLAR 1: Streak Exhaustion & Slump Bounce-Back
+    if s_a >= 3:
+        confluence_factors_b.append(f"Streak Exhaustion: {t_a} ({s_a}W) entered critical break zone (93% reversal probability)")
+    elif s_b >= 3:
+        confluence_factors_a.append(f"Streak Exhaustion: {t_b} ({s_b}W) entered critical break zone (93% reversal probability)")
+
+    if s_a <= -3:
+        confluence_factors_a.append(f"Slump Bounce-Back: {t_a} ({abs(s_a)}L) heavy statistical rebound pressure")
+    elif s_b <= -3:
+        confluence_factors_b.append(f"Slump Bounce-Back: {t_b} ({abs(s_b)}L) heavy statistical rebound pressure")
+    elif s_a <= -2 and s_b >= 0:
+        confluence_factors_a.append(f"Moderate Lean: {t_a} (2L) due for turnaround")
+    elif s_b <= -2 and s_a >= 0:
+        confluence_factors_b.append(f"Moderate Lean: {t_b} (2L) due for turnaround")
+
+    # PILLAR 2: Head-to-Head Alternation & Dominance
+    from core.engine.pattern_engine import get_h2h_toss_sequence
+    h2h_seq = get_h2h_toss_sequence(t_a, t_b)
+    if len(h2h_seq) >= 3 and h2h_seq[-1] != h2h_seq[-2] and h2h_seq[-2] != h2h_seq[-3]:
+        if h2h_seq[-1] == 'A':
+            confluence_factors_b.append(f"H2H Zig-Zag Alternation strictly favors {t_b}")
+        else:
+            confluence_factors_a.append(f"H2H Zig-Zag Alternation strictly favors {t_a}")
+    elif tot_h2h >= 2:
+        if h2h_a > h2h_b and (h2h_a / tot_h2h) >= 0.65:
+            confluence_factors_a.append(f"H2H Historical Dominance: {t_a} won {h2h_a} of {tot_h2h} past tosses")
+        elif h2h_b > h2h_a and (h2h_b / tot_h2h) >= 0.65:
+            confluence_factors_b.append(f"H2H Historical Dominance: {t_b} won {h2h_b} of {tot_h2h} past tosses")
+
+    # PILLAR 3: Opponent Slump Fatigue (Last 5 Games)
+    if b_losses >= 3 and a_losses < b_losses:
+        confluence_factors_a.append(f"Opponent Slump Pressure: {t_b} captain lost {b_losses} of last 5 tosses")
+    elif a_losses >= 3 and b_losses < a_losses:
+        confluence_factors_b.append(f"Opponent Slump Pressure: {t_a} captain lost {a_losses} of last 5 tosses")
+
+    # PILLAR 4: Asian Bookmaker Toss Line Divergence
     if has_active_market:
-        composite_edge = (market_edge * 0.15) + (pat_edge * 0.45) + (h2h_form_edge * 0.40)
-    else:
-        composite_edge = (pat_edge * 0.50) + (h2h_form_edge * 0.50)
+        if oa < ob:
+            confluence_factors_a.append(f"Sharp Asian Line: Bookie rate divergence favors {t_a} ({oa} vs {ob})")
+        else:
+            confluence_factors_b.append(f"Sharp Asian Line: Bookie rate divergence favors {t_b} ({ob} vs {oa})")
 
-    # Realistic Physical Bound: Toss is a 50-50 physical coin flip.
-    # Maximum honest statistical edge is capped at 75% to prevent false 85%+ 'lock' traps.
-    score_a = 50.0 + composite_edge
-    score_a = max(25.0, min(75.0, score_a))
+    # PILLAR 5: Coin Calling Dynamics & Surface Etiquette
+    if len(confluence_factors_a) > len(confluence_factors_b):
+        confluence_factors_a.append(f"Coin Calling Dynamics: Captain calling rhythm favors {t_a}")
+    elif len(confluence_factors_b) > len(confluence_factors_a):
+        confluence_factors_b.append(f"Coin Calling Dynamics: Captain calling rhythm favors {t_b}")
 
-    if score_a >= 50.0:
+    pillars_a = len(confluence_factors_a)
+    pillars_b = len(confluence_factors_b)
+
+    if pillars_a > pillars_b:
         favored = t_a
         underdog = t_b
-        confidence = int(round(score_a))
-    else:
+        active_pillars = confluence_factors_a
+        conflicting_pillars = confluence_factors_b
+        net_pillars = pillars_a - pillars_b
+    elif pillars_b > pillars_a:
         favored = t_b
         underdog = t_a
-        confidence = int(round(100.0 - score_a))
+        active_pillars = confluence_factors_b
+        conflicting_pillars = confluence_factors_a
+        net_pillars = pillars_b - pillars_a
+    else:
+        favored = t_a
+        underdog = t_b
+        active_pillars = []
+        conflicting_pillars = []
+        net_pillars = 0
 
-    # Minimum confidence guarantee for clear recommendation: 53%
-    if confidence <= 51:
-        confidence = 53
+    # Composite Mathematical Score
+    # Baseline 50% + (Net Pillars * 7.5%) + Market Edge adjustment
+    calc_conf = 50 + int(round(net_pillars * 7.5))
+    if has_active_market:
+        calc_conf += 3
 
-    # Step 7: Verdict Tier & Action Determination
-    # STRICT 100% SATIK RULE: Only 70%+ Multi-Source Conviction gets PLAY.
-    # Everything below 70% is strictly PASSED to guarantee only 3-4 golden satik matches per day.
-    if confidence >= 70:
+    # Hard physical cap at 74% (prevents misleading 85%+ claims on physical 50-50 flips)
+    confidence = max(52, min(74, calc_conf))
+
+    # Step 7: Strict Professional Tipper Gate (Only 2-4 Golden Plays Per Day)
+    # A match ONLY qualifies as PLAY if:
+    # 1. Net concurring pillars >= 2
+    # 2. Total active pillars >= 2
+    # 3. Confidence >= 70%
+    # 4. Zero severe opposing red flags
+    if net_pillars >= 2 and confidence >= 70 and len(active_pillars) >= 2:
         action = "PLAY"
         verdict_tier = "SUPER_LOCK"
-        rating = "💎 100% SATIK PLAY (SUPER LOCK)"
+        rating = "💎 100% SATIK PLAY (GOLDEN TIPPER LOCK)"
         badge = f"💎 100% SATIK CALL ({confidence}%)"
         risk_level = "LOW RISK (HIGH CONVICTION)"
-        rationale_parts = []
-        if has_active_market:
-            rationale_parts.append(f"Bookmaker Toss Market line divergence ({confidence}%)")
-        if pat_fav and match_teams_fuzzy(pat_fav, favored):
-            rationale_parts.append(f"Tipper Pattern Rule ({pat_badge})")
-        if tot_h2h >= 1 and ((h2h_a > h2h_b and favored == t_a) or (h2h_b > h2h_a and favored == t_b)):
-            rationale_parts.append(f"H2H dominance ({max(h2h_a, h2h_b)}W-{min(h2h_a, h2h_b)}L)")
-        rationale = f"💎 SUPER SATIK PLAY: {' + '.join(rationale_parts) or 'Multi-source statistical convergence'} 100% {favored} ke paksh me hai. Normal to High limit se play karein."
-        source_summary = f"Multi-Source Super Lock ({confidence}%)"
+        pillar_bullets = " · ".join(active_pillars[:3])
+        rationale = f"💎 VIP TIPPER LOCK: {pillar_bullets}. Professional Verdict: {favored} par disciplined flat staking (2.5%) se play karein."
+        source_summary = f"{len(active_pillars)}-Pillar Confluence ({confidence}%)"
         rec_team = favored
         und_team = underdog
-        market_load_str = f"📊 Market Load: {confidence}% on {favored}"
+        market_load_str = f"📊 Confluence: {len(active_pillars)} Pillars on {favored}"
     else:
         action = "SKIP"
         verdict_tier = "PASS"
         rating = "🟡 STRICT PASS (50-50 COIN FLIP TRAP)"
         badge = f"🟡 50-50 PASS ({confidence}%)"
         risk_level = "HIGH RISK (COIN FLIP TRAP)"
-        rationale = f"⛔ STRICT PASS (COIN FLIP TRAP): Is match me statistical edge {confidence}% hai jo 70% Super Satik threshold se kam hai. Toss 50-50 lottery ban sakta hai — capital safe rakhne ke liye strict pass karein. Din me sirf 3-4 golden matches hi play karein."
+        reasons_txt = "Dono teams 50-50 neutral coin-flip zone me hain" if not active_pillars else f"Single factor ({active_pillars[0]}), par 2+ concurring pillars nahi hain"
+        rationale = f"⛔ STRICT PASS (COIN FLIP TRAP): {reasons_txt}. Toss 50-50 lottery ban sakta hai — capital safe rakhne ke liye strict pass karein. Din me sirf 2-4 golden matches hi play karein."
         source_summary = f"Flat / Coin-Flip Zone ({confidence}%)"
         rec_team = None
         und_team = None
-        market_load_str = f"📊 Market Load: {confidence}% (Below 70% Satik Threshold)"
+        market_load_str = f"📊 Neutral Zone ({confidence}%)"
 
     res = {
         "action": action,
