@@ -878,7 +878,7 @@ with vip_tabs[0]:
     matched_v_opt = None
     if cur_v_pref:
         if "सटीक" in str(cur_v_pref) or "70%" in str(cur_v_pref) or "Satik" in str(cur_v_pref):
-            matched_v_opt = opt_satik
+            matched_v_opt = opt_satik if len(super_satik_matches) > 0 else opt_all
         elif "पास" in str(cur_v_pref) or "Pass" in str(cur_v_pref) or "Skip" in str(cur_v_pref):
             matched_v_opt = opt_skip
         elif "सभी" in str(cur_v_pref) or "All" in str(cur_v_pref):

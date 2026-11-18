@@ -387,7 +387,7 @@ def compute_multi_source_toss_load(
         "cricketclues_status": source_summary,
         "punter_rationale": rationale,
         "total_edge": round(float(confidence - 50), 1),
-        "clues_matched": bool(crex_data),
+        "clues_matched": bool(has_active_market),
         # Dedicated Pattern Fields for UI Display
         "pattern_badge": pat.get("pattern_badge", "⚖️ Neutral Rotation"),
         "pattern_rule_name": pat.get("rule_name", "NEUTRAL"),
