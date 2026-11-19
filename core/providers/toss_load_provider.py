@@ -70,58 +70,70 @@ def load_locked_predictions() -> Dict[str, Any]:
     return {}
 
 
-def save_locked_prediction(match_id: str, verdict: Dict[str, Any], team_a: str = "", team_b: str = "") -> None:
-    """Freeze and persist a match prediction permanently under ID and Pair Key.
+def save_locked_prediction(
+    match_id: str,
+    verdict: Dict[str, Any],
+    team_a: str = "",
+    team_b: str = "",
+    match_date: str = ""
+) -> None:
+    """Freeze and persist a match prediction strictly under its specific match ID (or date-scoped pair).
     
     IMMUTABLE VAULT RULE:
-    If this match was EVER locked as a PLAY call with a recommended team,
+    If this specific match ID was EVER locked as a PLAY call with a recommended team,
     it can NEVER be downgraded to SKIP or overwritten with empty picks!
     """
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
         locked = load_locked_predictions()
         m_id_str = str(match_id or "").strip()
+        d_clean = str(match_date or verdict.get("match_date") or "").split("T")[0].strip()
         pkey = _make_pair_key(team_a, team_b) if (team_a and team_b) else ""
 
-        # Check existing lock: if it was already a PLAY, NEVER overwrite with SKIP!
+        # Check existing lock: ONLY check for THIS SPECIFIC MATCH ID (or date-scoped key)
         existing = None
         if m_id_str and m_id_str in locked:
             existing = locked[m_id_str]
-        elif pkey and pkey in locked:
-            existing = locked[pkey]
+        elif d_clean and pkey and f"{d_clean}:{pkey}" in locked:
+            existing = locked[f"{d_clean}:{pkey}"]
 
         if existing and existing.get("action") == "PLAY" and existing.get("recommended_team"):
             if verdict.get("action") != "PLAY" or not verdict.get("recommended_team"):
-                # Preserve the original PLAY call! Do not overwrite with SKIP!
+                # Preserve the original PLAY call for THIS specific match!
                 return
 
         if m_id_str:
             locked[m_id_str] = verdict
-        if pkey:
-            locked[pkey] = verdict
-            locked[f"{team_a.strip().lower()}__vs__{team_b.strip().lower()}"] = verdict
+        if d_clean and pkey:
+            locked[f"{d_clean}:{pkey}"] = verdict
         with open(LOCKED_PREDICTIONS_FILE, "w", encoding="utf-8") as f:
             json.dump(locked, f, indent=2)
     except Exception:
         pass
 
 
-def get_locked_prediction(match_id: str = "", team_a: str = "", team_b: str = "") -> Optional[Dict[str, Any]]:
-    """Retrieve frozen prediction by match_id or team pair. Guarantees 0% flicker across refreshes."""
+def get_locked_prediction(
+    match_id: str = "",
+    team_a: str = "",
+    team_b: str = "",
+    match_date: str = ""
+) -> Optional[Dict[str, Any]]:
+    """Retrieve frozen prediction strictly by match_id or date-scoped team pair.
+    
+    Guarantees 0% flicker for a match across refreshes WITHOUT leaking predictions across different dates.
+    """
     locked = load_locked_predictions()
-    if match_id and str(match_id) in locked:
-        return locked[str(match_id)]
-    if team_a and team_b:
+    m_id_str = str(match_id or "").strip()
+    if m_id_str and m_id_str in locked:
+        return locked[m_id_str]
+
+    d_clean = str(match_date or "").split("T")[0].strip()
+    if d_clean and team_a and team_b:
         pkey = _make_pair_key(team_a, team_b)
-        if pkey in locked:
-            return locked[pkey]
-        for k, v in locked.items():
-            if "__vs__" in k:
-                parts = k.split("__vs__")
-                if len(parts) == 2:
-                    if (match_teams_fuzzy(team_a, parts[0]) and match_teams_fuzzy(team_b, parts[1])) or \
-                       (match_teams_fuzzy(team_a, parts[1]) and match_teams_fuzzy(team_b, parts[0])):
-                        return v
+        dkey = f"{d_clean}:{pkey}"
+        if dkey in locked:
+            return locked[dkey]
+
     return None
 
 

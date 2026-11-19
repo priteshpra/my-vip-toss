@@ -610,6 +610,13 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
         pass
 
     if res.get("success") or matches:
+        if matches:
+            try:
+                os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+                with open(CACHE_FILE, "w", encoding="utf-8") as f:
+                    json.dump(matches, f, indent=2)
+            except Exception:
+                pass
         return {
             "source": "GamingHelper Online & CREX Live",
             "connected": True,

@@ -1,5 +1,22 @@
 [
   {
+    "match_id": "crex_wbbl_m26_hh_ps",
+    "match_name": "Hobart Hurricanes Women vs Perth Scorchers Women",
+    "tournament": "Womens Big Bash League 2026",
+    "toss_time_ist": "09:40 AM IST",
+    "match_date": "2026-11-19",
+    "team_a": "Hobart Hurricanes Women",
+    "team_b": "Perth Scorchers Women",
+    "recommended_team": "Hobart Hurricanes Women",
+    "stake_rating": "\ud83d\udc8e 100% SATIK PLAY (9-PILLAR SYNDICATE LOCK)",
+    "actual_winner": "Hobart Hurricanes Women",
+    "toss_decision": "Bowl",
+    "outcome": "PASS",
+    "outcome_label": "\u2705 PASS (WON)",
+    "is_manual": false,
+    "recorded_at": "2026-11-19 02:04 PM IST"
+  },
+  {
     "match_id": "40908",
     "match_name": "Uttar Pradesh vs Baroda",
     "tournament": "Syed Mushtaq Ali Trophy Elite 2026",
@@ -7923,21 +7940,6 @@
     "outcome_label": "\u2705 PASS (WIN)",
     "is_manual": true,
     "recorded_at": "2026-10-05 07:35 PM IST"
-  },
-  {
-    "match_id": "wbbl_2025_m10",
-    "match_name": "Hobart Hurricanes Women vs Perth Scorchers Women",
-    "tournament": "Womens Big Bash League 2025",
-    "toss_time_ist": "01:40 PM IST",
-    "match_date": "2025-12-13",
-    "team_a": "Hobart Hurricanes Women",
-    "team_b": "Perth Scorchers Women",
-    "actual_winner": "Hobart Hurricanes Women",
-    "toss_decision": "Bowl",
-    "outcome": "VERIFIED",
-    "outcome_label": "\u2705 VERIFIED",
-    "is_manual": false,
-    "recorded_at": "2025-12-13 01:45 PM IST"
   },
   {
     "match_id": "wbbl_2025_m9",

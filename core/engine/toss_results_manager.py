@@ -115,18 +115,17 @@ def save_toss_result(
     """Record a completed toss outcome from the user's actual match list and persist it."""
     results = load_toss_results()
 
-    # Auto-restore locked recommendation if match was originally a PLAY call
+    # Auto-restore locked recommendation ONLY if match was originally a verified PLAY call in locked map AND not explicitly a SKIP
     m_id_str = str(match_id or "").strip()
-    if not recommended_team and m_id_str:
+    if not recommended_team and m_id_str and not is_manual and "skip" not in (stake_rating or "").lower() and "pass" not in (stake_rating or "").lower():
         try:
             from core.providers.toss_load_provider import load_locked_predictions
             l_map = load_locked_predictions()
             if m_id_str in l_map:
                 l_pred = l_map[m_id_str]
-                if l_pred.get("action") == "PLAY":
+                if l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
                     recommended_team = l_pred.get("recommended_team")
-                    if stake_rating in ["🟡 SKIP / 50-50 COIN FLIP", "NORMAL", ""]:
-                        stake_rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                    stake_rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
         except Exception:
             pass
 
@@ -340,53 +339,70 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             except Exception:
                 pass
 
-        # 1. First priority: Check frozen locked prediction map (Guarantees PLAY verdict is preserved)
-        rec_team = None
-        rating = "🟡 STRICT PASS (NO BET)"
-        l_pred = get_locked_prediction(m_id, t1, t2)
-        if l_pred:
-            if l_pred.get("action") == "PLAY":
-                rec_team = l_pred.get("recommended_team")
-                rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
-            else:
-                rec_team = None
-                rating = "🟡 SKIP / 50-50 COIN FLIP"
-        else:
-            # 2. Second priority: Live matches cache
-            live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
-            found_in_cache = False
-            if os.path.exists(live_cache_file):
-                try:
-                    with open(live_cache_file, "r", encoding="utf-8") as f:
-                        live_cache = json.load(f)
-                        for cm in live_cache:
-                            if str(cm.get("id")) == m_id or (cm.get("team_a_name") == t1 and cm.get("team_b_name") == t2):
-                                if cm.get("action_type") == "PLAY":
-                                    rec_team = cm.get("recommended_team")
-                                    rating = cm.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
-                                else:
-                                    rec_team = None
-                                    rating = "🟡 SKIP / 50-50 COIN FLIP"
-                                found_in_cache = True
-                                break
-                except Exception:
-                    pass
-
-            if not found_in_cache:
-                vip = compute_multi_source_toss_load(t1, t2, odds_a, odds_b, tour, _format_time_24_to_ist(match_raw), match_id=m_id)
-                if vip.get("action") == "PLAY":
-                    rec_team = vip.get("recommended_team")
-                    rating = vip.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
-                else:
-                    rec_team = None
-                    rating = "🟡 SKIP / 50-50 COIN FLIP"
-
         # Extract actual match date from API record
         m_date_raw = m.get("match_date")
         if m_date_raw:
             m_date = str(m_date_raw).split("T")[0].strip()
         else:
             m_date = today_str
+
+        # Recommendation & Verdict Resolution:
+        # Guarantee 100% strict consistency with what the user saw in Live Toss!
+        rec_team = None
+        rating = "🟡 SKIP / 50-50 COIN FLIP"
+        found_verdict = False
+
+        # Priority 1: Check Live Matches Cache (The EXACT verdict shown to the user in Tab 1 Live Toss)
+        live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
+        if os.path.exists(live_cache_file):
+            try:
+                from core.providers.toss_load_provider import match_teams_fuzzy
+                with open(live_cache_file, "r", encoding="utf-8") as f:
+                    live_cache = json.load(f)
+                    for cm in live_cache:
+                        cm_id = str(cm.get("id", "")).strip()
+                        cm_date = str(cm.get("match_date") or "").split("T")[0].strip()
+                        id_matches = bool(cm_id and cm_id == m_id)
+                        cm_t1 = cm.get("team_a_name") or cm.get("team_one_name") or ""
+                        cm_t2 = cm.get("team_b_name") or cm.get("team_two_name") or ""
+                        pair_matches = (
+                            (match_teams_fuzzy(t1, cm_t1) and match_teams_fuzzy(t2, cm_t2)) or
+                            (match_teams_fuzzy(t1, cm_t2) and match_teams_fuzzy(t2, cm_t1))
+                        ) and (not cm_date or not m_date or cm_date == m_date)
+
+                        if id_matches or pair_matches:
+                            if cm.get("action_type") == "PLAY" and cm.get("recommended_team"):
+                                rec_team = cm.get("recommended_team")
+                                rating = cm.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                            else:
+                                rec_team = None
+                                rating = cm.get("stake_rating", "🟡 SKIP / 50-50 COIN FLIP")
+                            found_verdict = True
+                            break
+            except Exception:
+                pass
+
+        # Priority 2: Check frozen locked prediction strictly for this match_id or this date
+        if not found_verdict:
+            l_pred = get_locked_prediction(m_id, t1, t2, match_date=m_date)
+            if l_pred:
+                if l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
+                    rec_team = l_pred.get("recommended_team")
+                    rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                else:
+                    rec_team = None
+                    rating = "🟡 SKIP / 50-50 COIN FLIP"
+                found_verdict = True
+
+        # Priority 3: Compute calibrated multi-factor model if match was not previously evaluated
+        if not found_verdict:
+            vip = compute_multi_source_toss_load(t1, t2, odds_a, odds_b, tour, _format_time_24_to_ist(match_raw), match_id=m_id)
+            if vip.get("action") == "PLAY" and vip.get("recommended_team"):
+                rec_team = vip.get("recommended_team")
+                rating = vip.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+            else:
+                rec_team = None
+                rating = "🟡 SKIP / 50-50 COIN FLIP"
 
         # STRICT TIME GATE: Do NOT record a match from close-bet if its toss time is in the future!
         # GamingHelper closes betting 10-15 min before toss, but the toss hasn't happened yet!
@@ -506,8 +522,8 @@ def sync_live_toss_results_from_cricbuzz() -> int:
     for lid, lp in locked_map.items():
         if str(lid) in existing_resolved_ids:
             continue
-        l_ta = lp.get("team_a", "")
-        l_tb = lp.get("team_b", "")
+        if str(lid).startswith("pair:") or "__vs__" in str(lid):
+            continue
         l_date = str(lp.get("match_date", "")).split("T")[0]
         if l_date and l_date != today_str:
             continue
@@ -755,6 +771,11 @@ def sync_live_toss_results_from_crex() -> int:
 
                 if not matched_id:
                     for lid, lp in locked_map.items():
+                        if str(lid).startswith("pair:") or "__vs__" in str(lid):
+                            continue
+                        lp_date = str(lp.get("match_date", "")).split("T")[0]
+                        if lp_date and lp_date != today_str:
+                            continue
                         if is_match_pair(t1, t2, lp.get("team_a", ""), lp.get("team_b", "")):
                             matched_id = lid
                             if lp.get("action") == "PLAY":
