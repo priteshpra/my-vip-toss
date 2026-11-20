@@ -443,29 +443,43 @@ def compute_multi_source_toss_load(
         net_pillars = 0
 
     # Composite Mathematical Score (9-Pillar Elite Syndicate Confluence)
-    # Baseline 50% + (Net Pillars * 5.5%) + Market Edge adjustment
-    calc_conf = 50 + int(round(net_pillars * 5.5))
+    # Baseline 50% + (Net Pillars * 5.0%) + Market Edge adjustment
+    calc_conf = 50 + int(round(net_pillars * 5.0))
     if has_active_market:
         calc_conf += 3
 
-    # Hard physical cap at 74% (prevents misleading 85%+ claims on physical 50-50 flips)
-    confidence = max(52, min(74, calc_conf))
+    # Hard physical cap at 75%
+    confidence = max(52, min(75, calc_conf))
 
-    # Step 7: Strict 9-Pillar Elite Syndicate Gate (Strictly 3-4 Golden Plays Per Day)
+    # Opponent slump reversion trap check (Mean Reversion Volatility Shield)
+    opp_losses = a_losses if favored == t_b else b_losses
+    opp_streak = abs(s_a) if (favored == t_b and s_a < 0) else (abs(s_b) if (favored == t_a and s_b < 0) else 0)
+    has_opp_reversion_trap = (opp_streak >= 3 or opp_losses >= 4)
+
+    # Step 7: Extreme Iron-Clad Syndicate Confluence Gate
     # A match ONLY qualifies as PLAY if:
-    # 1. Net concurring pillars >= 3
-    # 2. Total active pillars >= 4
-    # 3. Confidence >= 70%
-    # 4. Zero severe opposing red flags
-    if net_pillars >= 3 and confidence >= 70 and len(active_pillars) >= 4:
+    # 1. Total active pillars >= 5 (Unanimous majority of 9 pillars)
+    # 2. Net concurring pillars >= 4 (Dominant margin over opponent)
+    # 3. Conflicting opposing pillars == 0 (Zero opposing red flags)
+    # 4. Zero opponent mean-reversion trap (opp_losses < 4 and opp_streak < 3)
+    # 5. Composite Confidence >= 70%
+    is_iron_clad_lock = (
+        len(active_pillars) >= 5
+        and net_pillars >= 4
+        and len(conflicting_pillars) == 0
+        and not has_opp_reversion_trap
+        and confidence >= 70
+    )
+
+    if is_iron_clad_lock:
         action = "PLAY"
         verdict_tier = "SUPER_LOCK"
-        rating = "💎 100% SATIK PLAY (9-PILLAR SYNDICATE LOCK)"
+        rating = "💎 100% SATIK PLAY (IRON-CLAD CONFLUENCE LOCK)"
         badge = f"💎 100% SATIK CALL ({confidence}%)"
-        risk_level = "LOW RISK (HIGH CONVICTION)"
-        pillar_bullets = " · ".join(active_pillars[:4])
-        rationale = f"💎 9-PILLAR VIP LOCK: {pillar_bullets}. Professional Verdict: {favored} par disciplined flat staking (2.5%) se play karein."
-        source_summary = f"9-Pillar Confluence ({len(active_pillars)}/9 Aligned · {confidence}%)"
+        risk_level = "LOW RISK (HIGHEST CONVICTION)"
+        pillar_bullets = " · ".join(active_pillars[:5])
+        rationale = f"💎 9-PILLAR IRON-CLAD LOCK: {pillar_bullets}. Unanimous syndicate agreement ({len(active_pillars)}/9 Pillars). Professional Verdict: {favored} par disciplined flat staking (2.5%) se play karein."
+        source_summary = f"Iron-Clad Confluence ({len(active_pillars)}/9 Aligned · {confidence}%)"
         rec_team = favored
         und_team = underdog
         market_load_str = f"📊 Confluence: {len(active_pillars)}/9 Pillars on {favored}"
@@ -475,8 +489,20 @@ def compute_multi_source_toss_load(
         rating = "🟡 STRICT PASS (50-50 COIN FLIP TRAP)"
         badge = f"🟡 50-50 PASS ({confidence}%)"
         risk_level = "HIGH RISK (COIN FLIP TRAP)"
-        reasons_txt = "Dono teams 50-50 neutral coin-flip zone me hain" if not active_pillars else f"Sirf {len(active_pillars)} pillar ({active_pillars[0]}), par 4+ concurring pillars nahi hain"
-        rationale = f"⛔ STRICT PASS (COIN FLIP TRAP): {reasons_txt}. 9-Pillar engine me 4+ concurring pillars nahi mile — toss 50-50 lottery ban sakta hai. Capital safe rakhne ke liye strict pass karein. Din me sirf 3-4 golden matches hi play karein."
+        
+        # Build precise diagnostic reason for rejection
+        reasons_list = []
+        if len(active_pillars) < 5:
+            reasons_list.append(f"Sirf {len(active_pillars)} pillar agree kar rahe hain (न्यूनतम 5 आवश्यक)")
+        if len(conflicting_pillars) > 0:
+            reasons_list.append(f"विपक्षी टीम के पास {len(conflicting_pillars)} विरोधी पिलर मौजूद हैं")
+        if has_opp_reversion_trap:
+            reasons_list.append("Opponent slump reversion trap: विपक्षी टीम 3+ हार के बाद बाउंस बैक कर सकती है")
+        if confidence < 70:
+            reasons_list.append(f"Confidence score {confidence}% (न्यूनतम 70% अनिवार्य)")
+            
+        diag_txt = " · ".join(reasons_list) if reasons_list else "Dono teams 50-50 neutral coin-flip zone me hain"
+        rationale = f"⛔ STRICT PASS (COIN FLIP TRAP): {diag_txt}. 9-Pillar Iron-Clad क्राइटेरिया मैच नहीं हुआ — टॉस 50-50 जुआ बन सकता है। Capital 100% सुरक्षित रखने के लिए पास करें।"
         source_summary = f"Flat / Coin-Flip Zone ({confidence}%)"
         rec_team = None
         und_team = None

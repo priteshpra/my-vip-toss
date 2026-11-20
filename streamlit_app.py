@@ -816,10 +816,10 @@ with vip_tabs[0]:
     st.markdown("""
     <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(14, 165, 233, 0.08)); border: 1.5px solid rgba(16, 185, 129, 0.4); border-radius: 12px; padding: 12px 18px; margin-bottom: 16px;">
         <div style="font-size: 15px; font-weight: 800; color: #10b981; display: flex; align-items: center; gap: 8px;">
-            🛡️ 100% सटीक पंटर शील्ड (Ultra-Strict 70%+ Quality Filter Active)
+            🛡️ 100% सटीक आयरन-क्लैड पंटर शील्ड (Ultra-Strict 5+ Pillar Iron-Clad Gate Active)
         </div>
         <div style="font-size: 13px; color: #94a3b8; margin-top: 4px; line-height: 1.4;">
-            दिन में सिर्फ <b>3 या 4 सबसे मजबूत (70%+ Confluence) सुपर लॉक टॉस</b> ही प्ले करने के लिए दिए जाएंगे। बाकी सभी 50-50 कॉइन-फ्लिप मैचों को कैपिटल सेफ रखने के लिए ऑटो-पास (SKIP) किया गया है।
+            दिन में सिर्फ <b>सर्वोच्च मजबूत (5+ Concurring Pillars · Zero Conflict) आयरन लॉक टॉस</b> ही प्ले करने के लिए दिए जाएंगे। 4 या उससे कम पिलर वाले सभी 50-50 मैचों को कैपिटल सुरक्षित रखने के लिए ऑटो-पास (SKIP) किया गया है।
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -862,7 +862,7 @@ with vip_tabs[0]:
 
     # Calculate Counts
     total_matches = len(filtered_matches)
-    super_satik_matches = [m for m in filtered_matches if (m.get("confidence_pct") or 50) >= 70 and m.get("action_type") == "PLAY"]
+    super_satik_matches = [m for m in filtered_matches if m.get("action_type") == "PLAY" and (m.get("confidence_pct") or 50) >= 70]
     pass_matches = [m for m in filtered_matches if m.get("action_type") == "SKIP" or (m.get("confidence_pct") or 50) < 70]
 
     opt_satik = f"💎 सिर्फ 100% सटीक टॉस ({len(super_satik_matches)})"
@@ -872,7 +872,7 @@ with vip_tabs[0]:
 
     cur_v_pref = st.session_state.get("select_punter_filter_v2")
     if cur_v_pref:
-        if "सटीक" in str(cur_v_pref) or "70%" in str(cur_v_pref) or "Satik" in str(cur_v_pref):
+        if "सटीक" in str(cur_v_pref) or "70%" in str(cur_v_pref) or "Satik" in str(cur_v_pref) or "74%" in str(cur_v_pref):
             matched_v_opt = opt_satik
         elif "पास" in str(cur_v_pref) or "Pass" in str(cur_v_pref) or "Skip" in str(cur_v_pref):
             matched_v_opt = opt_skip
@@ -890,7 +890,7 @@ with vip_tabs[0]:
         )
 
     # Apply Verdict Filter
-    if "70%" in filter_type or "Super Satik" in filter_type or "सटीक" in filter_type:
+    if "70%" in filter_type or "74%" in filter_type or "Super Satik" in filter_type or "सटीक" in filter_type:
         filtered_list = super_satik_matches
     elif "पास" in filter_type or "Pass" in filter_type or "Skip" in filter_type:
         filtered_list = pass_matches
@@ -910,7 +910,7 @@ with vip_tabs[0]:
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-val" style="color: #10b981;">{len(super_satik_matches)}</div>
-            <div class="kpi-lbl">💎 100% सटीक प्ले (3-4 Sure Picks)</div>
+            <div class="kpi-lbl">💎 100% सटीक प्ले (Iron-Clad Locks)</div>
         </div>
         """, unsafe_allow_html=True)
     with k3:
