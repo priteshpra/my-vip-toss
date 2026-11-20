@@ -228,14 +228,15 @@
     "match_date": "2026-11-20",
     "team_a": "Punjab",
     "team_b": "Tamil Nadu",
-    "recommended_team": null,
-    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "recommended_team": "Punjab",
+    "stake_rating": "\ud83d\udc8e 100% SATIK PLAY (9-PILLAR SYNDICATE LOCK)",
     "actual_winner": "Tamil Nadu",
     "toss_decision": "Bowl",
-    "outcome": "SKIPPED",
+    "outcome": "FAIL",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
-    "recorded_at": "2026-11-20 10:07 AM IST"
+    "recorded_at": "2026-11-20 10:07 AM IST",
+    "result": "FAIL"
   },
   {
     "match_id": "40983",
