@@ -22,8 +22,13 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-# Performance optimization: Keep modules and caches in memory across user interactions
-# This guarantees sub-50ms instant response on mobile and filters without network freeze
+# Force-reload or purge cached modules so Streamlit Cloud worker never executes stale in-memory modules
+for mod_name in list(sys.modules.keys()):
+    if mod_name.startswith("core.") or mod_name == "core":
+        try:
+            importlib.reload(sys.modules[mod_name])
+        except Exception:
+            sys.modules.pop(mod_name, None)
 
 from core.timezone import now_ist, format_ist
 from core.providers.gaming_helper_provider import (
@@ -35,6 +40,10 @@ from core.providers.gaming_helper_provider import (
 )
 
 import core.engine.toss_results_manager as _trm
+try:
+    importlib.reload(_trm)
+except Exception:
+    pass
 
 load_toss_results = _trm.load_toss_results
 save_toss_result = _trm.save_toss_result
@@ -642,8 +651,14 @@ with col_st2:
             punter_data = get_active_punter_matches(force_refresh=True)
             st.session_state["live_punter_matches"] = punter_data.get("matches", [])
             st.session_state["live_gh_connected"] = punter_data.get("connected", False)
-            sync_live_toss_results_from_cricbuzz()
-            sync_completed_tosses_from_gaming_helper()
+            try:
+                sync_live_toss_results_from_cricbuzz()
+            except Exception as e_cb:
+                print(f"[SyncNotice] Cricbuzz sync: {e_cb}")
+            try:
+                sync_completed_tosses_from_gaming_helper()
+            except Exception as e_gh:
+                print(f"[SyncNotice] GH sync: {e_gh}")
             st.success("Synced live bets successfully!")
             st.rerun()
 
@@ -1497,10 +1512,25 @@ with vip_tabs[1]:
     with col_btn_t2:
         if st.button("⚡ Sync Latest Results", key="btn_tg_sync_tab2", use_container_width=True):
             with st.spinner("Fetching latest toss outcomes from Telegram (@SUPERFASTTOSSLINE111), Cricbuzz & CREX..."):
-                tg_count = auto_update_toss_results_from_telegram()
-                cb_count = sync_live_toss_results_from_cricbuzz()
-                sync_completed_tosses_from_gaming_helper()
-                crex_count = sync_live_toss_results_from_crex()
+                tg_count = 0
+                cb_count = 0
+                crex_count = 0
+                try:
+                    tg_count = auto_update_toss_results_from_telegram()
+                except Exception as e_tg:
+                    print(f"[SyncNotice] Telegram sync: {e_tg}")
+                try:
+                    cb_count = sync_live_toss_results_from_cricbuzz()
+                except Exception as e_cb:
+                    print(f"[SyncNotice] Cricbuzz sync: {e_cb}")
+                try:
+                    sync_completed_tosses_from_gaming_helper()
+                except Exception as e_gh:
+                    print(f"[SyncNotice] GH sync: {e_gh}")
+                try:
+                    crex_count = sync_live_toss_results_from_crex()
+                except Exception as e_cr:
+                    print(f"[SyncNotice] CREX sync: {e_cr}")
                 total_updated = tg_count + cb_count + crex_count
                 if total_updated > 0:
                     st.success(f"✅ {total_updated} Toss results updated!")

@@ -462,167 +462,171 @@ def sync_live_toss_results_from_cricbuzz() -> int:
     Automatically resolve live & completed match tosses directly from Cricbuzz.
     Matches team names against pending or today's matches and resolves actual toss winners.
     """
-    from core.providers.cricbuzz_toss_provider import fetch_cricbuzz_toss_outcomes
-    from core.providers.toss_load_provider import match_teams_fuzzy, load_locked_predictions
+    try:
+        from core.providers.cricbuzz_toss_provider import fetch_cricbuzz_toss_outcomes
+        from core.providers.toss_load_provider import match_teams_fuzzy, load_locked_predictions
 
-    c_tosses = fetch_cricbuzz_toss_outcomes(force_refresh=True)
-    if not c_tosses:
+        c_tosses = fetch_cricbuzz_toss_outcomes(force_refresh=True)
+        if not c_tosses:
+            return 0
+
+        results = load_toss_results()
+        locked_map = load_locked_predictions()
+        resolved_count = 0
+
+        # Auto-resolve unresolved matches in results log (both played and skipped)
+        for r in results:
+            if not is_winner_unresolved(r.get("actual_winner")):
+                continue
+
+            m_id = str(r.get("match_id", ""))
+            t1 = r.get("team_a") or ""
+            t2 = r.get("team_b") or ""
+            rec = r.get("recommended_team")
+            rating = r.get("stake_rating", "NORMAL")
+
+            for ct in c_tosses:
+                ca = ct.get("team_a", "")
+                cb = ct.get("team_b", "")
+                winner_raw = ct.get("winner", "")
+                decision = ct.get("decision", "Bowl")
+
+                matched = (
+                    (match_teams_fuzzy(t1, ca) and match_teams_fuzzy(t2, cb)) or
+                    (match_teams_fuzzy(t1, cb) and match_teams_fuzzy(t2, ca)) or
+                    (match_teams_fuzzy(t1, winner_raw) or match_teams_fuzzy(t2, winner_raw))
+                )
+
+                if matched:
+                    actual_win = t1 if match_teams_fuzzy(winner_raw, t1) else (t2 if match_teams_fuzzy(winner_raw, t2) else winner_raw)
+                    save_toss_result(
+                        match_id=m_id,
+                        match_name=r.get("match_name"),
+                        tournament=r.get("tournament", "General"),
+                        toss_time_ist=r.get("toss_time_ist", ""),
+                        match_date=r.get("match_date", ""),
+                        team_a=t1,
+                        team_b=t2,
+                        recommended_team=rec,
+                        stake_rating=rating,
+                        actual_winner=actual_win,
+                        toss_decision=decision,
+                        is_manual=False
+                    )
+                    resolved_count += 1
+                    break
+
+        # Also resolve today's active matches whose toss just completed on Cricbuzz
+        today_str = format_ist(now_ist(), "%Y-%m-%d")
+        existing_resolved_ids = {str(r.get("match_id")) for r in load_toss_results() if not is_winner_unresolved(r.get("actual_winner"))}
+
+        # 1. Check live active matches cache
+        live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
+        active_live_matches = []
+        if os.path.exists(live_cache_file):
+            try:
+                with open(live_cache_file, "r", encoding="utf-8") as f:
+                    active_live_matches = json.load(f)
+            except Exception:
+                pass
+
+        for m in active_live_matches:
+            m_id = str(m.get("id") or "").strip()
+            if not m_id or m_id in existing_resolved_ids:
+                continue
+            m_date = str(m.get("match_date", "")).split("T")[0]
+            if m_date and m_date != today_str:
+                continue
+
+            l_ta = str(m.get("team_a_name") or m.get("team_a") or "").strip()
+            l_tb = str(m.get("team_b_name") or m.get("team_b") or "").strip()
+            if not l_ta or not l_tb:
+                continue
+
+            for ct in c_tosses:
+                ca = ct.get("team_a", "")
+                cb = ct.get("team_b", "")
+                winner_raw = ct.get("winner", "")
+                decision = ct.get("decision", "Bowl")
+
+                matched = (
+                    (match_teams_fuzzy(l_ta, ca) and match_teams_fuzzy(l_tb, cb)) or
+                    (match_teams_fuzzy(l_ta, cb) and match_teams_fuzzy(l_tb, ca))
+                )
+                if matched:
+                    actual_win = l_ta if match_teams_fuzzy(winner_raw, l_ta) else (l_tb if match_teams_fuzzy(winner_raw, l_tb) else winner_raw)
+                    rec = m.get("recommended_team")
+                    rating = m.get("stake_rating", "🟡 SKIP / 50-50 COIN FLIP")
+                    save_toss_result(
+                        match_id=m_id,
+                        match_name=f"{l_ta} vs {l_tb}",
+                        tournament=m.get("tournament_name") or m.get("tournament") or "General",
+                        toss_time_ist=m.get("toss_time_str") or m.get("time_str") or format_ist(now_ist(), "%I:%M %p IST"),
+                        match_date=today_str,
+                        team_a=l_ta,
+                        team_b=l_tb,
+                        recommended_team=rec,
+                        stake_rating=rating,
+                        actual_winner=actual_win,
+                        toss_decision=decision,
+                        is_manual=False
+                    )
+                    existing_resolved_ids.add(m_id)
+                    resolved_count += 1
+                    break
+
+        # 2. Check locked_map for any matches with team_a and team_b defined
+        for lid, lp in locked_map.items():
+            m_id = str(lid).strip()
+            if not m_id or m_id in existing_resolved_ids:
+                continue
+            if m_id.startswith("pair:") or "__vs__" in m_id:
+                continue
+            l_date = str(lp.get("match_date", "")).split("T")[0]
+            if l_date and l_date != today_str:
+                continue
+
+            l_ta = str(lp.get("team_a_name") or lp.get("team_a") or "").strip()
+            l_tb = str(lp.get("team_b_name") or lp.get("team_b") or "").strip()
+            if not l_ta or not l_tb:
+                continue
+
+            for ct in c_tosses:
+                ca = ct.get("team_a", "")
+                cb = ct.get("team_b", "")
+                winner_raw = ct.get("winner", "")
+                decision = ct.get("decision", "Bowl")
+
+                matched = (
+                    (match_teams_fuzzy(l_ta, ca) and match_teams_fuzzy(l_tb, cb)) or
+                    (match_teams_fuzzy(l_ta, cb) and match_teams_fuzzy(l_tb, ca))
+                )
+                if matched:
+                    actual_win = l_ta if match_teams_fuzzy(winner_raw, l_ta) else (l_tb if match_teams_fuzzy(winner_raw, l_tb) else winner_raw)
+                    rec = lp.get("recommended_team")
+                    rating = lp.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                    save_toss_result(
+                        match_id=str(lid),
+                        match_name=f"{l_ta} vs {l_tb}",
+                        tournament=lp.get("tournament", "General"),
+                        toss_time_ist=lp.get("time_str", format_ist(now_ist(), "%I:%M %p IST")),
+                        match_date=today_str,
+                        team_a=l_ta,
+                        team_b=l_tb,
+                        recommended_team=rec,
+                        stake_rating=rating,
+                        actual_winner=actual_win,
+                        toss_decision=decision,
+                        is_manual=False
+                    )
+                    existing_resolved_ids.add(m_id)
+                    resolved_count += 1
+                    break
+
+        return resolved_count
+    except Exception as e:
+        print(f"[CricbuzzSyncError] {e}")
         return 0
-
-    results = load_toss_results()
-    locked_map = load_locked_predictions()
-    resolved_count = 0
-
-    # Auto-resolve unresolved matches in results log (both played and skipped)
-    for r in results:
-        if not is_winner_unresolved(r.get("actual_winner")):
-            continue
-
-        m_id = str(r.get("match_id", ""))
-        t1 = r.get("team_a") or ""
-        t2 = r.get("team_b") or ""
-        rec = r.get("recommended_team")
-        rating = r.get("stake_rating", "NORMAL")
-
-        for ct in c_tosses:
-            ca = ct.get("team_a", "")
-            cb = ct.get("team_b", "")
-            winner_raw = ct.get("winner", "")
-            decision = ct.get("decision", "Bowl")
-
-            matched = (
-                (match_teams_fuzzy(t1, ca) and match_teams_fuzzy(t2, cb)) or
-                (match_teams_fuzzy(t1, cb) and match_teams_fuzzy(t2, ca)) or
-                (match_teams_fuzzy(t1, winner_raw) or match_teams_fuzzy(t2, winner_raw))
-            )
-
-            if matched:
-                actual_win = t1 if match_teams_fuzzy(winner_raw, t1) else (t2 if match_teams_fuzzy(winner_raw, t2) else winner_raw)
-                save_toss_result(
-                    match_id=m_id,
-                    match_name=r.get("match_name"),
-                    tournament=r.get("tournament", "General"),
-                    toss_time_ist=r.get("toss_time_ist", ""),
-                    match_date=r.get("match_date", ""),
-                    team_a=t1,
-                    team_b=t2,
-                    recommended_team=rec,
-                    stake_rating=rating,
-                    actual_winner=actual_win,
-                    toss_decision=decision,
-                    is_manual=False
-                )
-                resolved_count += 1
-                break
-
-    # Also resolve today's active matches whose toss just completed on Cricbuzz
-    today_str = format_ist(now_ist(), "%Y-%m-%d")
-    existing_resolved_ids = {str(r.get("match_id")) for r in load_toss_results() if not is_winner_unresolved(r.get("actual_winner"))}
-
-    # 1. Check live active matches cache
-    live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
-    active_live_matches = []
-    if os.path.exists(live_cache_file):
-        try:
-            with open(live_cache_file, "r", encoding="utf-8") as f:
-                active_live_matches = json.load(f)
-        except Exception:
-            pass
-
-    for m in active_live_matches:
-        m_id = str(m.get("id") or "").strip()
-        if not m_id or m_id in existing_resolved_ids:
-            continue
-        m_date = str(m.get("match_date", "")).split("T")[0]
-        if m_date and m_date != today_str:
-            continue
-
-        l_ta = str(m.get("team_a_name") or m.get("team_a") or "").strip()
-        l_tb = str(m.get("team_b_name") or m.get("team_b") or "").strip()
-        if not l_ta or not l_tb:
-            continue
-
-        for ct in c_tosses:
-            ca = ct.get("team_a", "")
-            cb = ct.get("team_b", "")
-            winner_raw = ct.get("winner", "")
-            decision = ct.get("decision", "Bowl")
-
-            matched = (
-                (match_teams_fuzzy(l_ta, ca) and match_teams_fuzzy(l_tb, cb)) or
-                (match_teams_fuzzy(l_ta, cb) and match_teams_fuzzy(l_tb, ca))
-            )
-            if matched:
-                actual_win = l_ta if match_teams_fuzzy(winner_raw, l_ta) else (l_tb if match_teams_fuzzy(winner_raw, l_tb) else winner_raw)
-                rec = m.get("recommended_team")
-                rating = m.get("stake_rating", "🟡 SKIP / 50-50 COIN FLIP")
-                save_toss_result(
-                    match_id=m_id,
-                    match_name=f"{l_ta} vs {l_tb}",
-                    tournament=m.get("tournament_name") or m.get("tournament") or "General",
-                    toss_time_ist=m.get("toss_time_str") or m.get("time_str") or format_ist(now_ist(), "%I:%M %p IST"),
-                    match_date=today_str,
-                    team_a=l_ta,
-                    team_b=l_tb,
-                    recommended_team=rec,
-                    stake_rating=rating,
-                    actual_winner=actual_win,
-                    toss_decision=decision,
-                    is_manual=False
-                )
-                existing_resolved_ids.add(m_id)
-                resolved_count += 1
-                break
-
-    # 2. Check locked_map for any matches with team_a and team_b defined
-    for lid, lp in locked_map.items():
-        m_id = str(lid).strip()
-        if not m_id or m_id in existing_resolved_ids:
-            continue
-        if m_id.startswith("pair:") or "__vs__" in m_id:
-            continue
-        l_date = str(lp.get("match_date", "")).split("T")[0]
-        if l_date and l_date != today_str:
-            continue
-
-        l_ta = str(lp.get("team_a_name") or lp.get("team_a") or "").strip()
-        l_tb = str(lp.get("team_b_name") or lp.get("team_b") or "").strip()
-        if not l_ta or not l_tb:
-            continue
-
-        for ct in c_tosses:
-            ca = ct.get("team_a", "")
-            cb = ct.get("team_b", "")
-            winner_raw = ct.get("winner", "")
-            decision = ct.get("decision", "Bowl")
-
-            matched = (
-                (match_teams_fuzzy(l_ta, ca) and match_teams_fuzzy(l_tb, cb)) or
-                (match_teams_fuzzy(l_ta, cb) and match_teams_fuzzy(l_tb, ca))
-            )
-            if matched:
-                actual_win = l_ta if match_teams_fuzzy(winner_raw, l_ta) else (l_tb if match_teams_fuzzy(winner_raw, l_tb) else winner_raw)
-                rec = lp.get("recommended_team")
-                rating = lp.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
-                save_toss_result(
-                    match_id=str(lid),
-                    match_name=f"{l_ta} vs {l_tb}",
-                    tournament=lp.get("tournament", "General"),
-                    toss_time_ist=lp.get("time_str", format_ist(now_ist(), "%I:%M %p IST")),
-                    match_date=today_str,
-                    team_a=l_ta,
-                    team_b=l_tb,
-                    recommended_team=rec,
-                    stake_rating=rating,
-                    actual_winner=actual_win,
-                    toss_decision=decision,
-                    is_manual=False
-                )
-                existing_resolved_ids.add(m_id)
-                resolved_count += 1
-                break
-
-    return resolved_count
 
 
 def auto_update_toss_results_from_telegram() -> int:
