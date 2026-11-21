@@ -336,20 +336,15 @@ def compute_multi_source_toss_load(
     confluence_factors_a = []
     confluence_factors_b = []
 
-    # PILLAR 1: Streak Exhaustion & Slump Bounce-Back
-    if s_a >= 3:
-        confluence_factors_b.append(f"Streak Exhaustion: {t_a} ({s_a}W) entered critical break zone (93% reversal probability)")
-    elif s_b >= 3:
-        confluence_factors_a.append(f"Streak Exhaustion: {t_b} ({s_b}W) entered critical break zone (93% reversal probability)")
-
-    if s_a <= -3:
-        confluence_factors_a.append(f"Slump Bounce-Back: {t_a} ({abs(s_a)}L) heavy statistical rebound pressure")
-    elif s_b <= -3:
-        confluence_factors_b.append(f"Slump Bounce-Back: {t_b} ({abs(s_b)}L) heavy statistical rebound pressure")
-    elif s_a <= -2 and s_b >= 0:
-        confluence_factors_a.append(f"Moderate Lean: {t_a} (2L) due for turnaround")
-    elif s_b <= -2 and s_a >= 0:
-        confluence_factors_b.append(f"Moderate Lean: {t_b} (2L) due for turnaround")
+    # PILLAR 1: Captain Toss Form & Winning Momentum
+    if s_a >= 2 and s_b <= 0:
+        confluence_factors_a.append(f"Winning Toss Momentum: {t_a} in peak calling rhythm (+{s_a}W streak)")
+    elif s_b >= 2 and s_a <= 0:
+        confluence_factors_b.append(f"Winning Toss Momentum: {t_b} in peak calling rhythm (+{s_b}W streak)")
+    elif a_wins > b_wins and (a_wins + b_wins) >= 2:
+        confluence_factors_a.append(f"Positive Form Conversion: {t_a} holds superior toss form ({a_wins} wins)")
+    elif b_wins > a_wins and (a_wins + b_wins) >= 2:
+        confluence_factors_b.append(f"Positive Form Conversion: {t_b} holds superior toss form ({b_wins} wins)")
 
     # PILLAR 2: Head-to-Head Alternation & Dominance
     from core.engine.pattern_engine import get_h2h_toss_sequence
@@ -451,23 +446,16 @@ def compute_multi_source_toss_load(
     # Hard physical cap at 75%
     confidence = max(52, min(75, calc_conf))
 
-    # Opponent slump reversion trap check (Mean Reversion Volatility Shield)
-    opp_losses = a_losses if favored == t_b else b_losses
-    opp_streak = abs(s_a) if (favored == t_b and s_a < 0) else (abs(s_b) if (favored == t_a and s_b < 0) else 0)
-    has_opp_reversion_trap = (opp_streak >= 3 or opp_losses >= 4)
-
     # Step 7: Extreme Iron-Clad Syndicate Confluence Gate
     # A match ONLY qualifies as PLAY if:
     # 1. Total active pillars >= 5 (Unanimous majority of 9 pillars)
     # 2. Net concurring pillars >= 4 (Dominant margin over opponent)
     # 3. Conflicting opposing pillars == 0 (Zero opposing red flags)
-    # 4. Zero opponent mean-reversion trap (opp_losses < 4 and opp_streak < 3)
-    # 5. Composite Confidence >= 70%
+    # 4. Composite Confidence >= 70%
     is_iron_clad_lock = (
         len(active_pillars) >= 5
         and net_pillars >= 4
         and len(conflicting_pillars) == 0
-        and not has_opp_reversion_trap
         and confidence >= 70
     )
 

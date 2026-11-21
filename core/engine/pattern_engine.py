@@ -249,67 +249,47 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
     badge = "⚖️ Neutral Toss Rotation"
     rationale = "Dono teams balanced rotation me hain, koi extreme streak pressure nahi hai."
 
-    # Pattern 1: Team A on Extreme Win Streak (3+ wins -> Exhaustion -> Edge to Team B)
-    if s_a >= 3:
-        pattern_found = True
-        favored = t_b
-        pattern_edge = -16.0
-        rule_name = "STREAK_EXHAUSTION"
-        badge = f"🔄 Streak Break: {t_a} ({s_a}W) Due to Lose"
-        rationale = f"⚠️ Streak Exhaustion Rule: {t_a} lagaatar {s_a} toss jeet chuki hai (93%+ break zone). Mean reversion heavily favors {t_b}."
-
-    # Pattern 2: Team B on Extreme Win Streak (3+ wins -> Exhaustion -> Edge to Team A)
-    elif s_b >= 3:
+    # Pattern 1: H2H Historical & Psychological Dominance (2+ consecutive wins)
+    if len(h2h_seq) >= 2 and h2h_seq[-1] == 'A' and h2h_seq[-2] == 'A':
         pattern_found = True
         favored = t_a
         pattern_edge = 16.0
-        rule_name = "STREAK_EXHAUSTION"
-        badge = f"🔄 Streak Break: {t_b} ({s_b}W) Due to Lose"
-        rationale = f"⚠️ Streak Exhaustion Rule: {t_b} lagaatar {s_b} toss jeet chuki hai (93%+ break zone). Mean reversion heavily favors {t_a}."
-
-    # Pattern 3: Team A on Loss Streak (2+ losses -> Bounce-Back Due -> Edge to Team A)
-    elif s_a <= -2 and (s_b >= 0 or (s_a <= -3 and s_b > s_a)):
-        pattern_found = True
-        favored = t_a
-        pattern_edge = 14.0
-        rule_name = "BOUNCE_BACK"
-        badge = f"📈 Bounce-Back Due: {t_a} ({abs(s_a)}L)"
-        rationale = f"📈 Bounce-Back Rule: {t_a} lagaatar {abs(s_a)} toss haar chuki hai. Rebound probability favors {t_a} to snap streak."
-
-    # Pattern 4: Team B on Loss Streak (2+ losses -> Bounce-Back Due -> Edge to Team B)
-    elif s_b <= -2 and (s_a >= 0 or (s_b <= -3 and s_a > s_b)):
+        rule_name = "H2H_DOMINANCE"
+        badge = f"👑 H2H Dominance: {t_a} Command"
+        rationale = f"👑 H2H Dominance Rule: {t_a} has won consecutive H2H tosses against {t_b}. Proven calling rhythm and venue familiarity favor {t_a}."
+    elif len(h2h_seq) >= 2 and h2h_seq[-1] == 'B' and h2h_seq[-2] == 'B':
         pattern_found = True
         favored = t_b
-        pattern_edge = -14.0
-        rule_name = "BOUNCE_BACK"
-        badge = f"📈 Bounce-Back Due: {t_b} ({abs(s_b)}L)"
-        rationale = f"📈 Bounce-Back Rule: {t_b} lagaatar {abs(s_b)} toss haar chuki hai. Rebound probability favors {t_b} to snap streak."
+        pattern_edge = -16.0
+        rule_name = "H2H_DOMINANCE"
+        badge = f"👑 H2H Dominance: {t_b} Command"
+        rationale = f"👑 H2H Dominance Rule: {t_b} has won consecutive H2H tosses against {t_a}. Proven calling rhythm and venue familiarity favor {t_b}."
 
-    # Pattern 5: H2H Zig-Zag Alternation Pattern (e.g. A-B-A -> B due next)
+    # Pattern 2: H2H Zig-Zag Alternation Pattern (e.g. A-B-A -> B due next)
     elif len(h2h_seq) >= 3 and h2h_seq[-1] != h2h_seq[-2] and h2h_seq[-2] != h2h_seq[-3]:
         expected = 'B' if h2h_seq[-1] == 'A' else 'A'
         pattern_found = True
         favored = t_a if expected == 'A' else t_b
-        pattern_edge = 12.0 if expected == 'A' else -12.0
+        pattern_edge = 14.0 if expected == 'A' else -14.0
         rule_name = "ZIG_ZAG_ALTERNATION"
         badge = f"⚡ Zig-Zag Pattern: {favored} Due Next"
         rationale = f"⚡ Zig-Zag Alternation Rule: Pichhle H2H toss matches strictly alternate ho rahe hain ({'-'.join(h2h_seq[-3:])}). Next pattern turn favors {favored}."
 
-    # Pattern 6: Moderate 2-Match Streak Lean
-    elif s_a == 2 and s_b <= -1:
-        pattern_found = True
-        favored = t_b
-        pattern_edge = -10.0
-        rule_name = "MOMENTUM_CHECK"
-        badge = f"🔄 2W Streak Lean: {t_b} Rebound"
-        rationale = f"Pattern lean favors {t_b} as {t_a} approaches streak resistance (2W)."
-    elif s_b == 2 and s_a <= -1:
+    # Pattern 3: True Winning Toss Momentum (Positive Form)
+    elif s_a >= 2 and s_b <= 0:
         pattern_found = True
         favored = t_a
-        pattern_edge = 10.0
-        rule_name = "MOMENTUM_CHECK"
-        badge = f"🔄 2W Streak Lean: {t_a} Rebound"
-        rationale = f"Pattern lean favors {t_a} as {t_b} approaches streak resistance (2W)."
+        pattern_edge = 14.0
+        rule_name = "WINNING_MOMENTUM"
+        badge = f"🔥 Winning Momentum: {t_a} (+{s_a}W)"
+        rationale = f"🔥 Winning Momentum Rule: {t_a} captain displays peak calling conviction with {s_a} consecutive toss wins."
+    elif s_b >= 2 and s_a <= 0:
+        pattern_found = True
+        favored = t_b
+        pattern_edge = -14.0
+        rule_name = "WINNING_MOMENTUM"
+        badge = f"🔥 Winning Momentum: {t_b} (+{s_b}W)"
+        rationale = f"🔥 Winning Momentum Rule: {t_b} captain displays peak calling conviction with {s_b} consecutive toss wins."
 
     return {
         "pattern_found": pattern_found,
