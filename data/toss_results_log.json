@@ -8417,5 +8417,53 @@
     "outcome_label": "\u2705 VERIFIED",
     "is_manual": false,
     "recorded_at": "2025-11-02 01:45 PM IST"
+  },
+  {
+    "match_id": "ilt20_2025_m1",
+    "match_name": "Desert Vipers vs MI Emirates",
+    "tournament": "International League T20",
+    "toss_time_ist": "07:25 PM IST",
+    "match_date": "2025-12-09",
+    "team_a": "Desert Vipers",
+    "team_b": "MI Emirates",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "MI Emirates",
+    "toss_decision": "Bowl",
+    "outcome": "SKIPPED",
+    "result": "SKIPPED",
+    "is_manual": false
+  },
+  {
+    "match_id": "ilt20_2025_q1",
+    "match_name": "Desert Vipers vs MI Emirates",
+    "tournament": "International League T20",
+    "toss_time_ist": "07:25 PM IST",
+    "match_date": "2025-12-30",
+    "team_a": "Desert Vipers",
+    "team_b": "MI Emirates",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "MI Emirates",
+    "toss_decision": "Bowl",
+    "outcome": "SKIPPED",
+    "result": "SKIPPED",
+    "is_manual": false
+  },
+  {
+    "match_id": "ilt20_2026_fin",
+    "match_name": "Desert Vipers vs MI Emirates",
+    "tournament": "International League T20",
+    "toss_time_ist": "07:25 PM IST",
+    "match_date": "2026-01-04",
+    "team_a": "Desert Vipers",
+    "team_b": "MI Emirates",
+    "recommended_team": null,
+    "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
+    "actual_winner": "MI Emirates",
+    "toss_decision": "Bowl",
+    "outcome": "SKIPPED",
+    "result": "SKIPPED",
+    "is_manual": false
   }
 ]
