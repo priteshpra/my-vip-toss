@@ -1,5 +1,21 @@
 [
   {
+    "match_id": "crex_2K9_mah_him",
+    "match_name": "Maharashtra vs Himachal Pradesh",
+    "tournament": "Syed Mushtaq Ali Trophy Elite 2026",
+    "toss_time_ist": "11:00 AM IST",
+    "match_date": "2026-11-20",
+    "team_a": "Maharashtra",
+    "team_b": "Himachal Pradesh",
+    "recommended_team": "Maharashtra",
+    "stake_rating": "\ud83d\udc8e 100% SATIK PLAY (9-PILLAR SYNDICATE LOCK)",
+    "actual_winner": "Himachal Pradesh",
+    "toss_decision": "Bowl",
+    "outcome": "FAIL",
+    "result": "FAIL",
+    "is_manual": false
+  },
+  {
     "match_id": "41000",
     "match_name": "APTUS INFO vs PDORC - AZ Engineers",
     "tournament": "/ DELTA ENG & CONT CO",
