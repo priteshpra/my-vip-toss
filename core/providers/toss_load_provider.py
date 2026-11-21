@@ -484,8 +484,6 @@ def compute_multi_source_toss_load(
             reasons_list.append(f"Sirf {len(active_pillars)} pillar agree kar rahe hain (न्यूनतम 5 आवश्यक)")
         if len(conflicting_pillars) > 0:
             reasons_list.append(f"विपक्षी टीम के पास {len(conflicting_pillars)} विरोधी पिलर मौजूद हैं")
-        if has_opp_reversion_trap:
-            reasons_list.append("Opponent slump reversion trap: विपक्षी टीम 3+ हार के बाद बाउंस बैक कर सकती है")
         if confidence < 70:
             reasons_list.append(f"Confidence score {confidence}% (न्यूनतम 70% अनिवार्य)")
             
