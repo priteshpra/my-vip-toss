@@ -884,7 +884,7 @@ with vip_tabs[0]:
     cur_v_pref = st.session_state.get("select_punter_filter_v2")
     if cur_v_pref:
         if any(k in str(cur_v_pref) for k in ["VIP", "Lock", "100%", "सटीक", "70%", "Satik", "74%"]):
-            matched_v_opt = opt_satik
+            matched_v_opt = opt_satik if len(super_satik_matches) > 0 else opt_all
         elif any(k in str(cur_v_pref) for k in ["Skip", "50-50", "Pass", "पास"]):
             matched_v_opt = opt_skip
         else:
