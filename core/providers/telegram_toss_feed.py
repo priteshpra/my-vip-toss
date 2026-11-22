@@ -36,7 +36,7 @@ def fetch_telegram_toss_feed(pages: int = 3, channel_url: Optional[str] = None) 
     for _ in range(max(1, pages)):
         try:
             req = urllib.request.Request(current_url, headers=headers)
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=2.0) as resp:
                 h = resp.read().decode("utf-8", errors="ignore")
             all_html.append(h)
 
