@@ -139,7 +139,9 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
                 match_id=mid
             )
             m["action_type"] = v["action"]
+            m["action"] = v["action"]
             m["recommended_team"] = v["recommended_team"]
+            m["vip_pick"] = v["recommended_team"]
             m["confidence_pct"] = v["confidence_pct"]
             m["stake_rating"] = v["stake_rating"]
             m["consensus_badge"] = v.get("consensus_badge", "🟢 CONFIRMED LOAD")
@@ -471,7 +473,9 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
             "odds_a": odds_a,
             "odds_b": odds_b,
             "action_type": vip_verdict["action"],  # "PLAY", "SKIP"
+            "action": vip_verdict["action"],
             "recommended_team": vip_verdict["recommended_team"],
+            "vip_pick": vip_verdict["recommended_team"],
             "confidence_pct": vip_verdict["confidence_pct"],
             "stake_rating": vip_verdict["stake_rating"],
             "consensus_badge": vip_verdict.get("consensus_badge", "🟢 CONFIRMED LOAD"),

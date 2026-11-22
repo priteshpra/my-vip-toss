@@ -625,21 +625,31 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Session-state backed live matches: guarantees widget interaction (filters, tabs, inputs)
-# NEVER re-triggers network fetches or recalculates verdicts, eliminating all flickering
-ENGINE_VERSION = 4
-if st.session_state.get("engine_v") != ENGINE_VERSION:
-    st.session_state["need_live_refresh"] = True
-    st.session_state["engine_v"] = ENGINE_VERSION
-    st.session_state.pop("live_punter_matches", None)
+# Direct live matches pipeline: Always evaluates fresh data without stale session-state caching
+punter_data = get_active_punter_matches(force_refresh=False)
+all_matches = punter_data.get("matches", [])
+is_gh_connected = punter_data.get("connected", False)
 
-if "live_punter_matches" not in st.session_state or st.session_state.get("need_live_refresh", False):
-    punter_data = get_active_punter_matches(force_refresh=False)
-    st.session_state["live_punter_matches"] = punter_data.get("matches", [])
-    st.session_state["live_gh_connected"] = punter_data.get("connected", False)
-    st.session_state["need_live_refresh"] = False
-
-all_matches = st.session_state.get("live_punter_matches", [])
+# Direct Immutable VIP Lock Enforcement:
+# Guarantees that any match with a verified 70%+ VIP lock is ALWAYS 'PLAY' with 0% flicker or misclassification
+for m in all_matches:
+    mid_s = str(m.get("id", ""))
+    t_a_s = m.get("team_a_name", "")
+    t_b_s = m.get("team_b_name", "")
+    l_pred = get_locked_prediction(mid_s, t_a_s, t_b_s)
+    if l_pred and l_pred.get("action") == "PLAY":
+        m["action_type"] = "PLAY"
+        m["action"] = "PLAY"
+        m["recommended_team"] = l_pred.get("recommended_team")
+        m["vip_pick"] = l_pred.get("recommended_team")
+        m["confidence_pct"] = l_pred.get("confidence_pct", 75)
+        m["stake_rating"] = l_pred.get("stake_rating", "💎 100% VIP LOCK")
+        m["consensus_badge"] = l_pred.get("consensus_badge", "💎 100% VIP LOCK (75%)")
+        m["pillars_aligned"] = l_pred.get("pillars_aligned", 5)
+        m["pillars_total"] = l_pred.get("pillars_total", 9)
+        m["active_pillars_list"] = l_pred.get("active_pillars_list", [])
+        m["punter_rationale"] = l_pred.get("punter_rationale", "")
+        m["risk_level"] = l_pred.get("risk_level", "LOW RISK")
 is_gh_connected = st.session_state.get("live_gh_connected", False)
 creds = get_stored_credentials()
 
@@ -873,8 +883,16 @@ with vip_tabs[0]:
 
     # Calculate Counts
     total_matches = len(filtered_matches)
-    super_satik_matches = [m for m in filtered_matches if m.get("action_type") == "PLAY" and (m.get("confidence_pct") or 50) >= 70]
-    pass_matches = [m for m in filtered_matches if m.get("action_type") == "SKIP" or (m.get("confidence_pct") or 50) < 70]
+    super_satik_matches = [
+        m for m in filtered_matches
+        if (m.get("action_type") == "PLAY" or m.get("action") == "PLAY" or "VIP LOCK" in str(m.get("stake_rating", "")).upper())
+        and (m.get("confidence_pct") or 50) >= 70
+        and m.get("recommended_team")
+    ]
+    pass_matches = [
+        m for m in filtered_matches
+        if m not in super_satik_matches
+    ]
 
     opt_satik = f"💎 100% VIP Locks ({len(super_satik_matches)})"
     opt_all = f"🌟 All Matches ({total_matches})"
