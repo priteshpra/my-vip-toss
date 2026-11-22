@@ -627,7 +627,7 @@ st.markdown(f"""
 
 # Session-state backed live matches: guarantees widget interaction (filters, tabs, inputs)
 # NEVER re-triggers network fetches or recalculates verdicts, eliminating all flickering
-ENGINE_VERSION = 3
+ENGINE_VERSION = 4
 if st.session_state.get("engine_v") != ENGINE_VERSION:
     st.session_state["need_live_refresh"] = True
     st.session_state["engine_v"] = ENGINE_VERSION

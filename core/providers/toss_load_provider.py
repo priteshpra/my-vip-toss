@@ -244,7 +244,7 @@ def compute_multi_source_toss_load(
             locked_verdict = None
         elif locked_verdict.get("engine_version") != 3:
             locked_verdict = None
-        elif locked_verdict.get("confidence_pct", 50) > 74 or "crex" in str(locked_verdict.get("consensus_badge", "")).lower() or locked_verdict.get("pillars_total") != 9:
+        elif locked_verdict.get("confidence_pct", 50) > 80 or "crex" in str(locked_verdict.get("consensus_badge", "")).lower() or locked_verdict.get("pillars_total") != 9:
             locked_verdict = None
 
     if locked_verdict:
