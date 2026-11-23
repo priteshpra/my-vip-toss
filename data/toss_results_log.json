@@ -8657,5 +8657,21 @@
     "outcome": "SKIPPED",
     "match_date": "2025-02-05",
     "is_manual": false
+  },
+  {
+    "match_id": "41134",
+    "match_date": "2026-11-22",
+    "tournament": "ILT20 2026",
+    "team_a": "Dubai Capitals",
+    "team_b": "Abu Dhabi Knight Riders",
+    "predicted_winner": "Dubai Capitals",
+    "actual_winner": "Abu Dhabi Knight Riders",
+    "toss_decision": "Bat",
+    "verdict": "FAIL",
+    "confidence_pct": 75,
+    "action_type": "PLAY",
+    "stake_rating": "\ud83d\udc8e 100% VIP LOCK",
+    "pillars_aligned": 5,
+    "source": "ILT20 Official"
   }
 ]
