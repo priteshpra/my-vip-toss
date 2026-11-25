@@ -970,9 +970,7 @@ with vip_tabs[0]:
     super_satik_matches = [
         m for m in filtered_matches
         if (m.get("action_type") == "PLAY" or m.get("action") == "PLAY")
-        and (m.get("confidence_pct") or 50) >= 72
         and m.get("recommended_team")
-        and m.get("pillars_aligned", 0) >= 5
     ]
     pass_matches = [
         m for m in filtered_matches
