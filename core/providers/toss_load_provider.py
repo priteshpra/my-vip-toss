@@ -248,10 +248,10 @@ def compute_multi_source_toss_load(
             locked_verdict = None
 
     if locked_verdict:
-        # Strict 72%+ Satik Gating & Minimum 4 of 5 Super Pillars
+        # Strict 70%+ Satik Gating & Minimum 3 of 5 Super Pillars
         pat_name = locked_verdict.get("pattern_rule_name", "NEUTRAL")
         is_pat_valid = pat_name not in ["NEUTRAL", "BALANCED_ROTATION", "EXHIBITION", ""]
-        if (locked_verdict.get("confidence_pct", 50) < 72 or locked_verdict.get("pillars_aligned", 0) < 4 or not is_pat_valid) and locked_verdict.get("action") == "PLAY":
+        if (locked_verdict.get("confidence_pct", 50) < 70 or locked_verdict.get("pillars_aligned", 0) < 3 or not is_pat_valid) and locked_verdict.get("action") == "PLAY":
             locked_verdict["action"] = "SKIP"
             locked_verdict["recommended_team"] = None
             locked_verdict["verdict_tier"] = "PASS"
@@ -522,12 +522,12 @@ def compute_multi_source_toss_load(
     )
 
     is_iron_clad_lock = (
-        len(active_pillars) >= 4
+        len(active_pillars) >= 3
         and net_pillars >= 3
         and len(conflicting_pillars) == 0
         and has_external_anchor
         and is_pattern_confirmed
-        and confidence >= 72
+        and confidence >= 70
     )
 
     if is_iron_clad_lock:
@@ -552,16 +552,16 @@ def compute_multi_source_toss_load(
         
         # Build precise diagnostic reason for rejection
         reasons_list = []
-        if len(active_pillars) < 4:
-            reasons_list.append(f"Only {len(active_pillars)}/5 pillars aligned (min 4 required)")
+        if len(active_pillars) < 3:
+            reasons_list.append(f"Only {len(active_pillars)}/5 pillars aligned (min 3 required)")
         if not is_pattern_confirmed:
             reasons_list.append("Pattern Engine not confirmed (Neutral/Balanced rotation)")
         if not has_external_anchor:
             reasons_list.append("No sharp bookie rate divergence or syndicate confirmation")
         if len(conflicting_pillars) > 0:
             reasons_list.append(f"{len(conflicting_pillars)} conflicting opponent pillars")
-        if confidence < 72:
-            reasons_list.append(f"Confidence score {confidence}% (min 72% required)")
+        if confidence < 70:
+            reasons_list.append(f"Confidence score {confidence}% (min 70% required)")
             
         diag_txt = " · ".join(reasons_list) if reasons_list else "Both teams in 50-50 neutral coin-flip zone"
         rationale = f"⛔ STRICT PASS (50-50 COIN FLIP): {diag_txt}. 5-Pillar Satik criteria not met. Strict pass to preserve bankroll. Din me sirf 3-4 golden matches hi play karein."

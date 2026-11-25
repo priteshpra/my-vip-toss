@@ -924,7 +924,7 @@ with vip_tabs[0]:
 
     st.markdown("""
     <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>Super Satik Engine (v5):</b> 5 Super Pillars + Mathematical Pattern Confirmed</span>
+        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>Super Satik Engine (v5):</b> Min 3/5 Super Pillars Aligned + Verified Pattern Confirmed</span>
         <span style="font-size: 12px; color: #cbd5e1; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 10px; border-radius: 6px;">🎯 Daily Quota: Top 3-4 Golden Plays Only</span>
     </div>
     """, unsafe_allow_html=True)
@@ -1528,8 +1528,8 @@ with vip_tabs[0]:
                     <div style="background: #090e1a; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; margin-bottom: 10px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
                             <span style="font-size: 13px; font-weight: 900; color: #38bdf8;">🏛️ 5 Super Pillars Confluence:</span>
-                            <span style="background: {'rgba(16, 185, 129, 0.2)' if conf >= 72 and pil_aligned >= 4 else 'rgba(234, 179, 8, 0.2)'}; color: {'#34d399' if conf >= 72 and pil_aligned >= 4 else '#facc15'}; border: 1px solid {'#10b981' if conf >= 72 and pil_aligned >= 4 else '#eab308'}; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 800;">
-                                {'💎 ' + str(pil_aligned) if pil_aligned >= 4 else str(pil_aligned)}/{pil_total} Pillars Aligned ({conf}%)
+                            <span style="background: {'rgba(16, 185, 129, 0.2)' if conf >= 70 and pil_aligned >= 3 else 'rgba(234, 179, 8, 0.2)'}; color: {'#34d399' if conf >= 70 and pil_aligned >= 3 else '#facc15'}; border: 1px solid {'#10b981' if conf >= 70 and pil_aligned >= 3 else '#eab308'}; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 800;">
+                                {'💎 ' + str(pil_aligned) if pil_aligned >= 3 else str(pil_aligned)}/{pil_total} Pillars Aligned ({conf}%)
                             </span>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
