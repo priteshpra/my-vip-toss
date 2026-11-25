@@ -115,19 +115,50 @@ def save_toss_result(
     """Record a completed toss outcome from the user's actual match list and persist it."""
     results = load_toss_results()
 
-    # Auto-restore locked recommendation ONLY if match was originally a verified PLAY call in locked map AND not explicitly a SKIP
+    # Auto-restore locked recommendation if match was originally a verified PLAY call in live matches cache or locked map
     m_id_str = str(match_id or "").strip()
-    if not recommended_team and m_id_str and not is_manual and "skip" not in (stake_rating or "").lower() and "pass" not in (stake_rating or "").lower():
-        try:
-            from core.providers.toss_load_provider import load_locked_predictions
-            l_map = load_locked_predictions()
-            if m_id_str in l_map:
-                l_pred = l_map[m_id_str]
-                if l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
-                    recommended_team = l_pred.get("recommended_team")
-                    stake_rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
-        except Exception:
-            pass
+    if not recommended_team and not is_manual:
+        live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
+        if os.path.exists(live_cache_file):
+            try:
+                from core.providers.toss_load_provider import match_teams_fuzzy
+                with open(live_cache_file, "r", encoding="utf-8") as f:
+                    l_cache = json.load(f)
+                    for cm in l_cache:
+                        cm_t1 = cm.get("team_a_name") or cm.get("team_one_name") or ""
+                        cm_t2 = cm.get("team_b_name") or cm.get("team_two_name") or ""
+                        cm_id = str(cm.get("id", "")).strip()
+                        pair_match = (
+                            (match_teams_fuzzy(team_a, cm_t1) and match_teams_fuzzy(team_b, cm_t2)) or
+                            (match_teams_fuzzy(team_a, cm_t2) and match_teams_fuzzy(team_b, cm_t1))
+                        )
+                        if (m_id_str and cm_id == m_id_str) or pair_match:
+                            if cm.get("action_type") == "PLAY" and cm.get("recommended_team"):
+                                recommended_team = cm.get("recommended_team")
+                                stake_rating = cm.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                                break
+            except Exception:
+                pass
+
+        if not recommended_team:
+            try:
+                from core.providers.toss_load_provider import load_locked_predictions, _make_pair_key
+                l_map = load_locked_predictions()
+                if m_id_str and m_id_str in l_map:
+                    l_pred = l_map[m_id_str]
+                    if l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
+                        recommended_team = l_pred.get("recommended_team")
+                        stake_rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                elif team_a and team_b:
+                    pkey = _make_pair_key(team_a, team_b)
+                    dkey = f"{match_date}:{pkey}"
+                    if dkey in l_map:
+                        l_pred = l_map[dkey]
+                        if l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
+                            recommended_team = l_pred.get("recommended_team")
+                            stake_rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+            except Exception:
+                pass
 
     # Determine PASS / FAIL / SKIPPED / PENDING outcome
     rec_clean = (recommended_team or "").strip().lower()
@@ -835,6 +866,25 @@ def sync_live_toss_results_from_crex() -> int:
                         rec_team = ex.get("recommended_team")
                         rating = ex.get("stake_rating", "NORMAL")
                         break
+
+                # Also check live matches cache to ensure pre-match PLAY recommendation is always preserved
+                if not rec_team:
+                    live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
+                    if os.path.exists(live_cache_file):
+                        try:
+                            with open(live_cache_file, "r", encoding="utf-8") as f:
+                                l_cache = json.load(f)
+                                for cm in l_cache:
+                                    cm_t1 = cm.get("team_a_name") or cm.get("team_one_name") or ""
+                                    cm_t2 = cm.get("team_b_name") or cm.get("team_two_name") or ""
+                                    if is_match_pair(t1, t2, cm_t1, cm_t2):
+                                        if cm.get("action_type") == "PLAY" and cm.get("recommended_team"):
+                                            rec_team = cm.get("recommended_team")
+                                            rating = cm.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                                            matched_id = cm.get("id") or matched_id
+                                            break
+                        except Exception:
+                            pass
 
                 if not matched_id:
                     for lid, lp in locked_map.items():
