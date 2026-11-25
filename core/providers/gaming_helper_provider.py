@@ -30,25 +30,31 @@ SESSION_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__fi
 CACHE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
 API_BASE = "https://gaminglive.gaminghelperonline.com/api"
 
-# Default verified user credentials
+# Default verified user credentials & fallback active session token
 DEFAULT_PHONE = "7028163937"
 DEFAULT_PASS = "Jayshri@0411"
+DEFAULT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTU5MTQsImlhdCI6MTc5NTUzNDMwOSwiZXhwIjoxNzk4MTI2MzA5fQ.0JjHpt4SQh9Zu7bhk9gbFsgOxTL7cjY0GvIMjAg2Ifo"
+DEFAULT_CHALLENGE = "bb459408392e499b78e8749856b484ae5de88ed8ae0257a06598fb93f917b577"
 
 
-def get_stored_credentials() -> Dict[str, str]:
-    """Retrieve saved phone & password if available."""
+def get_stored_credentials() -> Dict[str, Any]:
+    """Retrieve saved phone, password, and active session token."""
     phone = None
     password = None
+    token = None
     try:
         import streamlit as st
         phone = st.secrets.get("GAMING_HELPER_PHONE")
         password = st.secrets.get("GAMING_HELPER_PASSWORD")
+        token = st.secrets.get("GAMING_HELPER_TOKEN")
     except Exception:
         pass
 
     if not phone or not password:
         phone = os.environ.get("GAMING_HELPER_PHONE")
         password = os.environ.get("GAMING_HELPER_PASSWORD")
+    if not token:
+        token = os.environ.get("GAMING_HELPER_TOKEN")
 
     if os.path.exists(SESSION_FILE):
         try:
@@ -58,11 +64,20 @@ def get_stored_credentials() -> Dict[str, str]:
                     if phone and password:
                         d["phone"] = phone
                         d["password"] = password
+                    if not d.get("token"):
+                        d["token"] = token or DEFAULT_TOKEN
+                    if not d.get("challengeId"):
+                        d["challengeId"] = DEFAULT_CHALLENGE
                     return d
         except Exception:
             pass
-    # Fallback to configured user credentials
-    return {"phone": phone or DEFAULT_PHONE, "password": password or DEFAULT_PASS, "token": ""}
+    # Fallback to configured user credentials with verified active token
+    return {
+        "phone": phone or DEFAULT_PHONE,
+        "password": password or DEFAULT_PASS,
+        "token": token or DEFAULT_TOKEN,
+        "challengeId": DEFAULT_CHALLENGE
+    }
 
 
 def save_credentials(phone: str, password: str, token: str = "", challenge_id: str = "") -> None:
@@ -150,7 +165,7 @@ def verify_gaming_helper_otp(otp: str, challenge_id: Optional[str] = None) -> Di
 
 
 def resend_gaming_helper_otp(challenge_id: Optional[str] = None) -> Dict[str, Any]:
-    """Resend 6-digit OTP code to registered email."""
+    """Resend 6-digit OTP code to registered email with rate-limit protection."""
     creds = get_stored_credentials()
     c_id = challenge_id or creds.get("challengeId")
     if not c_id:
@@ -166,6 +181,14 @@ def resend_gaming_helper_otp(challenge_id: Optional[str] = None) -> Dict[str, An
         with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return {"success": True, "email": data.get("email", ""), "msg": data.get("msg", "OTP resent")}
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode("utf-8", errors="ignore")
+        if e.code == 429:
+            return {
+                "success": False,
+                "error": "Rate limit (Too Many Requests): OTP pehle hi email par bhej diya gaya hai. Kripya 1-2 minute wait karein, ya apne email (inbox/spam) par aaya hua 6-digit OTP yahan enter karein."
+            }
+        return {"success": False, "error": f"HTTP {e.code}: {err_msg or e.reason}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

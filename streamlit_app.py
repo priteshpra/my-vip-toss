@@ -656,7 +656,11 @@ is_gh_connected = st.session_state.get("live_gh_connected", punter_data.get("con
 creds = get_stored_credentials()
 
 # Detect if OTP verification is required
-needs_otp = punter_data.get("needs_otp") or st.session_state.get("gh_needs_otp", False)
+if is_gh_connected or len(all_matches) > 0:
+    needs_otp = False
+    st.session_state["gh_needs_otp"] = False
+else:
+    needs_otp = punter_data.get("needs_otp") or st.session_state.get("gh_needs_otp", False)
 otp_email = punter_data.get("email") or st.session_state.get("gh_otp_email") or creds.get("email", "registered email")
 otp_cid = punter_data.get("challengeId") or st.session_state.get("gh_challenge_id") or creds.get("challengeId")
 
@@ -739,7 +743,7 @@ if needs_otp or not is_gh_connected:
                         if r_res.get("success"):
                             st.info("Naya OTP email par bhej diya gaya hai!")
                         else:
-                            st.error(f"Resend failed: {r_res.get('error')}")
+                            st.warning(f"⚠️ {r_res.get('error')}")
         else:
             st.info("Agar session out ho gaya ho ya naye matches sync nahi ho rahe hon, toh niche click karke OTP mangwayein:")
             if st.button("📲 Re-authenticate / Send Login OTP", key="btn_trigger_fresh_login", use_container_width=True):
