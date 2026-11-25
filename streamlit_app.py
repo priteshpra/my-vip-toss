@@ -35,6 +35,8 @@ from core.providers.gaming_helper_provider import (
     get_stored_credentials,
     save_credentials,
     login_gaming_helper,
+    verify_gaming_helper_otp,
+    resend_gaming_helper_otp,
     fetch_gaming_helper_live_bets,
     get_active_punter_matches
 )
@@ -643,28 +645,42 @@ for m in all_matches:
         m["recommended_team"] = l_pred.get("recommended_team")
         m["vip_pick"] = l_pred.get("recommended_team")
         m["confidence_pct"] = l_pred.get("confidence_pct", 75)
-        m["stake_rating"] = l_pred.get("stake_rating", "💎 100% VIP LOCK")
-        m["consensus_badge"] = l_pred.get("consensus_badge", "💎 100% VIP LOCK (75%)")
+        m["stake_rating"] = l_pred.get("stake_rating", "💎 100% SATIK VIP LOCK (5-PILLAR + PATTERN)")
+        m["consensus_badge"] = l_pred.get("consensus_badge", "💎 100% SATIK LOCK (75%)")
         m["pillars_aligned"] = l_pred.get("pillars_aligned", 5)
         m["pillars_total"] = l_pred.get("pillars_total", 9)
         m["active_pillars_list"] = l_pred.get("active_pillars_list", [])
         m["punter_rationale"] = l_pred.get("punter_rationale", "")
         m["risk_level"] = l_pred.get("risk_level", "LOW RISK")
-is_gh_connected = st.session_state.get("live_gh_connected", False)
+is_gh_connected = st.session_state.get("live_gh_connected", punter_data.get("connected", False))
 creds = get_stored_credentials()
+
+# Detect if OTP verification is required
+needs_otp = punter_data.get("needs_otp") or st.session_state.get("gh_needs_otp", False)
+otp_email = punter_data.get("email") or st.session_state.get("gh_otp_email") or creds.get("email", "registered email")
+otp_cid = punter_data.get("challengeId") or st.session_state.get("gh_challenge_id") or creds.get("challengeId")
 
 # Account Status Bar
 col_st1, col_st2, col_st3 = st.columns([2.2, 1, 1])
 with col_st1:
     if is_gh_connected:
-        st.success(f"🟢 **GamingHelper Connected:** Demo `{creds.get('phone', '7028163937')}` · **{len(all_matches)} Live Bets** · 📡 **CREX Live Scraper: Active**")
+        st.success(f"🟢 **GamingHelper Connected:** Demo `{creds.get('phone', '7028163937')}` · **{len(all_matches)} Live Bets** · 📡 **CREX: Active**")
+    elif needs_otp:
+        st.error(f"🔴 **Session Expired:** OTP Required below · **{len(all_matches)} Live Bets**")
     else:
-        st.warning(f"🟡 **GamingHelper:** Connected · **{len(all_matches)} Live Bets** · 📡 **CREX Live Scraper: Active**")
+        st.warning(f"🟡 **GamingHelper:** Reconnecting · **{len(all_matches)} Live Bets** · 📡 **CREX: Active**")
 
 with col_st2:
     if st.button("🔄 Sync Live Bets & CREX", type="primary", use_container_width=True, key="btn_sync_gh_now"):
         with st.spinner("Syncing latest live matches from GamingHelper..."):
             punter_data = get_active_punter_matches(force_refresh=True)
+            if punter_data.get("needs_otp"):
+                st.session_state["gh_needs_otp"] = True
+                st.session_state["gh_otp_email"] = punter_data.get("email", "registered email")
+                st.session_state["gh_challenge_id"] = punter_data.get("challengeId")
+                st.session_state["live_gh_connected"] = False
+                st.warning("⚠️ Session expired! Please enter OTP below.")
+                st.rerun()
             st.session_state["live_punter_matches"] = punter_data.get("matches", [])
             st.session_state["live_gh_connected"] = punter_data.get("connected", False)
             try:
@@ -682,6 +698,65 @@ with col_st3:
     if st.button("⚡ Force Reset", use_container_width=True, key="btn_force_clean_reload", help="Clear all UI session state and perform fresh execution"):
         st.session_state.clear()
         st.rerun()
+
+# --- DEDICATED IN-PORTAL OTP VERIFICATION MODAL / BANNER ---
+if needs_otp or not is_gh_connected:
+    with st.expander("🔐 **GamingHelper Session / OTP Login Panel**", expanded=bool(needs_otp)):
+        if needs_otp:
+            st.markdown(f"""
+            <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 10px; padding: 14px; margin-bottom: 12px;">
+                <div style="font-size: 14px; font-weight: 800; color: #f87171;">
+                    🔒 Session Out: OTP Verification Required
+                </div>
+                <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">
+                    GamingHelper ne aapke email (<b>{otp_email}</b>) par 6-digit OTP bheja hai. Yahan enter karke 1-click verify karein:
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            col_otp_in, col_otp_btn, col_otp_res = st.columns([2, 1.4, 1.2])
+            with col_otp_in:
+                portal_otp = st.text_input("Enter 6-Digit OTP", max_chars=6, placeholder="e.g. 247563", key="portal_gh_otp_field")
+            with col_otp_btn:
+                if st.button("🔑 Verify & Sync Bets", type="primary", use_container_width=True, key="btn_portal_verify_gh_otp"):
+                    if portal_otp and len(portal_otp.strip()) == 6:
+                        with st.spinner("Verifying OTP with GamingHelper..."):
+                            v_res = verify_gaming_helper_otp(portal_otp.strip(), challenge_id=otp_cid)
+                            if v_res.get("success"):
+                                st.success("✅ Logged in successfully! Refreshing matches...")
+                                st.session_state["gh_needs_otp"] = False
+                                st.session_state["live_gh_connected"] = True
+                                p_fresh = get_active_punter_matches(force_refresh=True)
+                                st.session_state["live_punter_matches"] = p_fresh.get("matches", [])
+                                st.rerun()
+                            else:
+                                st.error(f"❌ Verification failed: {v_res.get('error')}")
+                    else:
+                        st.warning("Kripya 6-digit OTP code enter karein.")
+            with col_otp_res:
+                if st.button("📩 Resend OTP", use_container_width=True, key="btn_portal_resend_gh_otp"):
+                    with st.spinner("Resending OTP..."):
+                        r_res = resend_gaming_helper_otp(challenge_id=otp_cid)
+                        if r_res.get("success"):
+                            st.info("Naya OTP email par bhej diya gaya hai!")
+                        else:
+                            st.error(f"Resend failed: {r_res.get('error')}")
+        else:
+            st.info("Agar session out ho gaya ho ya naye matches sync nahi ho rahe hon, toh niche click karke OTP mangwayein:")
+            if st.button("📲 Re-authenticate / Send Login OTP", key="btn_trigger_fresh_login", use_container_width=True):
+                with st.spinner("Sending login request to GamingHelper..."):
+                    l_res = login_gaming_helper(creds.get("phone", "7028163937"), creds.get("password", "Jayshri@0411"))
+                    if l_res.get("otpRequired"):
+                        st.session_state["gh_needs_otp"] = True
+                        st.session_state["gh_otp_email"] = l_res.get("email", "registered email")
+                        st.session_state["gh_challenge_id"] = l_res.get("challengeId")
+                        st.session_state["live_gh_connected"] = False
+                        st.rerun()
+                    elif l_res.get("success"):
+                        st.session_state["live_gh_connected"] = True
+                        st.success("Session refreshed successfully!")
+                        st.rerun()
+                    else:
+                        st.error(f"Login failed: {l_res.get('error')}")
 
 # --- 2 Dedicated Pure Toss Tabs ---
 vip_tabs = st.tabs([
@@ -845,8 +920,8 @@ with vip_tabs[0]:
 
     st.markdown("""
     <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>VIP Confluence Engine:</b> Ultra-Strict 5+ Pillar Gate Active</span>
-        <span style="font-size: 12px; color: #94a3b8;">50-50 Traps Auto-Skipped</span>
+        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>Super Satik Engine (v4):</b> Min 5/9 Pillars Aligned + Verified Pattern Confirmed</span>
+        <span style="font-size: 12px; color: #cbd5e1; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 10px; border-radius: 6px;">🎯 Daily Quota: Top 2-4 Golden Plays Only</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -890,16 +965,17 @@ with vip_tabs[0]:
     total_matches = len(filtered_matches)
     super_satik_matches = [
         m for m in filtered_matches
-        if (m.get("action_type") == "PLAY" or m.get("action") == "PLAY" or "VIP LOCK" in str(m.get("stake_rating", "")).upper())
-        and (m.get("confidence_pct") or 50) >= 70
+        if (m.get("action_type") == "PLAY" or m.get("action") == "PLAY")
+        and (m.get("confidence_pct") or 50) >= 72
         and m.get("recommended_team")
+        and m.get("pillars_aligned", 0) >= 5
     ]
     pass_matches = [
         m for m in filtered_matches
         if m not in super_satik_matches
     ]
 
-    opt_satik = f"💎 100% VIP Locks ({len(super_satik_matches)})"
+    opt_satik = f"💎 100% Satik VIP Locks ({len(super_satik_matches)})"
     opt_all = f"🌟 All Matches ({total_matches})"
     opt_skip = f"🟡 Skipped (50-50) ({len(pass_matches)})"
     verdict_options = [opt_satik, opt_all, opt_skip]
@@ -1041,8 +1117,9 @@ with vip_tabs[0]:
         all_done_list = load_toss_results()
         done_by_id = {str(r.get("match_id", "")).strip(): r for r in all_done_list if str(r.get("match_id", "")).strip()}
 
-        for m in filtered_list:
+        for idx, m in enumerate(filtered_list):
             mid = m["id"]
+            widget_mid = f"{mid}_{idx}"
             t_a = m["team_a_name"]
             t_b = m["team_b_name"]
             short_a = m.get("team_a_short") or t_a[:3].upper()
@@ -1402,19 +1479,19 @@ with vip_tabs[0]:
                             "🏆 Toss Winner",
                             [t_a, t_b],
                             index=0 if prev_win == t_a else 1,
-                            key=f"win_select_{mid}"
+                            key=f"win_select_{widget_mid}"
                         )
                     with col_m2:
                         toss_dec = st.selectbox(
                             "Toss Decision",
                             ["Bowl (Bowl First)", "Bat (Bat First)"],
                             index=0 if "bowl" in prev_dec.lower() else 1,
-                            key=f"dec_select_{mid}"
+                            key=f"dec_select_{widget_mid}"
                         )
                     with col_m3:
                         st.write("")
                         st.write("")
-                        if st.button(btn_text, key=f"btn_save_done_{mid}", type="primary", use_container_width=True):
+                        if st.button(btn_text, key=f"btn_save_done_{widget_mid}", type="primary", use_container_width=True):
                             dec_str = "Bowl" if "Bowl" in toss_dec else "Bat"
                             m_target_date = str(m.get("match_date")).split("T")[0].strip() if m.get("match_date") else today_iso
                             saved_rec = save_toss_result(
@@ -1437,7 +1514,7 @@ with vip_tabs[0]:
                         with col_m4:
                             st.write("")
                             st.write("")
-                            if st.button("🗑️ Delete Result", key=f"btn_tab1_del_{mid}", use_container_width=True):
+                            if st.button("🗑️ Delete Result", key=f"btn_tab1_del_{widget_mid}", use_container_width=True):
                                 delete_toss_result(mid)
                                 st.warning("⚠️ Result deleted!")
                                 st.rerun()
@@ -1447,8 +1524,8 @@ with vip_tabs[0]:
                     <div style="background: #090e1a; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; margin-bottom: 10px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
                             <span style="font-size: 13px; font-weight: 900; color: #38bdf8;">🏛️ 9-Pillar Syndicate Confluence:</span>
-                            <span style="background: {'rgba(16, 185, 129, 0.2)' if conf >= 70 else 'rgba(234, 179, 8, 0.2)'}; color: {'#34d399' if conf >= 70 else '#facc15'}; border: 1px solid {'#10b981' if conf >= 70 else '#eab308'}; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 800;">
-                                {'💎 ' + str(pil_aligned) if pil_aligned >= 4 else str(pil_aligned)}/{pil_total} Pillars Aligned ({conf}%)
+                            <span style="background: {'rgba(16, 185, 129, 0.2)' if conf >= 72 and pil_aligned >= 5 else 'rgba(234, 179, 8, 0.2)'}; color: {'#34d399' if conf >= 72 and pil_aligned >= 5 else '#facc15'}; border: 1px solid {'#10b981' if conf >= 72 and pil_aligned >= 5 else '#eab308'}; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 800;">
+                                {'💎 ' + str(pil_aligned) if pil_aligned >= 5 else str(pil_aligned)}/{pil_total} Pillars Aligned ({conf}%)
                             </span>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -1882,7 +1959,9 @@ with vip_tabs[1]:
                 st.dataframe(pd.DataFrame(day_table_rows), use_container_width=True, hide_index=True)
 
                 # Day's audit cards
-                for r in day_matches:
+                for r_idx, r in enumerate(day_matches):
+                    r_mid = str(r.get("match_id", ""))
+                    r_wid = f"{r_mid}_{r_idx}"
                     out = r.get("outcome")
                     is_pass = (out == "PASS")
                     is_fail = (out == "FAIL")
@@ -1946,7 +2025,7 @@ with vip_tabs[1]:
                         st.caption("⚡ **Toss is completed — select true winner with 1 click:**")
                         q_c1, q_c2 = st.columns(2)
                         with q_c1:
-                            if st.button(f"🏆 {r.get('team_a')} Won", key=f"btn_p_a_{r.get('match_id')}", type="primary", use_container_width=True):
+                            if st.button(f"🏆 {r.get('team_a')} Won", key=f"btn_p_a_{r_wid}", type="primary", use_container_width=True):
                                 save_toss_result(
                                     r.get("match_id"), r.get("match_name"), r.get("tournament"),
                                     r.get("toss_time_ist"), r.get("match_date"), r.get("team_a"),
@@ -1955,7 +2034,7 @@ with vip_tabs[1]:
                                 )
                                 st.rerun()
                         with q_c2:
-                            if st.button(f"🏆 {r.get('team_b')} Won", key=f"btn_p_b_{r.get('match_id')}", type="primary", use_container_width=True):
+                            if st.button(f"🏆 {r.get('team_b')} Won", key=f"btn_p_b_{r_wid}", type="primary", use_container_width=True):
                                 save_toss_result(
                                     r.get("match_id"), r.get("match_name"), r.get("tournament"),
                                     r.get("toss_time_ist"), r.get("match_date"), r.get("team_a"),
@@ -1972,19 +2051,19 @@ with vip_tabs[1]:
                                 "🏆 True Toss Winner",
                                 [r.get("team_a"), r.get("team_b")],
                                 index=0 if r.get("actual_winner") == r.get("team_a") else 1,
-                                key=f"edit_win_{r.get('match_id')}"
+                                key=f"edit_win_{r_wid}"
                             )
                         with c_edit2:
                             new_dec = st.selectbox(
                                 "Toss Decision",
                                 ["Bowl (Bowl First)", "Bat (Bat First)"],
                                 index=0 if "bowl" in str(r.get("toss_decision", "")).lower() else 1,
-                                key=f"edit_dec_{r.get('match_id')}"
+                                key=f"edit_dec_{r_wid}"
                             )
                         with c_edit3:
                             st.write("")
                             st.write("")
-                            if st.button("💾 Save Result", key=f"btn_update_{r.get('match_id')}", type="primary", use_container_width=True):
+                            if st.button("💾 Save Result", key=f"btn_update_{r_wid}", type="primary", use_container_width=True):
                                 dec_str = "Bowl" if "Bowl" in new_dec else "Bat"
                                 save_toss_result(
                                     match_id=r.get("match_id"),
@@ -2005,7 +2084,7 @@ with vip_tabs[1]:
                         with c_edit4:
                             st.write("")
                             st.write("")
-                            if st.button("🗑️ Delete Record", key=f"btn_card_del_{r.get('match_id')}", use_container_width=True):
+                            if st.button("🗑️ Delete Record", key=f"btn_card_del_{r_wid}", use_container_width=True):
                                 delete_toss_result(r.get("match_id"))
                                 st.warning("⚠️ Record deleted!")
                                 st.rerun()

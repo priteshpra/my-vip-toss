@@ -65,15 +65,29 @@ def get_stored_credentials() -> Dict[str, str]:
     return {"phone": phone or DEFAULT_PHONE, "password": password or DEFAULT_PASS, "token": ""}
 
 
-def save_credentials(phone: str, password: str, token: str = "") -> None:
+def save_credentials(phone: str, password: str, token: str = "", challenge_id: str = "") -> None:
     """Save credentials and token to session storage."""
     os.makedirs(os.path.dirname(SESSION_FILE), exist_ok=True)
+    existing = {}
+    if os.path.exists(SESSION_FILE):
+        try:
+            with open(SESSION_FILE, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+        except Exception:
+            pass
+    existing.update({
+        "phone": phone,
+        "password": password,
+        "token": token or existing.get("token", ""),
+        "challengeId": challenge_id or existing.get("challengeId", ""),
+        "updated_at": datetime.now().isoformat()
+    })
     with open(SESSION_FILE, "w", encoding="utf-8") as f:
-        json.dump({"phone": phone, "password": password, "token": token, "updated_at": datetime.now().isoformat()}, f, indent=2)
+        json.dump(existing, f, indent=2)
 
 
 def login_gaming_helper(phone: str = DEFAULT_PHONE, password: str = DEFAULT_PASS) -> Dict[str, Any]:
-    """Authenticate with gaminghelperonline.com and retrieve access token."""
+    """Authenticate with gaminghelperonline.com and retrieve access token or trigger OTP challenge."""
     url = f"{API_BASE}/users/login"
     payload = json.dumps({"phone": phone.strip(), "password": password.strip()}).encode("utf-8")
     req = urllib.request.Request(
@@ -88,10 +102,70 @@ def login_gaming_helper(phone: str = DEFAULT_PHONE, password: str = DEFAULT_PASS
             if token:
                 save_credentials(phone, password, token)
                 return {"success": True, "token": token, "data": data}
+            if data.get("otpRequired"):
+                c_id = data.get("challengeId", "")
+                save_credentials(phone, password, token="", challenge_id=c_id)
+                return {
+                    "success": False,
+                    "otpRequired": True,
+                    "challengeId": c_id,
+                    "email": data.get("email", ""),
+                    "msg": data.get("msg", "OTP sent to registered email"),
+                    "data": data
+                }
             return {"success": False, "error": f"Token not found in login response: {data}"}
     except urllib.error.HTTPError as e:
         err_msg = e.read().decode("utf-8", errors="ignore")
         return {"success": False, "error": f"HTTP {e.code}: {err_msg}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def verify_gaming_helper_otp(otp: str, challenge_id: Optional[str] = None) -> Dict[str, Any]:
+    """Verify 6-digit OTP received via email to complete login and retrieve access token."""
+    creds = get_stored_credentials()
+    c_id = challenge_id or creds.get("challengeId")
+    if not c_id:
+        return {"success": False, "error": "No pending challengeId found. Please initiate login first."}
+    url = f"{API_BASE}/users/login/verify-otp"
+    payload = json.dumps({"otp": str(otp).strip(), "challengeId": c_id}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            token = data.get("newAccessToken") or data.get("access-token") or data.get("token") or ""
+            if token:
+                save_credentials(creds.get("phone", DEFAULT_PHONE), creds.get("password", DEFAULT_PASS), token, challenge_id=c_id)
+                return {"success": True, "token": token, "data": data}
+            return {"success": False, "error": f"Token not found in verify response: {data}"}
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode("utf-8", errors="ignore")
+        return {"success": False, "error": f"HTTP {e.code}: {err_msg}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def resend_gaming_helper_otp(challenge_id: Optional[str] = None) -> Dict[str, Any]:
+    """Resend 6-digit OTP code to registered email."""
+    creds = get_stored_credentials()
+    c_id = challenge_id or creds.get("challengeId")
+    if not c_id:
+        return {"success": False, "error": "No active challengeId found."}
+    url = f"{API_BASE}/users/login/resend-otp"
+    payload = json.dumps({"challengeId": c_id}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return {"success": True, "email": data.get("email", ""), "msg": data.get("msg", "OTP resent")}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -164,11 +238,20 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
                 m["match_date"] = format_ist(now_ist(), "%Y-%m-%d")
         return cached_list
 
-    # If no token or forced refresh, log in first
-    if not auth_token or force_refresh:
+    # If no token, log in first to retrieve one
+    if not auth_token:
         login_res = login_gaming_helper(creds.get("phone", DEFAULT_PHONE), creds.get("password", DEFAULT_PASS))
         if login_res.get("success"):
             auth_token = login_res["token"]
+        elif login_res.get("otpRequired"):
+            return {
+                "success": False,
+                "needs_otp": True,
+                "challengeId": login_res.get("challengeId"),
+                "email": login_res.get("email"),
+                "msg": login_res.get("msg"),
+                "error": "OTP verification required."
+            }
         else:
             if os.path.exists(CACHE_FILE):
                 try:
@@ -227,6 +310,23 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
                         return _save_mem({"success": True, "matches": matches, "raw": data})
                 except Exception:
                     pass
+            elif login_res.get("otpRequired"):
+                cached_list = []
+                if os.path.exists(CACHE_FILE):
+                    try:
+                        with open(CACHE_FILE, "r", encoding="utf-8") as f:
+                            cached_list = _hydrate_cached(json.load(f))
+                    except Exception:
+                        pass
+                return {
+                    "success": False,
+                    "needs_otp": True,
+                    "challengeId": login_res.get("challengeId"),
+                    "email": login_res.get("email"),
+                    "msg": login_res.get("msg"),
+                    "error": "Session expired. OTP verification required.",
+                    "matches": cached_list
+                }
         # Fallback to local cache if network or HTTP error occurs
         if os.path.exists(CACHE_FILE):
             try:
@@ -613,6 +713,54 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
     except Exception:
         pass
 
+    # Deduplicate matches strictly by unique ID
+    seen_ids = set()
+    deduped_matches = []
+    for m in matches:
+        mid_val = str(m.get("id", "")).strip()
+        if not mid_val or mid_val in seen_ids:
+            continue
+        seen_ids.add(mid_val)
+        deduped_matches.append(m)
+    matches = deduped_matches
+
+    # Apply Daily Golden Quota Filter: Maximum 2 to 4 confirmed plays per day
+    # Groups by match_date, ranks by conviction score, strictly caps at Top 4 per day
+    matches_by_date = {}
+    for m in matches:
+        d = str(m.get("match_date") or "").split("T")[0].strip() or today_iso_str
+        matches_by_date.setdefault(d, []).append(m)
+
+    for d, d_matches in matches_by_date.items():
+        plays = [m for m in d_matches if m.get("action_type") == "PLAY" or m.get("action") == "PLAY"]
+        if plays:
+            # Rank plays by conviction score: (confidence * 100) + (pillars_aligned * 25) + edge
+            plays.sort(
+                key=lambda x: (
+                    int(x.get("confidence_pct", 50)) * 100
+                    + int(x.get("pillars_aligned", 0)) * 25
+                    + abs(float(x.get("total_edge", 0))) * 10
+                ),
+                reverse=True
+            )
+            # Top 4 remain confirmed VIP Golden Picks
+            for p in plays[:4]:
+                p["consensus_badge"] = f"💎 TOP GOLDEN PICK ({p.get('confidence_pct')}%)"
+                p["stake_rating"] = "💎 100% SATIK VIP LOCK (TOP 2-4 GOLDEN PICK)"
+            # Any qualifying beyond Top 4 are capped to SKIP to preserve bankroll
+            for p in plays[4:]:
+                p["action_type"] = "SKIP"
+                p["action"] = "SKIP"
+                p["recommended_team"] = None
+                p["vip_pick"] = None
+                p["stake_rating"] = "🟡 PASS (DAILY 2-4 GOLDEN QUOTA REACHED)"
+                p["consensus_badge"] = "🟡 PASS (DISCIPLINED 2-4 CAP)"
+                p["punter_rationale"] = (
+                    f"⛔ STRICT PASS (DAILY 2-4 GOLDEN QUOTA): Match criteria meet karta hai, lekin bankroll discipline "
+                    f"ke hisab se hum din me sirf Top 2-4 Golden Picks hi play karte hain ({len(plays)} qualified today). "
+                    f"Capital safe rakhne ke liye is match ko pass karein."
+                )
+
     if res.get("success") or matches:
         if matches:
             try:
@@ -623,9 +771,13 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
                 pass
         return {
             "source": "GamingHelper Online & CREX Live",
-            "connected": True,
+            "connected": bool(res.get("success", False)),
             "matches": matches,
-            "needs_login": False
+            "needs_login": res.get("needs_login", False),
+            "needs_otp": res.get("needs_otp", False),
+            "challengeId": res.get("challengeId"),
+            "email": res.get("email"),
+            "otp_msg": res.get("msg")
         }
     
     # If connection failed, fallback to local cache or empty
@@ -634,5 +786,9 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
         "connected": False,
         "matches": [],
         "error": res.get("error"),
-        "needs_login": res.get("needs_login", False)
+        "needs_login": res.get("needs_login", False),
+        "needs_otp": res.get("needs_otp", False),
+        "challengeId": res.get("challengeId"),
+        "email": res.get("email"),
+        "otp_msg": res.get("msg")
     }

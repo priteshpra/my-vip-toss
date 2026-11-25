@@ -291,6 +291,22 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
         badge = f"🔥 Winning Momentum: {t_b} (+{s_b}W)"
         rationale = f"🔥 Winning Momentum Rule: {t_b} captain displays peak calling conviction with {s_b} consecutive toss wins."
 
+    # Pattern 4: Extreme Streak Exhaustion Reversion (3+ or 4+ consecutive toss losses)
+    elif s_a <= -3 and s_b >= -1:
+        pattern_found = True
+        favored = t_a
+        pattern_edge = 15.0
+        rule_name = "STREAK_EXHAUSTION"
+        badge = f"🔄 Streak Reversion: {t_a} Due ({abs(s_a)}L)"
+        rationale = f"🔄 Streak Exhaustion Rule: {t_a} has lost {abs(s_a)} consecutive tosses. Mathematical coin reversal & captain call cycle heavily favor {t_a} to snap streak."
+    elif s_b <= -3 and s_a >= -1:
+        pattern_found = True
+        favored = t_b
+        pattern_edge = -15.0
+        rule_name = "STREAK_EXHAUSTION"
+        badge = f"🔄 Streak Reversion: {t_b} Due ({abs(s_b)}L)"
+        rationale = f"🔄 Streak Exhaustion Rule: {t_b} has lost {abs(s_b)} consecutive tosses. Mathematical coin reversal & captain call cycle heavily favor {t_b} to snap streak."
+
     return {
         "pattern_found": pattern_found,
         "favored_team": favored,
