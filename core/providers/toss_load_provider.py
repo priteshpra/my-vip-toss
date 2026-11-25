@@ -98,8 +98,8 @@ def save_locked_prediction(
             existing = locked[f"{d_clean}:{pkey}"]
 
         if existing and existing.get("action") == "PLAY" and existing.get("recommended_team"):
-            if existing.get("engine_version", 0) >= 5 and (verdict.get("action") != "PLAY" or not verdict.get("recommended_team")):
-                # Preserve the original PLAY call only if locked under current v5 5-pillar engine
+            if existing.get("engine_version", 0) >= 6 and (verdict.get("action") != "PLAY" or not verdict.get("recommended_team")):
+                # Preserve the original PLAY call only if locked under current v6 5-pillar engine
                 return
 
         if m_id_str:
@@ -126,7 +126,7 @@ def get_locked_prediction(
     m_id_str = str(match_id or "").strip()
     if m_id_str and m_id_str in locked:
         cand = locked[m_id_str]
-        if isinstance(cand, dict) and (cand.get("engine_version") == 5 or cand.get("action") == "SKIP"):
+        if isinstance(cand, dict) and (cand.get("engine_version") == 6 or cand.get("action") == "SKIP"):
             return cand
         return None
 
@@ -136,7 +136,7 @@ def get_locked_prediction(
         dkey = f"{d_clean}:{pkey}"
         if dkey in locked:
             cand = locked[dkey]
-            if isinstance(cand, dict) and (cand.get("engine_version") == 5 or cand.get("action") == "SKIP"):
+            if isinstance(cand, dict) and (cand.get("engine_version") == 6 or cand.get("action") == "SKIP"):
                 return cand
             return None
 
@@ -242,7 +242,7 @@ def compute_multi_source_toss_load(
     if locked_verdict:
         if locked_verdict.get("action") == "SKIP" or not locked_verdict.get("recommended_team") or is_exhibition:
             locked_verdict = None
-        elif locked_verdict.get("engine_version") != 5:
+        elif locked_verdict.get("engine_version") != 6:
             locked_verdict = None
         elif locked_verdict.get("confidence_pct", 50) > 80 or "crex" in str(locked_verdict.get("consensus_badge", "")).lower() or locked_verdict.get("pillars_total") != 5:
             locked_verdict = None
@@ -494,6 +494,24 @@ def compute_multi_source_toss_load(
         conflicting_pillars = []
         net_pillars = 0
 
+    # Mathematical Streak Exhaustion Red Flag Check (Mean Reversion Trap)
+    # If the favored team is playing against an opponent who has lost 3+ consecutive tosses (s <= -3),
+    # probability theory dictates a 93.75% snap probability. Betting against an overdue team is a high-risk trap!
+    if (favored == t_a and s_b <= -3) or (favored == t_b and s_a <= -3):
+        exhausted_team = t_b if favored == t_a else t_a
+        exhausted_streak = abs(s_b if favored == t_a else s_a)
+        conflicting_pillars.append(
+            f"Opponent Mean Reversion Red Flag: {exhausted_team} has lost {exhausted_streak} consecutive tosses and is in the 93.75% streak snap zone"
+        )
+
+    # If the favored team is on an over-extended winning streak (4+ consecutive toss wins),
+    # probability of a 5th consecutive win drops below 3.125% - regression to mean risk.
+    if (favored == t_a and s_a >= 4) or (favored == t_b and s_b >= 4):
+        win_run = s_a if favored == t_a else s_b
+        conflicting_pillars.append(
+            f"Winning Streak Exhaustion Red Flag: {favored} has won {win_run} consecutive tosses and faces extreme regression risk"
+        )
+
     # Composite Mathematical Score (5-Pillar & Pattern Confluence Engine)
     # Baseline 50% + (Net Pillars * 6.5%) + Market Edge adjustment
     calc_conf = 50 + int(round(net_pillars * 6.5))
@@ -587,7 +605,7 @@ def compute_multi_source_toss_load(
         "pillars_total": 5,
         "pillars_aligned": len(active_pillars),
         "active_pillars_list": active_pillars,
-        "engine_version": 5,
+        "engine_version": 6,
         # Dedicated Pattern Fields for UI Display
         "pattern_badge": pat.get("pattern_badge", "⚖️ Neutral Rotation"),
         "pattern_rule_name": pat.get("rule_name", "NEUTRAL"),
