@@ -98,8 +98,8 @@ def save_locked_prediction(
             existing = locked[f"{d_clean}:{pkey}"]
 
         if existing and existing.get("action") == "PLAY" and existing.get("recommended_team"):
-            if existing.get("engine_version", 0) >= 4 and (verdict.get("action") != "PLAY" or not verdict.get("recommended_team")):
-                # Preserve the original PLAY call only if locked under current v4 5-pillar engine
+            if existing.get("engine_version", 0) >= 5 and (verdict.get("action") != "PLAY" or not verdict.get("recommended_team")):
+                # Preserve the original PLAY call only if locked under current v5 5-pillar engine
                 return
 
         if m_id_str:
@@ -126,7 +126,7 @@ def get_locked_prediction(
     m_id_str = str(match_id or "").strip()
     if m_id_str and m_id_str in locked:
         cand = locked[m_id_str]
-        if isinstance(cand, dict) and (cand.get("engine_version") == 4 or cand.get("action") == "SKIP"):
+        if isinstance(cand, dict) and (cand.get("engine_version") == 5 or cand.get("action") == "SKIP"):
             return cand
         return None
 
@@ -136,7 +136,7 @@ def get_locked_prediction(
         dkey = f"{d_clean}:{pkey}"
         if dkey in locked:
             cand = locked[dkey]
-            if isinstance(cand, dict) and (cand.get("engine_version") == 4 or cand.get("action") == "SKIP"):
+            if isinstance(cand, dict) and (cand.get("engine_version") == 5 or cand.get("action") == "SKIP"):
                 return cand
             return None
 
@@ -242,23 +242,23 @@ def compute_multi_source_toss_load(
     if locked_verdict:
         if locked_verdict.get("action") == "SKIP" or not locked_verdict.get("recommended_team") or is_exhibition:
             locked_verdict = None
-        elif locked_verdict.get("engine_version") != 4:
+        elif locked_verdict.get("engine_version") != 5:
             locked_verdict = None
-        elif locked_verdict.get("confidence_pct", 50) > 80 or "crex" in str(locked_verdict.get("consensus_badge", "")).lower() or locked_verdict.get("pillars_total") != 9:
+        elif locked_verdict.get("confidence_pct", 50) > 80 or "crex" in str(locked_verdict.get("consensus_badge", "")).lower() or locked_verdict.get("pillars_total") != 5:
             locked_verdict = None
 
     if locked_verdict:
-        # Strict 72%+ Satik Gating & Minimum 5 Pillars
+        # Strict 72%+ Satik Gating & Minimum 4 of 5 Super Pillars
         pat_name = locked_verdict.get("pattern_rule_name", "NEUTRAL")
         is_pat_valid = pat_name not in ["NEUTRAL", "BALANCED_ROTATION", "EXHIBITION", ""]
-        if (locked_verdict.get("confidence_pct", 50) < 72 or locked_verdict.get("pillars_aligned", 0) < 5 or not is_pat_valid) and locked_verdict.get("action") == "PLAY":
+        if (locked_verdict.get("confidence_pct", 50) < 72 or locked_verdict.get("pillars_aligned", 0) < 4 or not is_pat_valid) and locked_verdict.get("action") == "PLAY":
             locked_verdict["action"] = "SKIP"
             locked_verdict["recommended_team"] = None
             locked_verdict["verdict_tier"] = "PASS"
             locked_verdict["stake_rating"] = "🟡 STRICT PASS (50-50 COIN FLIP TRAP)"
             locked_verdict["consensus_badge"] = f"🟡 50-50 PASS ({locked_verdict.get('confidence_pct', 50)}%)"
             locked_verdict["risk_level"] = "HIGH RISK (50-50 COIN FLIP)"
-            locked_verdict["punter_rationale"] = f"⛔ STRICT PASS: Satik 5-Pillar & Pattern criteria meet nahi hue. Capital safe rakhne ke liye strict pass karein. Din me sirf 2-4 golden matches hi play karein."
+            locked_verdict["punter_rationale"] = f"⛔ STRICT PASS: Satik 5-Pillar & Pattern criteria meet nahi hue. Capital safe rakhne ke liye strict pass karein. Din me sirf 3-4 golden matches hi play karein."
             save_locked_prediction(m_id_str, locked_verdict, t_a, t_b)
 
         if not locked_verdict.get("pattern_badge") or not locked_verdict.get("a_streak_str"):
@@ -359,100 +359,118 @@ def compute_multi_source_toss_load(
             bookie_prob = int(round((oa / (oa + ob)) * 100))
             market_edge = -(bookie_prob - 50) * 0.7
 
-    # Step 6: 9-Pillar Professional Independent Confluence Engine
-    # Strictly independent pillars with ZERO cascade / circular dependencies
+    # Step 6: 5-Pillar Super Satik Confluence Engine (v5 Architecture)
+    # The 4 secondary indicators are absorbed directly into the 5 primary Super Pillars:
+    # Pillar 1: Form Momentum & Season Conversion (Recent 5-game form + 80%+ season / knockout crunch)
+    # Pillar 2: Sharp Bookmaker & Telegram Syndicate Flow (Asian market odds divergence + syndicate consensus)
+    # Pillar 3: Head-to-Head Direct Dominance & Sequence Rhythm (Direct H2H win dominance + alternating zig-zag rotation)
+    # Pillar 4: Venue Conditions & MCC 1.3 Coin Calling Law (MCC 1.3 visiting caller initiative + evening dew criticality)
+    # Pillar 5: Mathematical Tipper Pattern Engine Lock (Streak Exhaustion / Reversal / Alternating / Multi-Game Pattern)
     confluence_factors_a = []
     confluence_factors_b = []
 
-    # PILLAR 1: Team Toss Form Momentum (Dominant 60%+ Margin)
-    # Strictly requires >= 3 wins in last 5 AND at least +2 net win margin over opponent
-    if a_wins >= 3 and (a_wins - b_wins) >= 2:
-        confluence_factors_a.append(f"Winning Toss Momentum: {t_a} won {a_wins} of last 5 tosses (Dominant Form)")
-    elif b_wins >= 3 and (b_wins - a_wins) >= 2:
-        confluence_factors_b.append(f"Winning Toss Momentum: {t_b} won {b_wins} of last 5 tosses (Dominant Form)")
+    # SUPER PILLAR 1: Form Momentum & Season Conversion
+    is_knockout = any(k in (tournament or "").lower() for k in [
+        "final", "semi", "playoff", "eliminator", "qualifier", "decider", "trophy", "cup"
+    ])
+    has_conversion_edge_a = (a_wins >= 3 and a_losses <= 1) or (a_wins >= 4) or (is_knockout and a_wins > b_wins)
+    has_conversion_edge_b = (b_wins >= 3 and b_losses <= 1) or (b_wins >= 4) or (is_knockout and b_wins > a_wins)
+    
+    if has_conversion_edge_a and a_wins >= b_wins:
+        confluence_factors_a.append(f"Momentum & Conversion: {t_a} holds dominant recent form ({a_wins}/5 wins) & season conversion")
+    elif has_conversion_edge_b and b_wins >= a_wins:
+        confluence_factors_b.append(f"Momentum & Conversion: {t_b} holds dominant recent form ({b_wins}/5 wins) & season conversion")
+    elif a_wins >= 3 and (a_wins - b_wins) >= 1:
+        confluence_factors_a.append(f"Momentum & Conversion: {t_a} captain displays positive toss win momentum ({a_wins}/5)")
+    elif b_wins >= 3 and (b_wins - a_wins) >= 1:
+        confluence_factors_b.append(f"Momentum & Conversion: {t_b} captain displays positive toss win momentum ({b_wins}/5)")
 
-    # PILLAR 2: Asian Bookmaker Line & CREX Sharp Divergence
-    # Strictly requires active non-dummy market with >= 10 points rate divergence
-    if has_active_market:
-        if oa < ob:
-            confluence_factors_a.append(f"Sharp Bookmaker Line: Asian bookie rate divergence favors {t_a} ({oa} vs {ob})")
-        else:
-            confluence_factors_b.append(f"Sharp Bookmaker Line: Asian bookie rate divergence favors {t_b} ({ob} vs {oa})")
-
-    # PILLAR 3: Head-to-Head Toss Dominance (Direct Matchup Edge)
-    # Strictly requires at least 2 historical matches with >= 65% win rate
-    if tot_h2h >= 2:
-        if h2h_a > h2h_b and (h2h_a / tot_h2h) >= 0.65:
-            confluence_factors_a.append(f"H2H Direct Dominance: {t_a} won {h2h_a} of {tot_h2h} past head-to-head tosses")
-        elif h2h_b > h2h_a and (h2h_b / tot_h2h) >= 0.65:
-            confluence_factors_b.append(f"H2H Direct Dominance: {t_b} won {h2h_b} of {tot_h2h} past head-to-head tosses")
-
-    # PILLAR 4: H2H Zig-Zag Sequence Alternation
-    from core.engine.pattern_engine import get_h2h_toss_sequence
-    h2h_seq = get_h2h_toss_sequence(t_a, t_b)
-    if len(h2h_seq) >= 3 and h2h_seq[-1] != h2h_seq[-2] and h2h_seq[-2] != h2h_seq[-3]:
-        if h2h_seq[-1] == 'A':
-            confluence_factors_b.append(f"H2H Sequence Alternation: Zig-zag sequence favors {t_b}")
-        else:
-            confluence_factors_a.append(f"H2H Sequence Alternation: Zig-zag sequence favors {t_a}")
-
-    # PILLAR 5: Coin Calling Protocol (Away / Visiting Team Law)
-    # Under MCC Law 1.3, Team B (away / visiting team) calls the coin toss.
-    is_neutral_venue = any(k in (tournament or "").lower() for k in ["world cup", "champions", "asia cup", "tri-series", "t10"])
-    if not is_neutral_venue:
-        if b_wins >= 3:
-            confluence_factors_b.append(f"Coin Calling Law: Visiting caller initiative favors {t_b} in away conditions")
-        elif a_wins >= 3 and tot_h2h >= 1 and h2h_a > h2h_b:
-            confluence_factors_a.append(f"Home Ground Defense: {t_a} holds proven home venue reading advantage")
-
-    # PILLAR 6: Venue Condition & Day/Night Dew Pressure
-    # Evaluates evening toss criticality (night matches with dew factor)
-    is_d_n = any(k in (match_time or "").lower() for k in ["pm", "night", "18:", "19:", "20:", "17:"])
-    if is_d_n and (a_wins != b_wins):
-        if a_wins >= 3 and a_losses <= 1:
-            confluence_factors_a.append(f"D/N Dew Urgency: {t_a} displays superior condition-read conversion in evening games")
-        elif b_wins >= 3 and b_losses <= 1:
-            confluence_factors_b.append(f"D/N Dew Urgency: {t_b} displays superior condition-read conversion in evening games")
-
-    # PILLAR 7: Telegram Sharp Syndicate Tipster Alignment
-    # Check if this match has verified public syndicate tip
+    # SUPER PILLAR 2: Sharp Bookmaker & Telegram Syndicate Flow
+    tg_fav_a = False
+    tg_fav_b = False
     try:
         from core.providers.telegram_toss_feed import match_team_with_tg_winner
         tg_feed = get_memoized_tg_feed()
         for tg_post in tg_feed:
             w_raw = tg_post.get("winner_raw", "")
             if match_team_with_tg_winner(t_a, w_raw):
-                confluence_factors_a.append(f"Telegram Syndicate Consensus: Public tipster channels confirm {t_a}")
+                tg_fav_a = True
                 break
             elif match_team_with_tg_winner(t_b, w_raw):
-                confluence_factors_b.append(f"Telegram Syndicate Consensus: Public tipster channels confirm {t_b}")
+                tg_fav_b = True
                 break
     except Exception:
         pass
 
-    # PILLAR 8: Mathematical Tipper Pattern Engine Lock
-    # Confirms that the Pattern Rule Engine has detected an active statistical edge (Streak Reversion, Zig-Zag, H2H Dominance, or Momentum)
+    if has_active_market and oa < ob:
+        bookie_msg = f"Asian bookie rate divergence ({oa} vs {ob})"
+        if tg_fav_a:
+            confluence_factors_a.append(f"Market & Syndicate Flow: {bookie_msg} & Telegram syndicate consensus both back {t_a}")
+        else:
+            confluence_factors_a.append(f"Market & Syndicate Flow: {bookie_msg} sharply favors {t_a}")
+    elif has_active_market and ob < oa:
+        bookie_msg = f"Asian bookie rate divergence ({ob} vs {oa})"
+        if tg_fav_b:
+            confluence_factors_b.append(f"Market & Syndicate Flow: {bookie_msg} & Telegram syndicate consensus both back {t_b}")
+        else:
+            confluence_factors_b.append(f"Market & Syndicate Flow: {bookie_msg} sharply favors {t_b}")
+    elif tg_fav_a and not tg_fav_b:
+        confluence_factors_a.append(f"Market & Syndicate Flow: Verified Telegram sharp syndicate consensus backs {t_a}")
+    elif tg_fav_b and not tg_fav_a:
+        confluence_factors_b.append(f"Market & Syndicate Flow: Verified Telegram sharp syndicate consensus backs {t_b}")
+
+    # SUPER PILLAR 3: Head-to-Head Direct Dominance & Sequence Rhythm
+    from core.engine.pattern_engine import get_h2h_toss_sequence
+    h2h_seq = get_h2h_toss_sequence(t_a, t_b)
+    has_zigzag_a = (len(h2h_seq) >= 3 and h2h_seq[-1] != h2h_seq[-2] and h2h_seq[-2] != h2h_seq[-3] and h2h_seq[-1] == 'B')
+    has_zigzag_b = (len(h2h_seq) >= 3 and h2h_seq[-1] != h2h_seq[-2] and h2h_seq[-2] != h2h_seq[-3] and h2h_seq[-1] == 'A')
+
+    has_h2h_dom_a = (tot_h2h >= 2 and h2h_a > h2h_b and (h2h_a / tot_h2h) >= 0.60)
+    has_h2h_dom_b = (tot_h2h >= 2 and h2h_b > h2h_a and (h2h_b / tot_h2h) >= 0.60)
+
+    if (has_h2h_dom_a or has_zigzag_a) and not (has_h2h_dom_b or has_zigzag_b):
+        details = []
+        if has_h2h_dom_a:
+            details.append(f"{h2h_a}/{tot_h2h} past H2H wins")
+        if has_zigzag_a:
+            details.append("alternating zig-zag rotation rhythm")
+        confluence_factors_a.append(f"H2H Mastery & Rotation: {t_a} holds direct advantage ({', '.join(details)})")
+    elif (has_h2h_dom_b or has_zigzag_b) and not (has_h2h_dom_a or has_zigzag_a):
+        details = []
+        if has_h2h_dom_b:
+            details.append(f"{h2h_b}/{tot_h2h} past H2H wins")
+        if has_zigzag_b:
+            details.append("alternating zig-zag rotation rhythm")
+        confluence_factors_b.append(f"H2H Mastery & Rotation: {t_b} holds direct advantage ({', '.join(details)})")
+
+    # SUPER PILLAR 4: Venue Conditions & MCC 1.3 Coin Calling Law
+    is_neutral_venue = any(k in (tournament or "").lower() for k in ["world cup", "champions", "asia cup", "tri-series", "t10"])
+    is_d_n = any(k in (match_time or "").lower() for k in ["pm", "night", "18:", "19:", "20:", "17:"])
+
+    # Team B (visiting team) has coin calling initiative under MCC Law 1.3
+    caller_edge_b = (not is_neutral_venue and b_wins >= 2 and (is_d_n or b_wins >= a_wins))
+    # Team A has home venue condition defense
+    home_edge_a = (not is_neutral_venue and a_wins >= 3 and tot_h2h >= 1 and h2h_a >= h2h_b)
+
+    if is_d_n and (a_wins != b_wins):
+        if a_wins >= 3 and a_losses <= 1:
+            home_edge_a = True
+        elif b_wins >= 3 and b_losses <= 1:
+            caller_edge_b = True
+
+    if caller_edge_b and not home_edge_a:
+        confluence_factors_b.append(f"Venue & Calling Law: MCC Law 1.3 coin caller initiative & condition read favor {t_b}")
+    elif home_edge_a and not caller_edge_b:
+        confluence_factors_a.append(f"Venue & Calling Law: Home venue pitch/dew reading defense favors {t_a}")
+
+    # SUPER PILLAR 5: Mathematical Tipper Pattern Engine Lock
     if pat.get("pattern_found"):
         fav_pat = pat.get("favored_team")
         rule_label = pat.get("rule_name", "PATTERN").replace("_", " ").title()
         if fav_pat == t_a:
-            confluence_factors_a.append(f"Pattern Engine Lock: {rule_label} rule mathematically confirms {t_a}")
+            confluence_factors_a.append(f"Pattern Engine Lock: Mathematical {rule_label} rule locked on {t_a}")
         elif fav_pat == t_b:
-            confluence_factors_b.append(f"Pattern Engine Lock: {rule_label} rule mathematically confirms {t_b}")
-
-    # PILLAR 9: Tournament Crunch Phase & 80%+ Season Conversion
-    is_knockout = any(k in (tournament or "").lower() for k in [
-        "final", "semi", "playoff", "eliminator", "qualifier", "decider", "trophy", "cup"
-    ])
-    if is_knockout:
-        if a_wins > b_wins and a_losses <= b_losses:
-            confluence_factors_a.append(f"Crunch Composure: {t_a} captain displays proven nerve control in knockout stages")
-        elif b_wins > a_wins and b_losses <= a_losses:
-            confluence_factors_b.append(f"Crunch Composure: {t_b} captain displays proven nerve control in knockout stages")
-    elif (a_wins >= 4 and b_losses >= 3):
-        confluence_factors_a.append(f"League Form Dominance: {t_a} holds 80%+ season toss conversion rate")
-    elif (b_wins >= 4 and a_losses >= 3):
-        confluence_factors_b.append(f"League Form Dominance: {t_b} holds 80%+ season toss conversion rate")
+            confluence_factors_b.append(f"Pattern Engine Lock: Mathematical {rule_label} rule locked on {t_b}")
 
     pillars_a = len(confluence_factors_a)
     pillars_b = len(confluence_factors_b)
@@ -477,8 +495,8 @@ def compute_multi_source_toss_load(
         net_pillars = 0
 
     # Composite Mathematical Score (5-Pillar & Pattern Confluence Engine)
-    # Baseline 50% + (Net Pillars * 5.0%) + Market Edge adjustment
-    calc_conf = 50 + int(round(net_pillars * 5.0))
+    # Baseline 50% + (Net Pillars * 6.5%) + Market Edge adjustment
+    calc_conf = 50 + int(round(net_pillars * 6.5))
     if has_active_market:
         calc_conf += 3
 
@@ -487,26 +505,25 @@ def compute_multi_source_toss_load(
 
     # Step 7: Extreme 5-Pillar Iron-Clad Pattern Gate (Top Precision)
     # A match ONLY qualifies as PLAY if:
-    # 1. Total active independent pillars >= 5 (Strict user requirement: 5 out of 9)
-    # 2. Net margin >= 4 (Strong dominant margin over opponent)
+    # 1. Total active independent pillars >= 4 (Strict requirement: At least 4 of 5 Super Pillars)
+    # 2. Net margin >= 3 (Strong dominant margin over opponent)
     # 3. Conflicting opposing pillars == 0 (Zero opposing red flags)
     # 4. Mandatory Pattern Engine Confirmation (pat.get("pattern_found") is True and pat.get("favored_team") == favored)
-    # 5. External Anchor (Real bookie divergence OR Telegram syndicate OR H2H dominance OR 80%+ conversion)
+    # 5. External Anchor (Real bookie divergence OR Telegram syndicate OR H2H dominance OR 80%+ conversion OR Pattern Lock)
     # 6. High conviction confidence >= 72%
     is_pattern_confirmed = bool(pat.get("pattern_found") and pat.get("favored_team") == favored)
 
     has_external_anchor = (
         has_active_market
         or any("H2H" in p for p in active_pillars)
-        or any("Telegram" in p for p in active_pillars)
-        or any("80%+" in p for p in active_pillars)
-        or any("Dominance" in p for p in active_pillars)
+        or any("Syndicate" in p for p in active_pillars)
+        or any("Conversion" in p for p in active_pillars)
         or any("Pattern Engine" in p for p in active_pillars)
     )
 
     is_iron_clad_lock = (
-        len(active_pillars) >= 5
-        and net_pillars >= 4
+        len(active_pillars) >= 4
+        and net_pillars >= 3
         and len(conflicting_pillars) == 0
         and has_external_anchor
         and is_pattern_confirmed
@@ -518,14 +535,14 @@ def compute_multi_source_toss_load(
         verdict_tier = "SUPER_LOCK"
         rating = "💎 100% SATIK VIP LOCK (5-PILLAR + PATTERN)"
         badge = f"💎 100% SATIK LOCK ({confidence}%)"
-        risk_level = "LOW RISK (5/9 PILLARS + PATTERN VERIFIED)"
-        pillar_bullets = " · ".join(active_pillars[:5])
+        risk_level = f"LOW RISK ({len(active_pillars)}/5 PILLARS + PATTERN VERIFIED)"
+        pillar_bullets = " · ".join(active_pillars)
         pat_name = pat.get("rule_name", "PATTERN").replace("_", " ").title()
-        rationale = f"💎 5-PILLAR IRON-CLAD SATIK LOCK: {pillar_bullets} · Pattern Confirmed: {pat_name}. Unanimous syndicate agreement ({len(active_pillars)}/9 Pillars). Recommended: Back {favored} with disciplined flat stake (2.5%)."
-        source_summary = f"Satik Confluence ({len(active_pillars)}/9 Aligned · {confidence}%)"
+        rationale = f"💎 5-PILLAR SATIK VIP LOCK: {pillar_bullets} · Pattern Confirmed: {pat_name}. Unanimous syndicate agreement ({len(active_pillars)}/5 Pillars). Recommended: Back {favored} with disciplined flat stake (2.5%)."
+        source_summary = f"Satik Confluence ({len(active_pillars)}/5 Aligned · {confidence}%)"
         rec_team = favored
         und_team = underdog
-        market_load_str = f"📊 Confluence: {len(active_pillars)}/9 Pillars + Pattern on {favored}"
+        market_load_str = f"📊 Confluence: {len(active_pillars)}/5 Pillars + Pattern on {favored}"
     else:
         action = "SKIP"
         verdict_tier = "PASS"
@@ -535,8 +552,8 @@ def compute_multi_source_toss_load(
         
         # Build precise diagnostic reason for rejection
         reasons_list = []
-        if len(active_pillars) < 5:
-            reasons_list.append(f"Only {len(active_pillars)} pillars aligned (min 5 required)")
+        if len(active_pillars) < 4:
+            reasons_list.append(f"Only {len(active_pillars)}/5 pillars aligned (min 4 required)")
         if not is_pattern_confirmed:
             reasons_list.append("Pattern Engine not confirmed (Neutral/Balanced rotation)")
         if not has_external_anchor:
@@ -547,7 +564,7 @@ def compute_multi_source_toss_load(
             reasons_list.append(f"Confidence score {confidence}% (min 72% required)")
             
         diag_txt = " · ".join(reasons_list) if reasons_list else "Both teams in 50-50 neutral coin-flip zone"
-        rationale = f"⛔ STRICT PASS (50-50 COIN FLIP): {diag_txt}. 5-Pillar + Pattern Satik criteria not met. Strict pass to preserve bankroll."
+        rationale = f"⛔ STRICT PASS (50-50 COIN FLIP): {diag_txt}. 5-Pillar Satik criteria not met. Strict pass to preserve bankroll. Din me sirf 3-4 golden matches hi play karein."
         source_summary = f"Flat / Coin-Flip Zone ({confidence}%)"
         rec_team = None
         und_team = None
@@ -567,10 +584,10 @@ def compute_multi_source_toss_load(
         "punter_rationale": rationale,
         "total_edge": round(float(confidence - 50), 1),
         "clues_matched": bool(has_active_market),
-        "pillars_total": 9,
+        "pillars_total": 5,
         "pillars_aligned": len(active_pillars),
         "active_pillars_list": active_pillars,
-        "engine_version": 4,
+        "engine_version": 5,
         # Dedicated Pattern Fields for UI Display
         "pattern_badge": pat.get("pattern_badge", "⚖️ Neutral Rotation"),
         "pattern_rule_name": pat.get("rule_name", "NEUTRAL"),

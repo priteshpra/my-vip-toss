@@ -647,8 +647,8 @@ for m in all_matches:
         m["confidence_pct"] = l_pred.get("confidence_pct", 75)
         m["stake_rating"] = l_pred.get("stake_rating", "💎 100% SATIK VIP LOCK (5-PILLAR + PATTERN)")
         m["consensus_badge"] = l_pred.get("consensus_badge", "💎 100% SATIK LOCK (75%)")
-        m["pillars_aligned"] = l_pred.get("pillars_aligned", 5)
-        m["pillars_total"] = l_pred.get("pillars_total", 9)
+        m["pillars_aligned"] = l_pred.get("pillars_aligned", 4)
+        m["pillars_total"] = l_pred.get("pillars_total", 5)
         m["active_pillars_list"] = l_pred.get("active_pillars_list", [])
         m["punter_rationale"] = l_pred.get("punter_rationale", "")
         m["risk_level"] = l_pred.get("risk_level", "LOW RISK")
@@ -924,8 +924,8 @@ with vip_tabs[0]:
 
     st.markdown("""
     <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>Super Satik Engine (v4):</b> Min 5/9 Pillars Aligned + Verified Pattern Confirmed</span>
-        <span style="font-size: 12px; color: #cbd5e1; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 10px; border-radius: 6px;">🎯 Daily Quota: Top 2-4 Golden Plays Only</span>
+        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>Super Satik Engine (v5):</b> 5 Super Pillars + Mathematical Pattern Confirmed</span>
+        <span style="font-size: 12px; color: #cbd5e1; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 10px; border-radius: 6px;">🎯 Daily Quota: Top 3-4 Golden Plays Only</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1142,8 +1142,8 @@ with vip_tabs[0]:
             load_text = m.get("market_load_text", f"{conf}% Market Load")
             clues_text = m.get("cricketclues_status", "Standard Market Line")
             rat = m.get("punter_rationale", "")
-            pil_aligned = m.get("pillars_aligned") or (5 if conf >= 70 else 2)
-            pil_total = m.get("pillars_total") or 9
+            pil_aligned = m.get("pillars_aligned") or (4 if conf >= 70 else 2)
+            pil_total = m.get("pillars_total") or 5
             pil_list = m.get("active_pillars_list", [])
 
             # Calculate CREX-style Win Probability & [Fav] [Back] [Lay] boxes
@@ -1523,13 +1523,13 @@ with vip_tabs[0]:
                                 st.warning("⚠️ Result deleted!")
                                 st.rerun()
 
-                with st.expander(f"📊 9-Pillar Syndicate Breakdown: {t_a} vs {t_b}", expanded=(conf >= 70)):
+                with st.expander(f"📊 5 Super Pillars Syndicate Breakdown: {t_a} vs {t_b}", expanded=(conf >= 70)):
                     st.markdown(f"""
                     <div style="background: #090e1a; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; margin-bottom: 10px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #1e293b; padding-bottom: 8px;">
-                            <span style="font-size: 13px; font-weight: 900; color: #38bdf8;">🏛️ 9-Pillar Syndicate Confluence:</span>
-                            <span style="background: {'rgba(16, 185, 129, 0.2)' if conf >= 72 and pil_aligned >= 5 else 'rgba(234, 179, 8, 0.2)'}; color: {'#34d399' if conf >= 72 and pil_aligned >= 5 else '#facc15'}; border: 1px solid {'#10b981' if conf >= 72 and pil_aligned >= 5 else '#eab308'}; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 800;">
-                                {'💎 ' + str(pil_aligned) if pil_aligned >= 5 else str(pil_aligned)}/{pil_total} Pillars Aligned ({conf}%)
+                            <span style="font-size: 13px; font-weight: 900; color: #38bdf8;">🏛️ 5 Super Pillars Confluence:</span>
+                            <span style="background: {'rgba(16, 185, 129, 0.2)' if conf >= 72 and pil_aligned >= 4 else 'rgba(234, 179, 8, 0.2)'}; color: {'#34d399' if conf >= 72 and pil_aligned >= 4 else '#facc15'}; border: 1px solid {'#10b981' if conf >= 72 and pil_aligned >= 4 else '#eab308'}; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 800;">
+                                {'💎 ' + str(pil_aligned) if pil_aligned >= 4 else str(pil_aligned)}/{pil_total} Pillars Aligned ({conf}%)
                             </span>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">

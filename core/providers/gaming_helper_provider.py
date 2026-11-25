@@ -254,7 +254,7 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
             m["b_streak_str"] = v.get("b_streak_str", "Even")
             m["a_last5_str"] = v.get("a_last5_str", "None")
             m["b_last5_str"] = v.get("b_last5_str", "None")
-            m["pillars_total"] = v.get("pillars_total", 9)
+            m["pillars_total"] = v.get("pillars_total", 5)
             m["pillars_aligned"] = v.get("pillars_aligned", 0)
             m["active_pillars_list"] = v.get("active_pillars_list", [])
             if not m.get("match_date"):
@@ -615,7 +615,7 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
             "b_streak_str": vip_verdict.get("b_streak_str", "Even"),
             "a_last5_str": vip_verdict.get("a_last5_str", "None"),
             "b_last5_str": vip_verdict.get("b_last5_str", "None"),
-            "pillars_total": vip_verdict.get("pillars_total", 9),
+            "pillars_total": vip_verdict.get("pillars_total", 5),
             "pillars_aligned": vip_verdict.get("pillars_aligned", 0),
             "active_pillars_list": vip_verdict.get("active_pillars_list", []),
             "is_live": item.get("isLive", 1),
@@ -747,7 +747,7 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
         deduped_matches.append(m)
     matches = deduped_matches
 
-    # Apply Daily Golden Quota Filter: Maximum 2 to 4 confirmed plays per day
+    # Apply Daily Golden Quota Filter: Maximum 3 to 4 confirmed plays per day
     # Groups by match_date, ranks by conviction score, strictly caps at Top 4 per day
     matches_by_date = {}
     for m in matches:
@@ -757,30 +757,30 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
     for d, d_matches in matches_by_date.items():
         plays = [m for m in d_matches if m.get("action_type") == "PLAY" or m.get("action") == "PLAY"]
         if plays:
-            # Rank plays by conviction score: (confidence * 100) + (pillars_aligned * 25) + edge
+            # Rank plays by conviction score: (confidence * 100) + (pillars_aligned * 30) + edge
             plays.sort(
                 key=lambda x: (
                     int(x.get("confidence_pct", 50)) * 100
-                    + int(x.get("pillars_aligned", 0)) * 25
+                    + int(x.get("pillars_aligned", 0)) * 30
                     + abs(float(x.get("total_edge", 0))) * 10
                 ),
                 reverse=True
             )
-            # Top 4 remain confirmed VIP Golden Picks
+            # Top 3-4 remain confirmed VIP Golden Picks
             for p in plays[:4]:
                 p["consensus_badge"] = f"💎 TOP GOLDEN PICK ({p.get('confidence_pct')}%)"
-                p["stake_rating"] = "💎 100% SATIK VIP LOCK (TOP 2-4 GOLDEN PICK)"
+                p["stake_rating"] = "💎 100% SATIK VIP LOCK (TOP 3-4 GOLDEN PICK)"
             # Any qualifying beyond Top 4 are capped to SKIP to preserve bankroll
             for p in plays[4:]:
                 p["action_type"] = "SKIP"
                 p["action"] = "SKIP"
                 p["recommended_team"] = None
                 p["vip_pick"] = None
-                p["stake_rating"] = "🟡 PASS (DAILY 2-4 GOLDEN QUOTA REACHED)"
-                p["consensus_badge"] = "🟡 PASS (DISCIPLINED 2-4 CAP)"
+                p["stake_rating"] = "🟡 PASS (DAILY 3-4 GOLDEN QUOTA REACHED)"
+                p["consensus_badge"] = "🟡 PASS (DISCIPLINED 3-4 CAP)"
                 p["punter_rationale"] = (
-                    f"⛔ STRICT PASS (DAILY 2-4 GOLDEN QUOTA): Match criteria meet karta hai, lekin bankroll discipline "
-                    f"ke hisab se hum din me sirf Top 2-4 Golden Picks hi play karte hain ({len(plays)} qualified today). "
+                    f"⛔ STRICT PASS (DAILY 3-4 GOLDEN QUOTA): Match criteria meet karta hai, lekin bankroll discipline "
+                    f"ke hisab se hum din me sirf Top 3-4 Golden Picks hi play karte hain ({len(plays)} qualified today). "
                     f"Capital safe rakhne ke liye is match ko pass karein."
                 )
 
