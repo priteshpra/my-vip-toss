@@ -355,7 +355,7 @@ def get_crex_live_bhav(team_a: str, team_b: str, match_id: Optional[str] = None,
     return None
 
 
-def sync_active_series_history_from_crex(max_series: int = 3) -> int:
+def sync_active_series_history_from_crex(max_series: int = 15) -> int:
     """
     Harvests ground-truth toss history for ongoing tournament series on CREX.
     Ensures toss streaks, form, and H2H records are 100% complete for active leagues.

@@ -172,3 +172,69 @@ def test_historical_archive_merges_multiyear_dedups_and_filters_bad_rows(tmp_pat
     assert [r["match_date"] for r in merged] == ["2026-11-20", "2025-04-10", "2024-04-01"]
     assert merged[0]["actual_winner"] == "MI"
 
+
+def test_post_toss_telegram_result_does_not_trigger_pillar2(tmp_path, monkeypatch):
+    """Post-toss Telegram WON THE TOSS feed must never inflate pre-toss Pillar 2 consensus."""
+    log_path = tmp_path / "toss_results_log.json"
+    locked_path = tmp_path / "toss_predictions_locked.json"
+
+    records = [
+        {"team_a": "Alpha", "team_b": "Beta", "actual_winner": "Beta"},
+        {"team_a": "Alpha", "team_b": "Beta", "actual_winner": "Beta"},
+        {"team_a": "Beta", "team_b": "X1", "actual_winner": "Beta"},
+        {"team_a": "Beta", "team_b": "X2", "actual_winner": "X2"},
+        {"team_a": "Alpha", "team_b": "X3", "actual_winner": "Alpha"},
+        {"team_a": "Alpha", "team_b": "X4", "actual_winner": "X4"},
+        {"team_a": "Alpha", "team_b": "X5", "actual_winner": "X5"},
+    ]
+    log_path.write_text(json.dumps(records), encoding="utf-8")
+    locked_path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(pattern_engine, "LOG_FILE", str(log_path))
+    monkeypatch.setattr(toss_load_provider, "LOG_FILE", str(log_path))
+    monkeypatch.setattr(toss_load_provider, "LOCKED_PREDICTIONS_FILE", str(locked_path))
+    monkeypatch.setattr(
+        toss_load_provider,
+        "get_memoized_tg_feed",
+        lambda: [{"winner_raw": "Beta", "decision": "Bowl", "post_iso": "2026-11-24T10:00:00Z"}],
+    )
+
+    verdict = toss_load_provider.compute_multi_source_toss_load(
+        team_a="Alpha",
+        team_b="Beta",
+        odds_a=98,
+        odds_b=80,
+        tournament="Test T20",
+        match_time="12:00 PM IST",
+        match_id="test_no_tg_result_abuse",
+    )
+
+    assert not any("Telegram" in p for p in verdict["active_pillars_list"])
+
+
+def test_empirical_rule_backtest_returns_structured_rows(tmp_path):
+    """Empirical backtest runs chronologically without lookahead and summarizes rule stats."""
+    log_path = tmp_path / "toss_results_log.json"
+    archive_path = tmp_path / "historical_toss_archive.json"
+    db_path = tmp_path / "none.db"
+
+    records = [
+        {"match_date": "2026-11-04", "team_a": "A", "team_b": "B", "actual_winner": "A"},
+        {"match_date": "2026-11-03", "team_a": "A", "team_b": "B", "actual_winner": "A"},
+        {"match_date": "2026-11-02", "team_a": "A", "team_b": "B", "actual_winner": "A"},
+    ]
+    log_path.write_text(json.dumps(records), encoding="utf-8")
+    archive_path.write_text("[]", encoding="utf-8")
+
+    bt = historical_archive.run_empirical_rule_backtest(
+        log_file=str(log_path),
+        archive_file=str(archive_path),
+        db_file=str(db_path),
+    )
+    assert bt["matches_evaluated"] == 3
+    h2h_row = next(r for r in bt["rules"] if r["Rule"] == "H2H_DOMINANCE")
+    assert h2h_row["Wins"] == 1
+    assert h2h_row["Total"] == 1
+    assert h2h_row["Win %"] == 100.0
+
+

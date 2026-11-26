@@ -345,7 +345,7 @@ def compute_multi_source_toss_load(
     elif a_losses >= 3 and b_losses < a_losses:
         h2h_form_edge -= (a_losses - b_losses) * 4.0
 
-    # Step 5: Market Edge (Asian Bookmaker Toss Odds)
+    # Step 5: Market Edge (Asian Bookmaker Toss Odds + Manual CREX Toss Override)
     oa = max(20, min(250, int(odds_a or 98)))
     ob = max(20, min(250, int(odds_b or 80)))
     rate_diff = abs(oa - ob)
@@ -362,6 +362,33 @@ def compute_multi_source_toss_load(
         else:
             bookie_prob = int(round((oa / (oa + ob)) * 100))
             market_edge = -(bookie_prob - 50) * 0.7
+    else:
+        # Check manual toss bhav overrides (data/crex_overrides.json) if GamingHelper odds are flat
+        ov_file = os.path.join(DATA_DIR, "crex_overrides.json")
+        if os.path.exists(ov_file):
+            try:
+                with open(ov_file, "r", encoding="utf-8") as f_ov:
+                    ov_map = json.load(f_ov)
+                ov = ov_map.get(m_id_str)
+                if not ov and isinstance(ov_map, dict):
+                    for k_ov, v_ov in ov_map.items():
+                        if k_ov.lower() in t_a.lower() or k_ov.lower() in t_b.lower():
+                            ov = v_ov
+                            break
+                if isinstance(ov, dict) and ov.get("back") and ov.get("fav_team"):
+                    ov_back = int(ov["back"])
+                    ov_fav = str(ov["fav_team"])
+                    if 10 <= ov_back <= 85:
+                        if match_teams_fuzzy(ov_fav, t_a):
+                            oa, ob = ov_back, 100
+                            has_active_market = True
+                            market_edge = ((100 / (oa + 100)) * 100 - 50) * 0.7
+                        elif match_teams_fuzzy(ov_fav, t_b):
+                            oa, ob = 100, ov_back
+                            has_active_market = True
+                            market_edge = -((100 / (ob + 100)) * 100 - 50) * 0.7
+            except Exception:
+                pass
 
     # Step 6: Independent 5-Pillar Confluence Engine (v7 Architecture)
     # Each pillar measures a distinct signal so a single 3-match streak cannot trigger 3 pillars at once.
@@ -396,39 +423,16 @@ def compute_multi_source_toss_load(
             f"Form & Season Edge: {t_b} ({b_wins}/5 recent, {wr_b_full*100:.0f}% overall) leads {t_a} ({a_wins}/5 recent, {wr_a_full*100:.0f}% overall)"
         )
 
-    # SUPER PILLAR 2: Sharp Bookmaker & Telegram Syndicate Flow
+    # SUPER PILLAR 2: Sharp Bookmaker Toss Line Divergence
+    # Note: telegram_toss_feed scrapes post-toss results ("WON THE TOSS") for Tab 2 resolution,
+    # NOT pre-toss predictions, so it is intentionally excluded from pre-toss Pillar 2 voting.
     tg_fav_a = False
     tg_fav_b = False
-    try:
-        from core.providers.telegram_toss_feed import match_team_with_tg_winner
-        tg_feed = get_memoized_tg_feed()
-        for tg_post in tg_feed:
-            w_raw = tg_post.get("winner_raw", "")
-            if match_team_with_tg_winner(t_a, w_raw):
-                tg_fav_a = True
-                break
-            elif match_team_with_tg_winner(t_b, w_raw):
-                tg_fav_b = True
-                break
-    except Exception:
-        pass
 
     if has_active_market and oa < ob:
-        bookie_msg = f"Asian bookie rate divergence ({oa} vs {ob})"
-        if tg_fav_a:
-            confluence_factors_a.append(f"Market & Syndicate Flow: {bookie_msg} & Telegram syndicate consensus both back {t_a}")
-        else:
-            confluence_factors_a.append(f"Market & Syndicate Flow: {bookie_msg} sharply favors {t_a}")
+        confluence_factors_a.append(f"Market & Syndicate Flow: Asian bookie rate divergence ({oa} vs {ob}) favors {t_a}")
     elif has_active_market and ob < oa:
-        bookie_msg = f"Asian bookie rate divergence ({ob} vs {oa})"
-        if tg_fav_b:
-            confluence_factors_b.append(f"Market & Syndicate Flow: {bookie_msg} & Telegram syndicate consensus both back {t_b}")
-        else:
-            confluence_factors_b.append(f"Market & Syndicate Flow: {bookie_msg} sharply favors {t_b}")
-    elif tg_fav_a and not tg_fav_b:
-        confluence_factors_a.append(f"Market & Syndicate Flow: Verified Telegram sharp syndicate consensus backs {t_a}")
-    elif tg_fav_b and not tg_fav_a:
-        confluence_factors_b.append(f"Market & Syndicate Flow: Verified Telegram sharp syndicate consensus backs {t_b}")
+        confluence_factors_b.append(f"Market & Syndicate Flow: Asian bookie rate divergence ({ob} vs {oa}) favors {t_b}")
 
     # SUPER PILLAR 3: Head-to-Head Direct Dominance & Sequence Rhythm
     from core.engine.pattern_engine import get_h2h_toss_sequence

@@ -1604,6 +1604,18 @@ with vip_tabs[1]:
                 except Exception as e_arch:
                     st.warning(f"⚠️ Archive sync error: {e_arch}")
 
+    with st.expander("📊 Empirical Rule Backtest (2024–2026 Real Archive)", expanded=False):
+        try:
+            from core.engine.historical_archive import run_empirical_rule_backtest
+            bt = run_empirical_rule_backtest()
+            st.caption(f"Chronological out-of-sample check across **{bt['matches_evaluated']}** verified matches (no future lookahead):")
+            if bt["rules"]:
+                st.dataframe(pd.DataFrame(bt["rules"]), use_container_width=True, hide_index=True)
+            else:
+                st.info("No rule samples available yet. Click 'Sync 2024–26 Archive' above.")
+        except Exception as e_bt:
+            st.warning(f"Backtest unavailable: {e_bt}")
+
     completed_results = load_toss_results()
 
     if not completed_results:

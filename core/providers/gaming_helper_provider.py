@@ -728,6 +728,9 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
                     "b_streak_str": v.get("b_streak_str", "Even"),
                     "a_last5_str": v.get("a_last5_str", "None"),
                     "b_last5_str": v.get("b_last5_str", "None"),
+                    "pillars_total": v.get("pillars_total", 5),
+                    "pillars_aligned": v.get("pillars_aligned", 0),
+                    "active_pillars_list": v.get("active_pillars_list", []),
                     "is_live": 1,
                     "status": "UPCOMING",
                     "source": "CREX Live Feed"

@@ -26,8 +26,19 @@ DB_FILE = os.path.join(ROOT_DIR, "toss_analytics.db")
 
 CRICSHEET_ARCHIVE_URLS: Dict[str, str] = {
     "ipl": "https://cricsheet.org/downloads/ipl_json.zip",
+    "wpl": "https://cricsheet.org/downloads/wpl_json.zip",
     "bbl": "https://cricsheet.org/downloads/bbl_json.zip",
     "wbbl": "https://cricsheet.org/downloads/wbbl_json.zip",
+    "psl": "https://cricsheet.org/downloads/psl_json.zip",
+    "cpl": "https://cricsheet.org/downloads/cpl_json.zip",
+    "sat": "https://cricsheet.org/downloads/sat_json.zip",
+    "bpl": "https://cricsheet.org/downloads/bpl_json.zip",
+    "lpl": "https://cricsheet.org/downloads/lpl_json.zip",
+    "ssm": "https://cricsheet.org/downloads/ssm_json.zip",
+    "hnd": "https://cricsheet.org/downloads/hnd_json.zip",
+    "mlc": "https://cricsheet.org/downloads/mlc_json.zip",
+    "ntb": "https://cricsheet.org/downloads/ntb_json.zip",
+    "csa": "https://cricsheet.org/downloads/csa_json.zip",
     "t20s": "https://cricsheet.org/downloads/t20s_json.zip",
     "odis": "https://cricsheet.org/downloads/odis_json.zip",
     "ilt": "https://cricsheet.org/downloads/ilt_json.zip",
@@ -323,3 +334,83 @@ def sync_historical_archive_from_cricsheet(
         "added_records": max(0, len(out) - initial_count),
         "synced_leagues": synced_leagues,
     }
+
+
+def run_empirical_rule_backtest(
+    log_file: Optional[str] = None,
+    archive_file: Optional[str] = None,
+    db_file: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Chronologically backtest each pattern rule across all merged real matches (zero lookahead)."""
+    from collections import defaultdict
+    from core.engine.pattern_engine import match_teams
+
+    recs = list(reversed(load_merged_toss_records(log_file=log_file, archive_file=archive_file, db_file=db_file)))
+    stats = defaultdict(lambda: [0, 0])
+    team_hist: Dict[str, List[int]] = defaultdict(list)
+    h2h_hist: Dict[Tuple[str, str], List[str]] = defaultdict(list)
+
+    def _streak(h: List[int]) -> int:
+        if len(h) < 3:
+            return 0
+        last = h[-1]
+        c = 0
+        for x in reversed(h):
+            if x == last:
+                c += 1
+            else:
+                break
+        return c if last == 1 else -c
+
+    evaluated = 0
+    for r in recs:
+        ta = str(r.get("team_a") or "").strip()
+        tb = str(r.get("team_b") or "").strip()
+        w = str(r.get("actual_winner") or "").strip()
+        if not (match_teams(ta, w) or match_teams(tb, w)):
+            continue
+        evaluated += 1
+        w_is_a = match_teams(ta, w)
+        ka, kb = _norm_pair_token(ta), _norm_pair_token(tb)
+        ha, hb = team_hist[ka], team_hist[kb]
+        pk = (ka, kb) if ka <= kb else (kb, ka)
+        hh = [1 if x == ka else 0 for x in h2h_hist[pk]]
+        sa, sb = _streak(ha), _streak(hb)
+
+        if len(hh) >= 2 and hh[-1] == hh[-2]:
+            pred_a = (hh[-1] == 1)
+            stats["H2H_DOMINANCE"][0 if (pred_a == w_is_a) else 1] += 1
+        elif len(hh) >= 3 and hh[-1] != hh[-2] and hh[-2] != hh[-3]:
+            pred_a = (hh[-1] == 0)
+            stats["ZIG_ZAG_ALTERNATION"][0 if (pred_a == w_is_a) else 1] += 1
+        elif len(ha) >= 3 and len(hb) >= 3:
+            if sa <= -3 and sb > -3:
+                stats["STREAK_EXHAUSTION (3L)"][0 if w_is_a else 1] += 1
+            elif sb <= -3 and sa > -3:
+                stats["STREAK_EXHAUSTION (3L)"][0 if not w_is_a else 1] += 1
+            elif sa >= 4 and sb >= -1:
+                stats["WIN_STREAK_SNAP (4W+)"][0 if not w_is_a else 1] += 1
+            elif sb >= 4 and sa >= -1:
+                stats["WIN_STREAK_SNAP (4W+)"][0 if w_is_a else 1] += 1
+            elif 2 <= sa <= 3 and -2 <= sb <= 0:
+                stats["WINNING_MOMENTUM (2-3W)"][0 if w_is_a else 1] += 1
+            elif 2 <= sb <= 3 and -2 <= sa <= 0:
+                stats["WINNING_MOMENTUM (2-3W)"][0 if not w_is_a else 1] += 1
+
+        team_hist[ka].append(1 if w_is_a else 0)
+        team_hist[kb].append(0 if w_is_a else 1)
+        h2h_hist[pk].append(ka if w_is_a else kb)
+
+    rows = []
+    for rule_name, (wins, losses) in sorted(stats.items()):
+        tot = wins + losses
+        pct = round((wins / tot) * 100.0, 1) if tot > 0 else 0.0
+        rows.append({
+            "Rule": rule_name,
+            "Wins": wins,
+            "Losses": losses,
+            "Total": tot,
+            "Win %": pct,
+        })
+    return {"matches_evaluated": evaluated, "rules": rows}
+
