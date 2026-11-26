@@ -769,7 +769,7 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
             # Top 3-4 remain confirmed VIP Golden Picks
             for p in plays[:4]:
                 p["consensus_badge"] = f"💎 TOP GOLDEN PICK ({p.get('confidence_pct')}%)"
-                p["stake_rating"] = "💎 100% SATIK VIP LOCK (TOP 3-4 GOLDEN PICK)"
+                p["stake_rating"] = "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)"
             # Any qualifying beyond Top 4 are capped to SKIP to preserve bankroll
             for p in plays[4:]:
                 p["action_type"] = "SKIP"

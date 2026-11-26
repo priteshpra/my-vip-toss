@@ -1,6 +1,6 @@
 """TossIQ VIP - Elite Cricket Toss Intelligence & Actionable Platform.
 
-Built for serious punters: zero clutter, zero academic formulas, 100% actionable paid-style toss verdicts:
+Built for serious punters: zero clutter, zero academic formulas, realistic probability-calibrated toss verdicts:
 - 🟢 PLAY: [TEAM NAME] with calculated edge & stake advice (Jackpot / Confirmed).
 - 🟡 SKIP / PASS: 50-50 coin flip traps to save your bankroll.
 - 🪙 TOSS TIME: Exact timing in Asia/Kolkata (IST).
@@ -645,8 +645,8 @@ for m in all_matches:
         m["recommended_team"] = l_pred.get("recommended_team")
         m["vip_pick"] = l_pred.get("recommended_team")
         m["confidence_pct"] = l_pred.get("confidence_pct", 75)
-        m["stake_rating"] = l_pred.get("stake_rating", "💎 100% SATIK VIP LOCK (5-PILLAR + PATTERN)")
-        m["consensus_badge"] = l_pred.get("consensus_badge", "💎 100% SATIK LOCK (75%)")
+        m["stake_rating"] = l_pred.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)")
+        m["consensus_badge"] = l_pred.get("consensus_badge", "💎 TOP GOLDEN PICK (75%)")
         m["pillars_aligned"] = l_pred.get("pillars_aligned", 4)
         m["pillars_total"] = l_pred.get("pillars_total", 5)
         m["active_pillars_list"] = l_pred.get("active_pillars_list", [])
@@ -924,7 +924,7 @@ with vip_tabs[0]:
 
     st.markdown("""
     <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>Super Satik Engine (v5):</b> Min 3/5 Super Pillars Aligned + Verified Pattern Confirmed</span>
+        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>High-Conviction Engine (v7):</b> Independent Pillars + External Anchor + Pattern Confirmed <span style="color:#94a3b8; font-weight:600;">(Toss is 50-50 random — probability edge only, never 100% guaranteed)</span></span>
         <span style="font-size: 12px; color: #cbd5e1; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 10px; border-radius: 6px;">🎯 Daily Quota: Top 3-4 Golden Plays Only</span>
     </div>
     """, unsafe_allow_html=True)
@@ -977,14 +977,14 @@ with vip_tabs[0]:
         if m not in super_satik_matches
     ]
 
-    opt_satik = f"💎 100% Satik VIP Locks ({len(super_satik_matches)})"
+    opt_satik = f"💎 Top Golden Picks ({len(super_satik_matches)})"
     opt_all = f"🌟 All Matches ({total_matches})"
     opt_skip = f"🟡 Skipped (50-50) ({len(pass_matches)})"
     verdict_options = [opt_satik, opt_all, opt_skip]
 
     cur_v_pref = st.session_state.get("select_punter_filter_v2")
     if cur_v_pref:
-        if any(k in str(cur_v_pref) for k in ["VIP", "Lock", "100%", "सटीक", "70%", "Satik", "74%"]):
+        if any(k in str(cur_v_pref) for k in ["Golden", "Top", "VIP", "Lock", "100%", "सटीक", "70%", "Satik", "74%"]):
             matched_v_opt = opt_satik if len(super_satik_matches) > 0 else opt_all
         elif any(k in str(cur_v_pref) for k in ["Skip", "50-50", "Pass", "पास"]):
             matched_v_opt = opt_skip
@@ -1002,7 +1002,7 @@ with vip_tabs[0]:
         )
 
     # Apply Verdict Filter
-    if any(k in filter_type for k in ["VIP", "Lock", "100%", "सटीक", "70%", "Satik", "74%"]):
+    if any(k in filter_type for k in ["Golden", "Top", "VIP", "Lock", "100%", "सटीक", "70%", "Satik", "74%"]):
         filtered_list = super_satik_matches
     elif any(k in filter_type for k in ["Skip", "50-50", "Pass", "पास"]):
         filtered_list = pass_matches
@@ -1022,7 +1022,7 @@ with vip_tabs[0]:
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-val" style="color: #10b981;">{len(super_satik_matches)}</div>
-            <div class="kpi-lbl">💎 100% VIP Locks</div>
+            <div class="kpi-lbl">💎 Top Golden Picks</div>
         </div>
         """, unsafe_allow_html=True)
     with k3:
@@ -1381,7 +1381,7 @@ with vip_tabs[0]:
                         <div class="verdict-play" style="border: 2.5px solid #10b981; background: linear-gradient(135deg, #022c22 0%, #064e3b 100%); border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.45); margin: 10px 0;">
                             <div class="verdict-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                                 <span class="verdict-team-name" style="font-size: 22px; font-weight: 900; color: #34d399; letter-spacing: -0.3px;">
-                                    🟢 100% VIP LOCK: <span style="color: #ffffff; text-decoration: underline;">{pick.upper()}</span>
+                                    🟢 TOP PICK: <span style="color: #ffffff; text-decoration: underline;">{pick.upper()}</span>
                                 </span>
                                 <span class="verdict-badge" style="background: #f59e0b; color: #000000; font-weight: 900; font-size: 13px; padding: 4px 12px; border-radius: 20px;">
                                     💎 {consensus_badge} · {conf}% LOAD
@@ -1544,7 +1544,7 @@ with vip_tabs[0]:
                         </div>
                         <div style="background: #0f172a; border-left: 3px solid {'#10b981' if conf >= 70 else '#eab308'}; padding: 10px 12px; border-radius: 4px;">
                             <div style="font-size: 12px; font-weight: 800; color: {'#34d399' if conf >= 70 else '#facc15'}; margin-bottom: 4px;">
-                                {'💎 100% VIP Syndicate Lock' if conf >= 70 else '⚠️ 50-50 Capital Protection (Pass)'}
+                                {'💎 High-Conviction Multi-Source Pick' if conf >= 70 else '⚠️ 50-50 Capital Protection (Pass)'}
                             </div>
                             <div style="font-size: 13px; color: #e2e8f0; line-height: 1.5;">
                                 {rat}

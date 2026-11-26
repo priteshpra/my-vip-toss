@@ -148,9 +148,10 @@ async def test_gaming_helper_adapter_auth_success():
 
 
 @pytest.mark.asyncio
-async def test_gaming_helper_adapter_relogin_on_401():
+async def test_gaming_helper_adapter_relogin_on_401(tmp_path):
     """Verify session re-login on 401 token expiry."""
     adapter = GamingHelperAdapter()
+    adapter.cache_file = str(tmp_path / "gh_reauth_cache.json")
     adapter.enabled = True
     adapter.phone = "9876543210"
     adapter.password = "secret"

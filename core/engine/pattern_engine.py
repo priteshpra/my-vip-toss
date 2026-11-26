@@ -1,13 +1,14 @@
 """
-Toss Pattern Rule & Streak Engine (Professional Tipper Intelligence).
+Toss Pattern Rule & Streak Engine (Heuristic Trend & Rotation Indicators).
 
-Implements the Core Pattern Rules used by Elite Paid Tippers:
+Implements structured trend/rotation checks with strict data guards:
 1. Category & Gender Strict Isolation: Eliminates cross-category team pollution (Women/U19/Club).
-2. Data Sufficiency Minimum: Requires >= 3 verified matches per team to establish streak edge.
-3. Streak Exhaustion (Mean Reversion): Teams on 3+ consecutive toss wins face 93%+ streak break probability.
-4. Bounce-Back Rule: Teams on 3+ consecutive toss losses have heavy statistical rebound advantage.
-5. H2H Zig-Zag Alternation: Strict A-B-A-B alternating pattern detection.
-6. Exhibition Neutral Filter: Exhibition / Sixes formats are locked to 50-50 neutral flips.
+2. Data Sufficiency Minimum: Requires >= 3 verified matches per team to establish any streak indicator.
+3. Streak Exhaustion (Mean Reversion): Heuristic indicator when a team has 3+ consecutive losses or 4+ wins.
+4. H2H Zig-Zag Alternation: Strict A-B-A-B alternating pattern detection.
+5. Exhibition Neutral Filter: Exhibition / Sixes formats are locked to 50-50 neutral flips.
+
+Note: Coin tosses are independent 50/50 trials; pattern rules are heuristic filters, never guarantees.
 """
 
 import os
@@ -177,8 +178,13 @@ def get_team_toss_history(team_name: str, tournament: str = "") -> Tuple[int, Li
             if match_teams(team_name, ta) or match_teams(team_name, tb):
                 history.append(1 if match_teams(team_name, actual) else 0)
 
+    if len(history) == 0:
+        return 0, [], 0
+
+    last_5 = ['W' if x == 1 else 'L' for x in history[-5:]]
     if len(history) < 3:
-        return 0, [], len(history)
+        # Preserve actual partial form for display/count checks, but do not assign a streak
+        return 0, last_5, len(history)
 
     last_outcome = history[-1]
     streak = 0
@@ -189,7 +195,6 @@ def get_team_toss_history(team_name: str, tournament: str = "") -> Tuple[int, Li
             break
 
     streak_val = streak if last_outcome == 1 else -streak
-    last_5 = ['W' if x == 1 else 'L' for x in history[-5:]]
     return streak_val, last_5, len(history)
 
 
@@ -275,58 +280,59 @@ def evaluate_toss_pattern_rule(team_a: str, team_b: str, tournament: str = "") -
         badge = f"⚡ Zig-Zag Pattern: {favored} Due Next"
         rationale = f"⚡ Zig-Zag Alternation Rule: Pichhle H2H toss matches strictly alternate ho rahe hain ({'-'.join(h2h_seq[-3:])}). Next pattern turn favors {favored}."
 
+    # Streak-based rules require verified data (>= 3 matches) for BOTH teams
+    both_sufficient = (tot_a >= 3 and tot_b >= 3)
+
     # Pattern 3: Extreme Streak Exhaustion Reversion (PRIORITY OVER MOMENTUM)
-    # In probability theory, Mean Reversion (93.75% 3L/4L snap probability) is a stronger statistical force than momentum.
-    elif s_a <= -3 and s_b > -3:
+    if both_sufficient and s_a <= -3 and s_b > -3:
         pattern_found = True
         favored = t_a
         pattern_edge = 16.0
         rule_name = "STREAK_EXHAUSTION"
         badge = f"🔄 Streak Reversion: {t_a} Due ({abs(s_a)}L)"
-        rationale = f"🔄 Streak Exhaustion Rule: {t_a} has lost {abs(s_a)} consecutive tosses. Mathematical coin reversal & captain call cycle heavily favor {t_a} to snap streak."
-    elif s_b <= -3 and s_a > -3:
+        rationale = f"🔄 Streak Exhaustion Indicator: {t_a} has lost {abs(s_a)} consecutive tosses while {t_b} is not in slump. Heuristic reversal spot for {t_a}."
+    elif both_sufficient and s_b <= -3 and s_a > -3:
         pattern_found = True
         favored = t_b
         pattern_edge = -16.0
         rule_name = "STREAK_EXHAUSTION"
         badge = f"🔄 Streak Reversion: {t_b} Due ({abs(s_b)}L)"
-        rationale = f"🔄 Streak Exhaustion Rule: {t_b} has lost {abs(s_b)} consecutive tosses. Mathematical coin reversal & captain call cycle heavily favor {t_b} to snap streak."
+        rationale = f"🔄 Streak Exhaustion Indicator: {t_b} has lost {abs(s_b)} consecutive tosses while {t_a} is not in slump. Heuristic reversal spot for {t_b}."
 
     # Pattern 3B: Winning Streak Over-Extension Snap (4+ consecutive toss wins)
-    # The probability of winning 5 consecutive tosses is only 3.125%. Mathematical regression favors opponent snap.
-    elif s_a >= 4 and s_b >= -1:
+    elif both_sufficient and s_a >= 4 and s_b >= -1:
         pattern_found = True
         favored = t_b
         pattern_edge = -15.0
         rule_name = "STREAK_EXHAUSTION"
-        badge = f"🔄 Win-Streak Snap: {t_b} Due ({s_a}W Overdue)"
-        rationale = f"🔄 Win-Streak Exhaustion Rule: {t_a} has won {s_a} consecutive tosses. Mathematical regression to mean heavily favors {t_b} to snap the run."
-    elif s_b >= 4 and s_a >= -1:
+        badge = f"🔄 Win-Streak Snap: {t_b} Due ({s_a}W Run)"
+        rationale = f"🔄 Win-Streak Over-Extension: {t_a} has won {s_a} consecutive tosses. Heuristic counter-trend lean favors {t_b}."
+    elif both_sufficient and s_b >= 4 and s_a >= -1:
         pattern_found = True
         favored = t_a
         pattern_edge = 15.0
         rule_name = "STREAK_EXHAUSTION"
-        badge = f"🔄 Win-Streak Snap: {t_a} Due ({s_b}W Overdue)"
-        rationale = f"🔄 Win-Streak Exhaustion Rule: {t_b} has won {s_b} consecutive tosses. Mathematical regression to mean heavily favors {t_a} to snap the run."
+        badge = f"🔄 Win-Streak Snap: {t_a} Due ({s_b}W Run)"
+        rationale = f"🔄 Win-Streak Over-Extension: {t_b} has won {s_b} consecutive tosses. Heuristic counter-trend lean favors {t_a}."
 
     # Pattern 4: Healthy Winning Toss Momentum (ONLY 2-3 wins, and opponent NOT in 3L+ snap zone!)
-    elif 2 <= s_a <= 3 and -2 <= s_b <= 0:
+    elif both_sufficient and 2 <= s_a <= 3 and -2 <= s_b <= 0:
         pattern_found = True
         favored = t_a
         pattern_edge = 13.0
         rule_name = "WINNING_MOMENTUM"
         badge = f"🔥 Winning Momentum: {t_a} (+{s_a}W)"
-        rationale = f"🔥 Winning Momentum Rule: {t_a} captain displays peak calling conviction with {s_a} consecutive toss wins."
-    elif 2 <= s_b <= 3 and -2 <= s_a <= 0:
+        rationale = f"🔥 Winning Momentum Indicator: {t_a} holds {s_a} consecutive toss wins with balanced opponent history ({tot_b} matches)."
+    elif both_sufficient and 2 <= s_b <= 3 and -2 <= s_a <= 0:
         pattern_found = True
         favored = t_b
         pattern_edge = -13.0
         rule_name = "WINNING_MOMENTUM"
         badge = f"🔥 Winning Momentum: {t_b} (+{s_b}W)"
-        rationale = f"🔥 Winning Momentum Rule: {t_b} captain displays peak calling conviction with {s_b} consecutive toss wins."
+        rationale = f"🔥 Winning Momentum Indicator: {t_b} holds {s_b} consecutive toss wins with balanced opponent history ({tot_a} matches)."
 
     # Pattern 5: Dual Exhaustion Collision Trap (Both teams on 3+ loss streak)
-    elif s_a <= -3 and s_b <= -3:
+    elif both_sufficient and s_a <= -3 and s_b <= -3:
         pattern_found = False
         favored = None
         pattern_edge = 0.0
