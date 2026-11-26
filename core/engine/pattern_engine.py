@@ -15,9 +15,11 @@ import os
 import re
 import json
 from typing import Dict, Any, List, Tuple, Optional
+from core.engine.historical_archive import load_merged_toss_records
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 LOG_FILE = os.path.join(DATA_DIR, "toss_results_log.json")
+DEFAULT_LOG_FILE = LOG_FILE
 
 STATE_MODIFIERS = {
     'south', 'western', 'northern', 'eastern', 'central', 'north', 'west', 'east',
@@ -127,20 +129,29 @@ def match_teams(t1: str, t2: str) -> bool:
     return False
 
 
+def _load_history_records() -> List[Dict[str, Any]]:
+    """Load merged multi-year records; stay isolated when LOG_FILE is monkeypatched in tests."""
+    if LOG_FILE != DEFAULT_LOG_FILE:
+        if not os.path.exists(LOG_FILE):
+            return []
+        try:
+            with open(LOG_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data if isinstance(data, list) else []
+        except Exception:
+            return []
+    return load_merged_toss_records()
+
+
 def get_team_toss_history(team_name: str, tournament: str = "") -> Tuple[int, List[str], int]:
     """
     Returns (trailing_streak, last_5_list, total_matches).
     trailing_streak: positive for consecutive wins (e.g. +3), negative for losses (-3).
     Requires a minimum of 3 historical matches to consider any streak valid.
-    Prioritizes in-tournament history when available.
+    Prioritizes in-tournament history when available, and falls back across multi-year records.
     """
-    if not os.path.exists(LOG_FILE):
-        return 0, [], 0
-
-    try:
-        with open(LOG_FILE, "r", encoding="utf-8") as f:
-            records = json.load(f)
-    except Exception:
+    records = _load_history_records()
+    if not records:
         return 0, [], 0
 
     # First attempt: Scope to current tournament if specified
@@ -199,14 +210,9 @@ def get_team_toss_history(team_name: str, tournament: str = "") -> Tuple[int, Li
 
 
 def get_h2h_toss_sequence(team_a: str, team_b: str) -> List[str]:
-    """Returns chronological list of H2H toss winners ('A' or 'B')."""
-    if not os.path.exists(LOG_FILE):
-        return []
-
-    try:
-        with open(LOG_FILE, "r", encoding="utf-8") as f:
-            records = json.load(f)
-    except Exception:
+    """Returns chronological list of H2H toss winners ('A' or 'B') across multi-year records."""
+    records = _load_history_records()
+    if not records:
         return []
 
     seq = []

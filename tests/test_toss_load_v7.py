@@ -1,9 +1,10 @@
 """Unit tests for v7 independent-pillar toss engine and data-sufficiency guards."""
 
 import json
+import sqlite3
 import pytest
 
-from core.engine import pattern_engine
+from core.engine import historical_archive, pattern_engine
 from core.providers import toss_load_provider
 
 
@@ -123,3 +124,51 @@ def test_independent_multi_source_pillars_qualify_without_100_pct_claim(tmp_path
     assert verdict["pillars_aligned"] >= 3
     assert "100% SATIK" not in verdict["stake_rating"].upper()
     assert "100% SATIK" not in verdict["consensus_badge"].upper()
+
+
+def test_historical_archive_merges_multiyear_dedups_and_filters_bad_rows(tmp_path):
+    """Multi-year archive merges 2024-2026 records, deduplicates, and drops synthetic/corrupt rows."""
+    log_path = tmp_path / "toss_results_log.json"
+    archive_path = tmp_path / "historical_toss_archive.json"
+    db_path = tmp_path / "toss_analytics.db"
+
+    log_records = [
+        {"match_date": "2026-11-20", "tournament": "IPL", "team_a": "MI", "team_b": "CSK", "actual_winner": "MI"},
+    ]
+    archive_records = [
+        {"match_date": "2025-04-10", "tournament": "IPL", "team_a": "MI", "team_b": "CSK", "actual_winner": "CSK"},
+        # Duplicate of log_records (same date + pair) should not double-count
+        {"match_date": "2026-11-20", "tournament": "IPL", "team_a": "CSK", "team_b": "MI", "actual_winner": "CSK"},
+    ]
+    log_path.write_text(json.dumps(log_records), encoding="utf-8")
+    archive_path.write_text(json.dumps(archive_records), encoding="utf-8")
+
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "CREATE TABLE historical_match_statistics ("
+        "id TEXT, match_date TEXT, tournament_name TEXT, team_a_name TEXT, team_b_name TEXT, "
+        "toss_winner_name TEXT, toss_decision TEXT, match_format TEXT)"
+    )
+    db_rows = [
+        ("r1", "2024-04-01", "IPL", "MI", "CSK", "MI", "Bat", "T20"),
+        # Polluted rows that must be rejected:
+        ("bad1", "2025-01-02", "league_intl", "team_csk", "team_mi", "team_mi", "Bat", "T20"),
+        ("bad2", "2026-10-30", "T20", "India", "India", "India", "Bat", "T20"),
+        ("bad3", "2026-10-30", "T20", "A", "B", "Skipped (50-50 Neutral)", "Bat", "T20"),
+        ("bad4", "2026-11-01", "Hong Kong Sixes 2026", "India", "Pakistan", "India", "Bat", "T20"),
+    ]
+    conn.executemany("INSERT INTO historical_match_statistics VALUES (?,?,?,?,?,?,?,?)", db_rows)
+    conn.commit()
+    conn.close()
+
+    merged = historical_archive.load_merged_toss_records(
+        log_file=str(log_path),
+        archive_file=str(archive_path),
+        db_file=str(db_path),
+    )
+
+    # Should contain exactly 3 valid unique matches: 2026-11-20 (from log), 2025-04-10, 2024-04-01
+    assert len(merged) == 3
+    assert [r["match_date"] for r in merged] == ["2026-11-20", "2025-04-10", "2024-04-01"]
+    assert merged[0]["actual_winner"] == "MI"
+

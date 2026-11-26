@@ -15,10 +15,12 @@ import json
 import time
 from typing import Dict, Any, List, Optional, Tuple
 from core.engine.pattern_engine import match_teams as match_teams_strict
+from core.engine.historical_archive import load_merged_toss_records
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 LOCKED_PREDICTIONS_FILE = os.path.join(DATA_DIR, "toss_predictions_locked.json")
 LOG_FILE = os.path.join(DATA_DIR, "toss_results_log.json")
+DEFAULT_LOG_FILE = LOG_FILE
 
 
 def _normalize_name(name: str) -> str:
@@ -144,17 +146,20 @@ def get_locked_prediction(
 
 
 def get_ground_truth_history(team_a: str, team_b: str) -> Tuple[int, int, int, int, int, int]:
-    """Retrieve ground-truth wins and H2H from toss_results_log.json."""
+    """Retrieve ground-truth wins and H2H across multi-year archive + toss_results_log.json."""
     a_wins, a_losses = 0, 0
     b_wins, b_losses = 0, 0
     h2h_a, h2h_b = 0, 0
 
-    if not os.path.exists(LOG_FILE):
-        return 0, 0, 0, 0, 0, 0
-
     try:
-        with open(LOG_FILE, "r", encoding="utf-8") as f:
-            records = json.load(f)
+        if LOG_FILE != DEFAULT_LOG_FILE:
+            if not os.path.exists(LOG_FILE):
+                return 0, 0, 0, 0, 0, 0
+            with open(LOG_FILE, "r", encoding="utf-8") as f:
+                records = json.load(f)
+        else:
+            records = load_merged_toss_records()
+
         for r in records:
             actual = r.get("actual_winner")
             if not actual or actual.lower() in ["pending", "pending confirmation", "none", ""]:
