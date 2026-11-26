@@ -633,8 +633,10 @@ punter_data = get_active_punter_matches(force_refresh=False)
 all_matches = punter_data.get("matches", [])
 is_gh_connected = punter_data.get("connected", False)
 
-# Direct Immutable VIP Lock Enforcement:
+# Direct Immutable VIP Lock Enforcement (respecting Daily 3-4 Golden Quota cap):
 for m in all_matches:
+    if "DAILY 3-4 GOLDEN QUOTA" in str(m.get("stake_rating", "")):
+        continue
     mid_s = str(m.get("id", ""))
     t_a_s = m.get("team_a_name", "")
     t_b_s = m.get("team_b_name", "")

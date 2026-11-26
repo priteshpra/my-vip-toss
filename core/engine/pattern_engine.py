@@ -158,9 +158,28 @@ def get_team_toss_history(team_name: str, tournament: str = "") -> Tuple[int, Li
     in_tour_records = []
     if tournament:
         tour_clean = tournament.lower().strip()
+        tour_aliases = [
+            ("ipl", "indian premier league"),
+            ("wbbl", "women's big bash", "womens big bash"),
+            ("bbl", "big bash league"),
+            ("ilt20", "international league t20"),
+            ("psl", "pakistan super league"),
+            ("cpl", "caribbean premier league"),
+            ("bpl", "bangladesh premier league"),
+            ("lpl", "lanka premier league"),
+            ("wpl", "women's premier league", "womens premier league"),
+            ("sa20", "betway sa20"),
+            ("emirates d20", "emirates d20"),
+            ("global t20", "gt20"),
+            ("sixes", "hong kong sixes"),
+        ]
         for r in records:
             r_tour = (r.get("tournament") or "").lower()
-            if tour_clean in r_tour or r_tour in tour_clean or any(k in tour_clean and k in r_tour for k in ["emirates d20", "sixes", "global t20", "bbl", "wbbl", "ipl"]):
+            alias_hit = any(
+                any(a in tour_clean for a in grp) and any(a in r_tour for a in grp)
+                for grp in tour_aliases
+            )
+            if tour_clean in r_tour or r_tour in tour_clean or alias_hit:
                 in_tour_records.append(r)
 
     # Use tournament-scoped records if found, else general
