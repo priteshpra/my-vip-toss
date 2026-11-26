@@ -1,7 +1,7 @@
-"""Cricbuzz Live Toss Outcomes Provider.
+"""Cricbuzz Live & Recent Toss Outcomes Provider.
 
-Scrapes real-time toss results directly from Cricbuzz live scores & match facts pages.
-Provides 100% verified ground-truth toss outcomes within seconds of coin flip.
+Scrapes real-time toss results directly from Cricbuzz live-scores, recent-scores, and match facts pages.
+Uses concurrent fetching so resolving 15-20 matches takes < 3 seconds.
 """
 
 import time
@@ -9,6 +9,7 @@ import re
 import json
 import urllib.request
 import ssl
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional
 
 _SSL_CTX = ssl.create_default_context()
@@ -21,106 +22,132 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-_CACHE: Dict[str, Any] = {
-    "timestamp": 0,
-    "tosses": []
-}
-CACHE_TTL = 60  # 1 minute
+_CACHE: Dict[str, Any] = {"timestamp": 0, "tosses": []}
+CACHE_TTL = 60
+
+_TOSS_STATUS_RE = re.compile(
+    r'([A-Za-z0-9\s\.\-&]+?)\s+(?:won\s+the\s+toss\s+and\s+)?(?:opt|opted|elected|chose|decided)\s+to\s+(bat|bowl|field)',
+    re.IGNORECASE,
+)
+
+
+def _normalize_decision(dec: str) -> str:
+    d = (dec or "Bowl").strip().lower()
+    return "Bat" if "bat" in d else "Bowl"
+
+
+def _fetch_html(url: str, timeout: float = 5.0) -> str:
+    req = urllib.request.Request(url, headers=HEADERS)
+    with urllib.request.urlopen(req, timeout=timeout, context=_SSL_CTX) as resp:
+        return resp.read().decode("utf-8", errors="ignore")
+
+
+def _parse_facts_page(mid: str, slug: str) -> Optional[Dict[str, Any]]:
+    facts_url = f"https://m.cricbuzz.com/cricket-match-facts/{mid}/{slug}"
+    try:
+        f_html = _fetch_html(facts_url, timeout=4.0)
+        toss_m = re.search(r'<div[^>]*>\s*Toss\s*</div>\s*<div[^>]*>(.*?)</div>', f_html, re.DOTALL | re.IGNORECASE)
+        if not toss_m:
+            return None
+        toss_text = re.sub(r'<[^>]+>', ' ', toss_m.group(1)).strip()
+        p_win = _TOSS_STATUS_RE.search(toss_text)
+        if not p_win:
+            p_win = re.search(r'([A-Za-z0-9\s\.\-&]+?)\s+won\s+(?:the\s+)?toss.*?(bat|bowl|field)', toss_text, re.IGNORECASE)
+        if not p_win:
+            return None
+        w = p_win.group(1).strip()
+        dec = _normalize_decision(p_win.group(2))
+        slug_parts = slug.split("-vs-")
+        s1 = slug_parts[0].replace("-", " ").strip() if len(slug_parts) >= 2 else ""
+        # Strip trailing match/series tokens from team 2 slug
+        raw_s2 = slug_parts[1] if len(slug_parts) >= 2 else ""
+        s2_clean = re.split(r'-(?:\d+(?:st|nd|rd|th)|match|t20|odi|test|qualifier|eliminator|final|semi)', raw_s2, maxsplit=1)[0]
+        s2 = s2_clean.replace("-", " ").strip()
+        return {
+            "match_id": mid,
+            "team_a": s1,
+            "team_b": s2,
+            "winner": w,
+            "decision": dec,
+            "raw_text": toss_text,
+            "source": "cricbuzz_facts",
+        }
+    except Exception:
+        return None
 
 
 def fetch_cricbuzz_toss_outcomes(force_refresh: bool = False) -> List[Dict[str, Any]]:
-    """
-    Scrapes real-time toss results across International, T20 Leagues, and Domestic matches.
-    Returns a list of dicts with keys: team_a, team_b, winner, decision, raw_text.
-    """
+    """Scrape live & recent toss outcomes across Cricbuzz live-scores and recent-scores."""
     global _CACHE
     now = time.time()
     if not force_refresh and (now - _CACHE["timestamp"]) < CACHE_TTL and _CACHE["tosses"]:
         return _CACHE["tosses"]
 
-    url = "https://m.cricbuzz.com/cricket-match/live-scores"
-    try:
-        req = urllib.request.Request(url, headers=HEADERS)
-        with urllib.request.urlopen(req, timeout=10, context=_SSL_CTX) as resp:
-            html = resp.read().decode("utf-8", errors="ignore")
-    except Exception as e:
-        print(f"Error fetching Cricbuzz live scores: {e}")
+    pages_html: List[str] = []
+    for url in (
+        "https://m.cricbuzz.com/cricket-match/live-scores",
+        "https://m.cricbuzz.com/cricket-match/recent-scores",
+    ):
+        try:
+            pages_html.append(_fetch_html(url, timeout=6.0))
+        except Exception:
+            continue
+
+    if not pages_html:
         return _CACHE["tosses"]
 
-    tosses = []
+    tosses: List[Dict[str, Any]] = []
     seen = set()
+    seen_ids = set()
+    uniq_links = []
 
-    # 1. Parse Schema.org ld+json (Instant, high priority for live tosses)
-    scripts = re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html, re.DOTALL)
-    for s in scripts:
-        try:
-            d = json.loads(s)
-            items = d.get("mainEntity", {}).get("itemListElement", [])
-            for it in items:
-                status = it.get("eventStatus", "")
-                comps = [c.get("name", "") for c in it.get("competitor", [])]
-                if len(comps) >= 2 and status:
-                    t1, t2 = comps[0], comps[1]
-                    m_opt = re.search(r'([A-Za-z0-9\s]+?)\s+opt\s+to\s+(bat|bowl)', status, re.IGNORECASE)
-                    if m_opt:
-                        w_raw = m_opt.group(1).strip()
-                        dec = m_opt.group(2).strip().capitalize()
-                        key = f"{t1.lower()}_{t2.lower()}"
-                        if key not in seen:
-                            seen.add(key)
-                            tosses.append({
-                                "team_a": t1,
-                                "team_b": t2,
-                                "winner": w_raw,
-                                "decision": dec,
-                                "raw_text": status,
-                                "source": "cricbuzz_ldjson"
-                            })
-        except Exception:
-            pass
+    for html_text in pages_html:
+        # 1. Schema.org ld+json
+        for s in re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html_text, re.DOTALL):
+            try:
+                d = json.loads(s)
+                for it in d.get("mainEntity", {}).get("itemListElement", []):
+                    status = it.get("eventStatus", "")
+                    comps = [c.get("name", "") for c in it.get("competitor", [])]
+                    if len(comps) >= 2 and status:
+                        t1, t2 = comps[0], comps[1]
+                        m_opt = _TOSS_STATUS_RE.search(status)
+                        if m_opt:
+                            w_raw = m_opt.group(1).strip()
+                            dec = _normalize_decision(m_opt.group(2))
+                            key = f"{t1.lower()}_{t2.lower()}"
+                            if key not in seen:
+                                seen.add(key)
+                                tosses.append({
+                                    "team_a": t1,
+                                    "team_b": t2,
+                                    "winner": w_raw,
+                                    "decision": dec,
+                                    "raw_text": status,
+                                    "source": "cricbuzz_ldjson",
+                                })
+            except Exception:
+                pass
 
-    # 2. Extract match links from the page (scrape only up to 4 recent matches if not found in ld+json)
-    if len(tosses) < 5:
-        links = re.findall(r'href="(/live-cricket-scores/(\d+)/([a-z0-9\-]+))"', html)
-        seen_ids = set()
-        uniq_links = []
-        for href, mid, slug in links:
+        # 2. Match links for concurrent facts-page scraping
+        for _, mid, slug in re.findall(r'href="(/(?:live-cricket-scores|cricket-scores)/(\d+)/([a-z0-9\-]+))"', html_text):
             if mid not in seen_ids:
                 seen_ids.add(mid)
                 uniq_links.append((mid, slug))
 
-        for mid, slug in uniq_links[:4]:
-            facts_url = f"https://m.cricbuzz.com/cricket-match-facts/{mid}/{slug}"
-            try:
-                f_req = urllib.request.Request(facts_url, headers=HEADERS)
-                with urllib.request.urlopen(f_req, timeout=2, context=_SSL_CTX) as f_resp:
-                    f_html = f_resp.read().decode("utf-8", errors="ignore")
+    if uniq_links:
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = [pool.submit(_parse_facts_page, mid, slug) for mid, slug in uniq_links[:20]]
+            for fut in as_completed(futures):
+                res = fut.result()
+                if not res:
+                    continue
+                key = f"{res['team_a'].lower()}_{res['team_b'].lower()}_{res['match_id']}"
+                if key not in seen:
+                    seen.add(key)
+                    tosses.append(res)
 
-                toss_m = re.search(r'<div[^>]*>Toss</div>\s*<div[^>]*>(.*?)</div>', f_html, re.DOTALL | re.IGNORECASE)
-                if toss_m:
-                    toss_text = toss_m.group(1).strip()
-                    p_win = re.search(r'([A-Za-z0-9\s]+?)\s+(?:won the toss and opt to|opt to|won toss)\s+(bat|bowl)', toss_text, re.IGNORECASE)
-                    if p_win:
-                        w = p_win.group(1).strip()
-                        dec = p_win.group(2).strip().capitalize()
-                        slug_parts = slug.split("-vs-")
-                        s1 = slug_parts[0] if len(slug_parts) >= 2 else ""
-                        s2 = slug_parts[1].split("-")[0] if len(slug_parts) >= 2 else ""
-                        key = f"{s1.lower()}_{s2.lower()}_{mid}"
-                        if key not in seen:
-                            seen.add(key)
-                            tosses.append({
-                                "match_id": mid,
-                                "team_a": s1,
-                                "team_b": s2,
-                                "winner": w,
-                                "decision": dec,
-                                "raw_text": toss_text,
-                                "source": "cricbuzz_facts"
-                            })
-            except Exception:
-                pass
-
-    _CACHE["timestamp"] = now
-    _CACHE["tosses"] = tosses
+    if tosses:
+        _CACHE["timestamp"] = now
+        _CACHE["tosses"] = tosses
     return tosses

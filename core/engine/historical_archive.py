@@ -48,6 +48,7 @@ CRICSHEET_ARCHIVE_URLS: Dict[str, str] = {
 _UNRESOLVED_TOKENS = ("pending", "skipped", "neutral", "none", "tbd", "null", "undefined")
 _EXHIBITION_TOKENS = ("sixes", "6s", "exhibition", "charity")
 _MERGED_CACHE: Dict[str, Any] = {"key": None, "data": []}
+_BACKTEST_CACHE: Dict[str, Any] = {"key": None, "data": None}
 
 
 def _norm_pair_token(name: str) -> str:
@@ -345,6 +346,15 @@ def run_empirical_rule_backtest(
     from collections import defaultdict
     from core.engine.pattern_engine import match_teams
 
+    use_default = (log_file is None and archive_file is None and db_file is None)
+    if use_default:
+        bt_key = tuple(
+            os.path.getmtime(p) if (p and os.path.exists(p)) else 0
+            for p in (LOG_FILE, ARCHIVE_FILE, DB_FILE)
+        )
+        if _BACKTEST_CACHE["key"] == bt_key and _BACKTEST_CACHE["data"] is not None:
+            return _BACKTEST_CACHE["data"]
+
     recs = list(reversed(load_merged_toss_records(log_file=log_file, archive_file=archive_file, db_file=db_file)))
     stats = defaultdict(lambda: [0, 0])
     team_hist: Dict[str, List[int]] = defaultdict(list)
@@ -412,5 +422,9 @@ def run_empirical_rule_backtest(
             "Total": tot,
             "Win %": pct,
         })
-    return {"matches_evaluated": evaluated, "rules": rows}
+    res = {"matches_evaluated": evaluated, "rules": rows}
+    if use_default:
+        _BACKTEST_CACHE["key"] = bt_key
+        _BACKTEST_CACHE["data"] = res
+    return res
 

@@ -51,7 +51,7 @@ def fetch_telegram_toss_feed(pages: int = 3, channel_url: Optional[str] = None) 
             break
 
     pattern = re.compile(
-        r'([A-Za-z0-9\s\-\&]+?)\s+WON\s+THE\s+TOSS\s+AND\s+DECIDED\s+TO\s+(BAT|BOWL)',
+        r'([A-Za-z0-9\s\-\&\.]+?)\s+(?:WON\s+(?:THE\s+)?TOSS\s+(?:AND\s+)?(?:DECIDED|OPT|OPTED|ELECTED|CHOSE)?\s*TO|OPT(?:ED)?\s+TO|ELECTED\s+TO)\s+(BAT|BOWL|FIELD)',
         re.IGNORECASE
     )
     block_pattern = re.compile(
@@ -67,13 +67,14 @@ def fetch_telegram_toss_feed(pages: int = 3, channel_url: Optional[str] = None) 
         for dt_iso, m in matches:
             # Strip html tags
             clean = re.sub(r'<[^>]+>', ' ', m)
-            clean = re.sub(r'[^\w\s\-\&]', '', clean).strip()
+            clean = re.sub(r'[^\w\s\-\&\.]', '', clean).strip()
             clean = re.sub(r'\s+', ' ', clean)
 
             match = pattern.search(clean)
             if match:
                 raw_winner = match.group(1).strip()
-                decision = match.group(2).strip().capitalize()
+                raw_dec = match.group(2).strip().lower()
+                decision = "Bat" if "bat" in raw_dec else "Bowl"
                 # Clean winner name flags / icons
                 winner_clean = re.sub(r'^(🇮🇳|🇱🇰|🇿🇲|📺|🇦🇺|🇲🇳|🇹🇭|🇰🇼)\s*', '', raw_winner).strip()
                 key = f"{winner_clean.lower()}_{decision.lower()}_{dt_iso}"

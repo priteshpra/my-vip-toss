@@ -14,6 +14,7 @@ Note: Coin tosses are independent 50/50 trials; pattern rules are heuristic filt
 import os
 import re
 import json
+from functools import lru_cache
 from typing import Dict, Any, List, Tuple, Optional
 from core.engine.historical_archive import load_merged_toss_records
 
@@ -52,7 +53,8 @@ KNOWN_ACRONYMS = {
 }
 
 
-def _parse_team(name: str) -> Dict[str, Any]:
+@lru_cache(maxsize=4096)
+def _parse_team_cached(name: str) -> Tuple[frozenset, str, bool, bool, bool, bool, bool]:
     raw = (name or '').lower().strip()
     raw_clean = re.sub(r'[^a-z0-9\s]', ' ', raw)
     tokens = [t for t in raw_clean.split() if t]
@@ -65,9 +67,22 @@ def _parse_team(name: str) -> Dict[str, Any]:
     core = [t for t in tokens if t not in noise and t not in {'women', 'wmn', 'womens', 'men', 'mens'}]
     if not core:
         core = [t for t in tokens if t not in {'the', 'and', 'team', 'cricket', 'xi'}]
+    return (
+        frozenset(core),
+        ''.join(core),
+        is_women,
+        is_men,
+        is_u19,
+        is_u23,
+        is_a_team,
+    )
+
+
+def _parse_team(name: str) -> Dict[str, Any]:
+    core, core_str, is_women, is_men, is_u19, is_u23, is_a_team = _parse_team_cached(name or '')
     return {
-        'core': set(core),
-        'core_str': ''.join(core),
+        'core': core,
+        'core_str': core_str,
         'is_women': is_women,
         'is_men': is_men,
         'is_u19': is_u19,
@@ -76,37 +91,35 @@ def _parse_team(name: str) -> Dict[str, Any]:
     }
 
 
+@lru_cache(maxsize=16384)
 def match_teams(t1: str, t2: str) -> bool:
     """Strictly verify if two team names refer to the exact same team and category."""
     if not t1 or not t2:
         return False
-    p1 = _parse_team(t1)
-    p2 = _parse_team(t2)
+    s1, cs1, w1, _, u19_1, u23_1, a1 = _parse_team_cached(t1)
+    s2, cs2, w2, _, u19_2, u23_2, a2 = _parse_team_cached(t2)
     # Tier must strictly align (prevent Under-19 or Reserve A bleed into Senior Men)
-    if p1['is_u19'] != p2['is_u19']:
-        return False
-    if p1['is_u23'] != p2['is_u23']:
-        return False
-    if p1['is_a_team'] != p2['is_a_team']:
+    if u19_1 != u19_2 or u23_1 != u23_2 or a1 != a2:
         return False
     # Explicit Women vs Men strict isolation (Australia vs Australia Women must NEVER match)
-    if p1['is_women'] != p2['is_women']:
+    if w1 != w2:
         return False
-    s1, s2 = p1['core'], p2['core']
     if not s1 or not s2:
         return False
     # State / Geographic adjectives must strictly match (South Australia is NOT Australia, Western Australia is NOT Australia)
-    mod1 = s1.intersection(STATE_MODIFIERS)
-    mod2 = s2.intersection(STATE_MODIFIERS)
-    if mod1 != mod2:
+    if s1.intersection(STATE_MODIFIERS) != s2.intersection(STATE_MODIFIERS):
         return False
     if s1 == s2:
         return True
-    if len(s1) == 1 and list(s1)[0] in KNOWN_ACRONYMS and KNOWN_ACRONYMS[list(s1)[0]] == s2:
-        return True
-    if len(s2) == 1 and list(s2)[0] in KNOWN_ACRONYMS and KNOWN_ACRONYMS[list(s2)[0]] == s1:
-        return True
-    if p1['core_str'] and p1['core_str'] == p2['core_str']:
+    if len(s1) == 1:
+        tok1 = next(iter(s1))
+        if tok1 in KNOWN_ACRONYMS and KNOWN_ACRONYMS[tok1] == s2:
+            return True
+    if len(s2) == 1:
+        tok2 = next(iter(s2))
+        if tok2 in KNOWN_ACRONYMS and KNOWN_ACRONYMS[tok2] == s1:
+            return True
+    if cs1 and cs1 == cs2:
         return True
     # Subset matching ONLY if both sets have >= 2 core tokens (e.g. 'Hong Kong' in 'Hong Kong China')
     if len(s1) >= 2 and len(s2) >= 2 and (s1.issubset(s2) or s2.issubset(s1)):

@@ -11,6 +11,7 @@ Built for serious punters: zero clutter, zero academic formulas, realistic proba
 import os
 import sys
 import json
+import time
 import importlib
 import pandas as pd
 import streamlit as st
@@ -21,14 +22,6 @@ from typing import Any, Dict, List, Optional
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
-
-# Force-reload or purge cached modules so Streamlit Cloud worker never executes stale in-memory modules
-for mod_name in list(sys.modules.keys()):
-    if mod_name.startswith("core.") or mod_name == "core":
-        try:
-            importlib.reload(sys.modules[mod_name])
-        except Exception:
-            sys.modules.pop(mod_name, None)
 
 from core.timezone import now_ist, format_ist
 from core.providers.gaming_helper_provider import (
@@ -42,10 +35,6 @@ from core.providers.gaming_helper_provider import (
 )
 
 import core.engine.toss_results_manager as _trm
-try:
-    importlib.reload(_trm)
-except Exception:
-    pass
 
 load_toss_results = _trm.load_toss_results
 save_toss_result = _trm.save_toss_result
@@ -628,8 +617,17 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Direct live matches pipeline: Always evaluates fresh data without stale session-state caching
-punter_data = get_active_punter_matches(force_refresh=False)
+# Cached live matches pipeline (90s TTL in session_state so UI clicks/filters stay instant)
+_now_ts = time.time()
+if (
+    "_punter_data_cache" not in st.session_state
+    or (_now_ts - float(st.session_state.get("_punter_data_ts", 0))) > 90
+):
+    punter_data = get_active_punter_matches(force_refresh=False)
+    st.session_state["_punter_data_cache"] = punter_data
+    st.session_state["_punter_data_ts"] = _now_ts
+else:
+    punter_data = st.session_state["_punter_data_cache"]
 all_matches = punter_data.get("matches", [])
 is_gh_connected = punter_data.get("connected", False)
 
@@ -688,15 +686,21 @@ with col_st2:
                 st.warning("⚠️ Session expired! Please enter OTP below.")
                 st.rerun()
             st.session_state["live_punter_matches"] = punter_data.get("matches", [])
+            st.session_state["_punter_data_cache"] = punter_data
+            st.session_state["_punter_data_ts"] = time.time()
             st.session_state["live_gh_connected"] = punter_data.get("connected", False)
+            try:
+                sync_completed_tosses_from_gaming_helper(run_resolvers=False)
+            except Exception as e_gh:
+                print(f"[SyncNotice] GH sync: {e_gh}")
             try:
                 sync_live_toss_results_from_cricbuzz()
             except Exception as e_cb:
                 print(f"[SyncNotice] Cricbuzz sync: {e_cb}")
             try:
-                sync_completed_tosses_from_gaming_helper()
-            except Exception as e_gh:
-                print(f"[SyncNotice] GH sync: {e_gh}")
+                sync_live_toss_results_from_crex()
+            except Exception as e_cr:
+                print(f"[SyncNotice] CREX sync: {e_cr}")
             st.success("Synced live bets successfully!")
             st.rerun()
 
@@ -1570,10 +1574,14 @@ with vip_tabs[1]:
         st.header("📜 Toss Results & Audit History")
     with col_btn_t2:
         if st.button("⚡ Sync Latest Results", key="btn_tg_sync_tab2", use_container_width=True):
-            with st.spinner("Fetching latest toss outcomes from Telegram, Cricbuzz & CREX..."):
+            with st.spinner("Fetching latest toss outcomes from GamingHelper, Telegram, Cricbuzz & CREX..."):
                 tg_count = 0
                 cb_count = 0
                 crex_count = 0
+                try:
+                    sync_completed_tosses_from_gaming_helper(run_resolvers=False)
+                except Exception as e_gh:
+                    print(f"[SyncNotice] GH sync: {e_gh}")
                 try:
                     tg_count = auto_update_toss_results_from_telegram()
                 except Exception as e_tg:
@@ -1583,18 +1591,15 @@ with vip_tabs[1]:
                 except Exception as e_cb:
                     print(f"[SyncNotice] Cricbuzz sync: {e_cb}")
                 try:
-                    sync_completed_tosses_from_gaming_helper()
-                except Exception as e_gh:
-                    print(f"[SyncNotice] GH sync: {e_gh}")
-                try:
                     crex_count = sync_live_toss_results_from_crex()
                 except Exception as e_cr:
                     print(f"[SyncNotice] CREX sync: {e_cr}")
+                st.session_state.pop("_punter_data_ts", None)
                 total_updated = tg_count + cb_count + crex_count
                 if total_updated > 0:
-                    st.success(f"✅ {total_updated} Toss results updated!")
+                    st.success(f"✅ {total_updated} Toss results updated! (Telegram: {tg_count}, Cricbuzz: {cb_count}, CREX: {crex_count})")
                 else:
-                    st.info("ℹ️ All matches up-to-date. No pending toss results.")
+                    st.info("ℹ️ Live sources checked (Telegram/Cricbuzz/CREX). Local club/regional matches not listed on public feeds can be marked 1-click below.")
                 st.rerun()
     with col_arch_t2:
         if st.button("📚 Sync 2024–26 Archive", key="btn_cricsheet_archive_tab2", use_container_width=True):

@@ -251,7 +251,7 @@ def delete_toss_result(match_id: str) -> bool:
     return False
 
 
-def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
+def sync_completed_tosses_from_gaming_helper(run_resolvers: bool = True) -> List[Dict[str, Any]]:
     """
     Automatically pull completed/closed matches from GamingHelper.
     Preserves locked pre-match PLAY recommendations so verified calls are never downgraded to SKIP.
@@ -279,10 +279,12 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         if not token:
             return load_toss_results()
 
-    # Paginate through all closed matches so nothing gets truncated
+    # Paginate through recent closed matches; stop early once an entire page is already confirmed
     raw_closed = []
+    existing_results = load_toss_results()
+    existing_map = {str(r.get("match_id")): r for r in existing_results}
     page = 1
-    while True:
+    while page <= 5:
         url = f"{API_BASE}/close-bet?page={page}&perPage=100"
         req = urllib.request.Request(
             url,
@@ -293,14 +295,20 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             }
         )
         try:
-            with urllib.request.urlopen(req, timeout=12, context=_SSL_CTX) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=_SSL_CTX) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 batch = data.get("data") or []
                 if not batch:
                     break
                 raw_closed.extend(batch)
+                # Stop paginating once every match on this page is already resolved in our log
+                all_resolved_on_page = all(
+                    str(item.get("id")) in existing_map
+                    and not is_winner_unresolved(existing_map[str(item.get("id"))].get("actual_winner"))
+                    for item in batch
+                )
                 total_pages = data.get("totalPages", 1)
-                if page >= total_pages:
+                if all_resolved_on_page or page >= total_pages:
                     break
                 page += 1
         except urllib.error.HTTPError as he:
@@ -315,8 +323,6 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             break
 
     today_str = format_ist(now_ist(), "%Y-%m-%d")
-    existing_results = load_toss_results()
-    existing_map = {str(r.get("match_id")): r for r in existing_results}
     locked_map = load_locked_predictions()
 
     # Process all closed matches from API
@@ -328,11 +334,9 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
         if not t1 or not t2:
             continue
 
-        # If match is already confirmed in the log (with verified real winner), don't overwrite
+        # If match is already recorded in log (resolved OR already initialized as Pending), don't rewrite on every sync
         if m_id in existing_map:
-            ex = existing_map[m_id]
-            if not is_winner_unresolved(ex.get("actual_winner")):
-                continue
+            continue
 
         raw_time = m.get("match_time") or '["10:00","10:30"]'
         toss_raw = "10:00"
@@ -467,23 +471,22 @@ def sync_completed_tosses_from_gaming_helper() -> List[Dict[str, Any]]:
             is_manual=False
         )
 
-    # Automatically resolve freshly closed matches using Telegram live feed @SUPERFASTTOSSLINE111
-    try:
-        auto_update_toss_results_from_telegram()
-    except Exception as e:
-        print(f"Error in auto_update_toss_results_from_telegram: {e}")
+    if run_resolvers:
+        # Automatically resolve freshly closed matches using Telegram, Cricbuzz & CREX
+        try:
+            auto_update_toss_results_from_telegram()
+        except Exception as e:
+            print(f"Error in auto_update_toss_results_from_telegram: {e}")
 
-    # Automatically resolve freshly closed matches using Cricbuzz real-time feed
-    try:
-        sync_live_toss_results_from_cricbuzz()
-    except Exception as e:
-        print(f"Error in sync_live_toss_results_from_cricbuzz: {e}")
+        try:
+            sync_live_toss_results_from_cricbuzz()
+        except Exception as e:
+            print(f"Error in sync_live_toss_results_from_cricbuzz: {e}")
 
-    # Automatically resolve live and completed matches using CREX real-time feed
-    try:
-        sync_live_toss_results_from_crex()
-    except Exception as e:
-        print(f"Error in sync_live_toss_results_from_crex: {e}")
+        try:
+            sync_live_toss_results_from_crex()
+        except Exception as e:
+            print(f"Error in sync_live_toss_results_from_crex: {e}")
 
     return load_toss_results()
 
@@ -668,7 +671,7 @@ def auto_update_toss_results_from_telegram() -> int:
     from core.providers.telegram_toss_feed import fetch_telegram_toss_feed, match_team_with_tg_winner
     from core.providers.toss_load_provider import load_locked_predictions
 
-    feed = fetch_telegram_toss_feed(pages=3)
+    feed = fetch_telegram_toss_feed(pages=5)
     if not feed:
         return 0
 
@@ -698,7 +701,7 @@ def auto_update_toss_results_from_telegram() -> int:
             l_pred = locked_map[m_id]
             if l_pred.get("action") == "PLAY":
                 rec = l_pred.get("recommended_team")
-                rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                rating = l_pred.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)")
 
         for tg in feed:
             w_raw = tg.get("winner_raw", "")
@@ -710,9 +713,9 @@ def auto_update_toss_results_from_telegram() -> int:
                 try:
                     p_dt = datetime.fromisoformat(post_iso.replace("Z", "+00:00"))
                     p_ist = p_dt.astimezone(cur_time.tzinfo)
-                    # Window: within [-15 min, +3.5 hours] of match toss time
-                    min_allowed = toss_dt - timedelta(minutes=15)
-                    max_allowed = toss_dt + timedelta(hours=3, minutes=30)
+                    # Window: within [-30 min, +8 hours] of match toss time
+                    min_allowed = toss_dt - timedelta(minutes=30)
+                    max_allowed = toss_dt + timedelta(hours=8)
                     if not (min_allowed <= p_ist <= max_allowed):
                         continue
                 except Exception:
@@ -748,9 +751,10 @@ def auto_update_toss_results_from_telegram() -> int:
 def sync_live_toss_results_from_crex() -> int:
     """
     Automatically resolve live & completed matches directly from CREX live feed.
-    Pulls real-time toss results within 60s of the coin toss so Tab 2 instantly displays verified outcomes.
+    Uses date-aware deduplication and concurrent match-page fetching so pending matches resolve fast.
     """
     import html
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     from core.providers.toss_load_provider import load_locked_predictions, match_teams_fuzzy
     from core.providers.crex_provider import is_match_pair
 
@@ -759,7 +763,7 @@ def sync_live_toss_results_from_crex() -> int:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     })
     try:
-        with urllib.request.urlopen(req, timeout=10, context=_SSL_CTX) as resp:
+        with urllib.request.urlopen(req, timeout=8, context=_SSL_CTX) as resp:
             content = resp.read().decode("utf-8", errors="ignore")
     except Exception:
         return 0
@@ -780,151 +784,188 @@ def sync_live_toss_results_from_crex() -> int:
 
     existing_results = load_toss_results()
     locked_map = load_locked_predictions()
+    ist_tz = now_ist().tzinfo
     today_str = format_ist(now_ist(), "%Y-%m-%d")
     resolved_count = 0
 
-    for fix in fixtures:
-        status = fix.get("status")
-        # 1 = Live, 2 = Completed
-        if status not in [1, 2]:
-            continue
+    def _fix_date(fix_item: Dict[str, Any]) -> str:
+        t_ms = fix_item.get("t")
+        if t_ms:
+            try:
+                from datetime import timezone
+                dt = datetime.fromtimestamp(float(t_ms) / 1000.0, tz=timezone.utc).astimezone(ist_tz)
+                return dt.strftime("%Y-%m-%d")
+            except Exception:
+                pass
+        return today_str
 
+    # Collect candidates that are Live/Completed and NOT already resolved for that date
+    candidates = []
+    for fix in fixtures:
+        if fix.get("status") not in [1, 2]:
+            continue
         t1 = fix.get("team1")
         t2 = fix.get("team2")
         link = fix.get("link")
         if not link or not t1 or not t2:
             continue
+        f_date = _fix_date(fix)
 
-        # Check if already resolved in existing_results
         already_resolved = False
         for ex in existing_results:
+            ex_date = str(ex.get("match_date") or "")[:10]
+            if ex_date and ex_date != f_date:
+                continue
             if not is_winner_unresolved(ex.get("actual_winner")):
                 if is_match_pair(t1, t2, ex.get("team_a", ""), ex.get("team_b", "")):
                     already_resolved = True
                     break
-        if already_resolved:
-            continue
+        if not already_resolved:
+            candidates.append((fix, f_date))
 
-        # Scrape match live page
+    if not candidates:
+        return 0
+
+    toss_comment_re = re.compile(
+        r'([A-Za-z0-9\s\.\-&]+?)\s+(?:won\s+the\s+toss\s+and\s+)?(?:opt|opted|elected|chose|decided)\s+to\s+(bat|bowl|field)',
+        re.IGNORECASE,
+    )
+
+    def _scrape_crex_match(item_tuple):
+        fix, f_date = item_tuple
+        t1 = fix.get("team1")
+        t2 = fix.get("team2")
+        link = fix.get("link")
         match_url = "https://crex.com" + link
         try:
             m_req = urllib.request.Request(match_url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(m_req, timeout=8, context=_SSL_CTX) as m_resp:
+            with urllib.request.urlopen(m_req, timeout=6, context=_SSL_CTX) as m_resp:
                 m_content = m_resp.read().decode("utf-8", errors="ignore")
             mm = re.search(r'<script id="app-root-state" type="application/json">(.*?)</script>', m_content, re.DOTALL)
             if not mm:
-                continue
+                return None
             m_data = json.loads(html.unescape(mm.group(1).strip().replace("&q;", '"')))
 
             sv3 = m_data.get("https://api.goscorer.com/api/v3/getSV3", {})
-            comment = sv3.get("comment1") or ""
+            comment = str(sv3.get("comment1") or "")
             toss_winner = None
             toss_decision = "Bowl"
 
-            if comment and "opt to" in comment.lower():
-                parts = comment.split("opt to")
-                team_code = parts[0].strip()
-                toss_decision = parts[1].strip().capitalize() if len(parts) > 1 else "Bowl"
-
-                t1_sn = fix.get("t1SName") or sv3.get("team1") or ""
-                t2_sn = fix.get("t2SName") or sv3.get("team2") or ""
-
-                if team_code.lower() in [t1_sn.lower(), t1.lower()]:
+            m_c = toss_comment_re.search(comment)
+            if m_c:
+                team_code = m_c.group(1).strip()
+                raw_dec = m_c.group(2).strip().lower()
+                toss_decision = "Bat" if "bat" in raw_dec else "Bowl"
+                t1_sn = str(fix.get("t1SName") or sv3.get("team1") or "")
+                t2_sn = str(fix.get("t2SName") or sv3.get("team2") or "")
+                if team_code.lower() in [t1_sn.lower(), t1.lower()] or match_teams_fuzzy(team_code, t1):
                     toss_winner = t1
-                elif team_code.lower() in [t2_sn.lower(), t2.lower()]:
-                    toss_winner = t2
-                elif match_teams_fuzzy(team_code, t1):
-                    toss_winner = t1
-                elif match_teams_fuzzy(team_code, t2):
+                elif team_code.lower() in [t2_sn.lower(), t2.lower()] or match_teams_fuzzy(team_code, t2):
                     toss_winner = t2
 
-            if not toss_winner and status == 2:
+            if not toss_winner:
                 post = m_data.get("https://stats.crickapi.com/i/live/getPostMatchDataV2", {})
-                t_team_key = post.get("toss_team")
-                chose_to = post.get("chose_to")
-                toss_decision = "Bat" if chose_to == 0 else "Bowl"
-
-                for k in ["team1fkey", "t1f"]:
-                    if fix.get(k) == t_team_key:
-                        toss_winner = t1
-                        break
-                if not toss_winner:
-                    for k in ["team2fkey", "t2f"]:
+                if isinstance(post, dict) and post.get("toss_team"):
+                    t_team_key = post.get("toss_team")
+                    chose_to = post.get("chose_to")
+                    toss_decision = "Bat" if chose_to == 0 else "Bowl"
+                    for k in ("team1fkey", "t1f"):
                         if fix.get(k) == t_team_key:
-                            toss_winner = t2
+                            toss_winner = t1
+                            break
+                    if not toss_winner:
+                        for k in ("team2fkey", "t2f"):
+                            if fix.get(k) == t_team_key:
+                                toss_winner = t2
+                                break
+
+            if not toss_winner:
+                return None
+            return (fix, f_date, toss_winner, toss_decision)
+        except Exception:
+            return None
+
+    live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
+    live_cache = []
+    if os.path.exists(live_cache_file):
+        try:
+            with open(live_cache_file, "r", encoding="utf-8") as f:
+                live_cache = json.load(f)
+        except Exception:
+            live_cache = []
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(_scrape_crex_match, cand) for cand in candidates[:25]]
+        for fut in as_completed(futures):
+            parsed = fut.result()
+            if not parsed:
+                continue
+            fix, f_date, toss_winner, toss_decision = parsed
+            t1 = fix.get("team1")
+            t2 = fix.get("team2")
+
+            rec_team = None
+            rating = "🟡 SKIP / 50-50 COIN FLIP"
+            matched_id = None
+
+            for ex in existing_results:
+                ex_date = str(ex.get("match_date") or "")[:10]
+                if ex_date and ex_date != f_date:
+                    continue
+                if is_match_pair(t1, t2, ex.get("team_a", ""), ex.get("team_b", "")):
+                    matched_id = ex.get("match_id")
+                    rec_team = ex.get("recommended_team")
+                    rating = ex.get("stake_rating", "NORMAL")
+                    break
+
+            if not rec_team and live_cache:
+                for cm in live_cache:
+                    cm_t1 = cm.get("team_a_name") or cm.get("team_one_name") or ""
+                    cm_t2 = cm.get("team_b_name") or cm.get("team_two_name") or ""
+                    if is_match_pair(t1, t2, cm_t1, cm_t2):
+                        if cm.get("action_type") == "PLAY" and cm.get("recommended_team"):
+                            rec_team = cm.get("recommended_team")
+                            rating = cm.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)")
+                            matched_id = cm.get("id") or matched_id
                             break
 
-            if toss_winner:
-                # Find matching match_id and locked prediction
-                rec_team = None
-                rating = "🟡 SKIP / 50-50 COIN FLIP"
-                matched_id = None
-
-                for ex in existing_results:
-                    if is_match_pair(t1, t2, ex.get("team_a", ""), ex.get("team_b", "")):
-                        matched_id = ex.get("match_id")
-                        rec_team = ex.get("recommended_team")
-                        rating = ex.get("stake_rating", "NORMAL")
+            if not matched_id:
+                for lid, lp in locked_map.items():
+                    if str(lid).startswith("pair:") or "__vs__" in str(lid):
+                        continue
+                    lp_date = str(lp.get("match_date", "")).split("T")[0]
+                    if lp_date and lp_date != f_date:
+                        continue
+                    if is_match_pair(t1, t2, lp.get("team_a", ""), lp.get("team_b", "")):
+                        matched_id = lid
+                        if lp.get("action") == "PLAY":
+                            rec_team = lp.get("recommended_team")
+                            rating = lp.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)")
                         break
 
-                # Also check live matches cache to ensure pre-match PLAY recommendation is always preserved
-                if not rec_team:
-                    live_cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "gaming_helper_matches.json")
-                    if os.path.exists(live_cache_file):
-                        try:
-                            with open(live_cache_file, "r", encoding="utf-8") as f:
-                                l_cache = json.load(f)
-                                for cm in l_cache:
-                                    cm_t1 = cm.get("team_a_name") or cm.get("team_one_name") or ""
-                                    cm_t2 = cm.get("team_b_name") or cm.get("team_two_name") or ""
-                                    if is_match_pair(t1, t2, cm_t1, cm_t2):
-                                        if cm.get("action_type") == "PLAY" and cm.get("recommended_team"):
-                                            rec_team = cm.get("recommended_team")
-                                            rating = cm.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
-                                            matched_id = cm.get("id") or matched_id
-                                            break
-                        except Exception:
-                            pass
+            if not matched_id:
+                matched_id = f"crex_{fix.get('matchFkey') or fix.get('id')}"
 
-                if not matched_id:
-                    for lid, lp in locked_map.items():
-                        if str(lid).startswith("pair:") or "__vs__" in str(lid):
-                            continue
-                        lp_date = str(lp.get("match_date", "")).split("T")[0]
-                        if lp_date and lp_date != today_str:
-                            continue
-                        if is_match_pair(t1, t2, lp.get("team_a", ""), lp.get("team_b", "")):
-                            matched_id = lid
-                            if lp.get("action") == "PLAY":
-                                rec_team = lp.get("recommended_team")
-                                rating = lp.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
-                            break
+            series_name = fix.get("seriesShortName") or fix.get("n") or "Cricket Match"
+            time_ist = fix.get("startTimeText") or format_ist(now_ist(), "%I:%M %p IST")
+            if "IST" not in time_ist:
+                time_ist = f"{time_ist} IST"
 
-                if not matched_id:
-                    matched_id = f"crex_{fix.get('matchFkey') or fix.get('id')}"
-
-                series_name = fix.get("seriesShortName") or fix.get("n") or "Cricket Match"
-                time_ist = fix.get("startTimeText") or format_ist(now_ist(), "%I:%M %p IST")
-                if "IST" not in time_ist:
-                    time_ist = f"{time_ist} IST"
-
-                save_toss_result(
-                    match_id=str(matched_id),
-                    match_name=f"{t1} vs {t2}",
-                    tournament=series_name,
-                    toss_time_ist=time_ist,
-                    match_date=today_str,
-                    team_a=t1,
-                    team_b=t2,
-                    recommended_team=rec_team,
-                    stake_rating=rating,
-                    actual_winner=toss_winner,
-                    toss_decision=toss_decision,
-                    is_manual=False
-                )
-                resolved_count += 1
-        except Exception:
-            continue
+            save_toss_result(
+                match_id=str(matched_id),
+                match_name=f"{t1} vs {t2}",
+                tournament=series_name,
+                toss_time_ist=time_ist,
+                match_date=f_date,
+                team_a=t1,
+                team_b=t2,
+                recommended_team=rec_team,
+                stake_rating=rating,
+                actual_winner=toss_winner,
+                toss_decision=toss_decision,
+                is_manual=False
+            )
+            resolved_count += 1
 
     return resolved_count
 
