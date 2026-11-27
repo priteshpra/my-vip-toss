@@ -293,5 +293,55 @@ def test_fuzzy_match_blocks_a_team_u19_and_state_leakage():
     assert toss_load_provider.match_teams_fuzzy("Kathmandu Gurkhas", "Kathmandu Gorkhas") is True
 
 
+def test_save_toss_result_resolves_pending_by_same_date_and_pair(tmp_path, monkeypatch):
+    """External CREX/Cricbuzz match_id must resolve existing Pending GamingHelper row on same date."""
+    from core.engine import toss_results_manager as trm
+
+    res_file = tmp_path / "toss_results_log.json"
+    initial = [
+        {
+            "match_id": "41271",
+            "match_name": "Royal Oman Stallions vs Mustafa Fragrance",
+            "tournament": "Oman D20 League 2026",
+            "toss_time_ist": "03:25 PM IST",
+            "match_date": "2026-11-26",
+            "team_a": "Royal Oman Stallions",
+            "team_b": "Mustafa Fragrance",
+            "recommended_team": "Mustafa Fragrance",
+            "stake_rating": "⚡ VALUE LEAN",
+            "actual_winner": "Pending Confirmation",
+            "toss_decision": "Pending",
+            "outcome": "PENDING",
+            "outcome_label": "⏳ PENDING",
+            "is_manual": False,
+        }
+    ]
+    res_file.write_text(json.dumps(initial), encoding="utf-8")
+    monkeypatch.setattr(trm, "RESULTS_FILE", str(res_file))
+    monkeypatch.setattr(trm, "_TOSS_RESULTS_CACHE", {"mtime": 0, "data": []})
+
+    saved = trm.save_toss_result(
+        match_id="crex_2OQ_m2",
+        match_name="Royal Oman Stallions vs Mustafa Fragrance Strikers, Oman D20 Match 2",
+        tournament="Oman D20 League 2026",
+        toss_time_ist="12:30 PM IST",
+        match_date="2026-11-26",
+        team_a="Royal Oman Stallions",
+        team_b="Mustafa Fragrance Strikers",
+        recommended_team=None,
+        stake_rating="NORMAL",
+        actual_winner="Mustafa Fragrance Strikers",
+        toss_decision="Bowl",
+        is_manual=False,
+    )
+
+    loaded = trm.load_toss_results()
+    assert len(loaded) == 1
+    assert loaded[0]["match_id"] == "41271"
+    assert loaded[0]["outcome"] == "PASS"
+    assert saved["actual_winner"] == "Mustafa Fragrance Strikers"
+
+
+
 
 

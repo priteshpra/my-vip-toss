@@ -43,37 +43,45 @@ def _fetch_html(url: str, timeout: float = 5.0) -> str:
 
 
 def _parse_facts_page(mid: str, slug: str) -> Optional[Dict[str, Any]]:
-    facts_url = f"https://m.cricbuzz.com/cricket-match-facts/{mid}/{slug}"
-    try:
-        f_html = _fetch_html(facts_url, timeout=4.0)
-        toss_m = re.search(r'<div[^>]*>\s*Toss\s*</div>\s*<div[^>]*>(.*?)</div>', f_html, re.DOTALL | re.IGNORECASE)
-        if not toss_m:
-            return None
-        toss_text = re.sub(r'<[^>]+>', ' ', toss_m.group(1)).strip()
-        p_win = _TOSS_STATUS_RE.search(toss_text)
-        if not p_win:
-            p_win = re.search(r'([A-Za-z0-9\s\.\-&]+?)\s+won\s+(?:the\s+)?toss.*?(bat|bowl|field)', toss_text, re.IGNORECASE)
-        if not p_win:
-            return None
-        w = p_win.group(1).strip()
-        dec = _normalize_decision(p_win.group(2))
-        slug_parts = slug.split("-vs-")
-        s1 = slug_parts[0].replace("-", " ").strip() if len(slug_parts) >= 2 else ""
-        # Strip trailing match/series tokens from team 2 slug
-        raw_s2 = slug_parts[1] if len(slug_parts) >= 2 else ""
-        s2_clean = re.split(r'-(?:\d+(?:st|nd|rd|th)|match|t20|odi|test|qualifier|eliminator|final|semi)', raw_s2, maxsplit=1)[0]
-        s2 = s2_clean.replace("-", " ").strip()
-        return {
-            "match_id": mid,
-            "team_a": s1,
-            "team_b": s2,
-            "winner": w,
-            "decision": dec,
-            "raw_text": toss_text,
-            "source": "cricbuzz_facts",
-        }
-    except Exception:
-        return None
+    slug_parts = slug.split("-vs-")
+    s1 = slug_parts[0].replace("-", " ").strip() if len(slug_parts) >= 2 else ""
+    raw_s2 = slug_parts[1] if len(slug_parts) >= 2 else ""
+    s2_clean = re.split(r'-(?:\d+(?:st|nd|rd|th)|match|t20|odi|test|qualifier|eliminator|final|semi)', raw_s2, maxsplit=1)[0]
+    s2 = s2_clean.replace("-", " ").strip()
+
+    for page_url in (
+        f"https://m.cricbuzz.com/cricket-match-facts/{mid}/{slug}",
+        f"https://m.cricbuzz.com/live-cricket-scores/{mid}/{slug}",
+    ):
+        try:
+            f_html = _fetch_html(page_url, timeout=4.0)
+            candidates_txt = []
+            toss_m = re.search(r'<div[^>]*>\s*Toss\s*</div>\s*<div[^>]*>(.*?)</div>', f_html, re.DOTALL | re.IGNORECASE)
+            if toss_m:
+                candidates_txt.append(re.sub(r'<[^>]+>', ' ', toss_m.group(1)).strip())
+            # Fallback: scan stripped text / JSON status on live-cricket-scores page
+            stripped = re.sub(r'<[^>]+>', ' ', f_html)
+            candidates_txt.append(re.sub(r'\s+', ' ', stripped))
+
+            for toss_text in candidates_txt:
+                p_win = _TOSS_STATUS_RE.search(toss_text)
+                if not p_win:
+                    p_win = re.search(r'([A-Za-z0-9\s\.\-&]{2,40}?)\s+won\s+(?:the\s+)?toss.*?(bat|bowl|field)', toss_text, re.IGNORECASE)
+                if p_win:
+                    w = p_win.group(1).strip()
+                    dec = _normalize_decision(p_win.group(2))
+                    return {
+                        "match_id": mid,
+                        "team_a": s1,
+                        "team_b": s2,
+                        "winner": w,
+                        "decision": dec,
+                        "raw_text": toss_text[:200],
+                        "source": "cricbuzz_facts",
+                    }
+        except Exception:
+            continue
+    return None
 
 
 def fetch_cricbuzz_toss_outcomes(force_refresh: bool = False) -> List[Dict[str, Any]]:

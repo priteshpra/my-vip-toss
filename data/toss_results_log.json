@@ -77,8 +77,8 @@
     "team_b": "Mustafa Fragrance",
     "recommended_team": null,
     "stake_rating": "\ud83d\udfe1 SKIP / 50-50 COIN FLIP",
-    "actual_winner": "Pending Confirmation",
-    "toss_decision": "Pending",
+    "actual_winner": "Mustafa Fragrance",
+    "toss_decision": "Bowl",
     "outcome": "SKIPPED",
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
@@ -253,22 +253,6 @@
     "outcome_label": "\ud83d\udfe1 SKIPPED (50-50 NEUTRAL)",
     "is_manual": false,
     "recorded_at": "2026-11-26 08:20 PM IST"
-  },
-  {
-    "match_id": "crex_2OQ_m2",
-    "match_name": "Royal Oman Stallions vs Mustafa Fragrance Strikers, Oman D20 League 2026 Match 2",
-    "tournament": "Oman D20 League 2026",
-    "toss_time_ist": "12:30 PM IST",
-    "match_date": "2026-11-26",
-    "team_a": "Royal Oman Stallions",
-    "team_b": "Mustafa Fragrance Strikers",
-    "predicted_winner": null,
-    "recommended_team": null,
-    "stake_rating": "HISTORICAL",
-    "actual_winner": "Mustafa Fragrance Strikers",
-    "toss_decision": "Bowl",
-    "outcome": "SKIPPED",
-    "is_manual": false
   },
   {
     "match_id": "crex_2K9_m109",

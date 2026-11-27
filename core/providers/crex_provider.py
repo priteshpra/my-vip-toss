@@ -466,28 +466,52 @@ def sync_active_series_history_from_crex(max_series: int = 15) -> int:
                         pass
 
                 if toss_winner:
-                    new_records.append({
-                        "match_id": mid,
-                        "match_name": f"{t1_name} vs {t2_name}, {ser_name} Match {mn}",
-                        "tournament": ser_name,
-                        "toss_time_ist": "12:30 PM IST",
-                        "match_date": iso_date,
-                        "team_a": t1_name,
-                        "team_b": t2_name,
-                        "predicted_winner": None,
-                        "recommended_team": None,
-                        "stake_rating": "HISTORICAL",
-                        "actual_winner": toss_winner,
-                        "toss_decision": toss_dec,
-                        "outcome": "SKIPPED",
-                        "is_manual": False
-                    })
+                    # Check if an unresolved Pending row exists for same date & teams; update in-place instead of creating a duplicate
+                    updated_pending = False
+                    for er in existing_records:
+                        if (
+                            str(er.get("match_date") or "")[:10] == iso_date
+                            and "pending" in str(er.get("actual_winner") or "").lower()
+                            and is_match_pair(t1_name, t2_name, er.get("team_a", ""), er.get("team_b", ""))
+                        ):
+                            er["actual_winner"] = toss_winner
+                            er["toss_decision"] = toss_dec
+                            rec = er.get("recommended_team")
+                            if rec:
+                                is_won = _team_match(rec, toss_winner)
+                                er["outcome"] = "PASS" if is_won else "FAIL"
+                                er["outcome_label"] = "✅ PASS (WON)" if is_won else "❌ FAIL (MISSED)"
+                            else:
+                                er["outcome"] = "SKIPPED"
+                                er["outcome_label"] = "🟡 SKIPPED (50-50 NEUTRAL)"
+                            updated_pending = True
+                            total_new += 1
+                            break
+
+                    if not updated_pending:
+                        new_records.append({
+                            "match_id": mid,
+                            "match_name": f"{t1_name} vs {t2_name}, {ser_name} Match {mn}",
+                            "tournament": ser_name,
+                            "toss_time_ist": "12:30 PM IST",
+                            "match_date": iso_date,
+                            "team_a": t1_name,
+                            "team_b": t2_name,
+                            "predicted_winner": None,
+                            "recommended_team": None,
+                            "stake_rating": "HISTORICAL",
+                            "actual_winner": toss_winner,
+                            "toss_decision": toss_dec,
+                            "outcome": "SKIPPED",
+                            "is_manual": False
+                        })
                     existing_ids.add(mid)
-                    total_new += 1
+                    if not updated_pending:
+                        total_new += 1
         except Exception:
             pass
 
-    if new_records:
+    if new_records or total_new > 0:
         try:
             combined = new_records + existing_records
             with open(log_file, "w", encoding="utf-8") as f:
