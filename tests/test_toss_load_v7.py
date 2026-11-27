@@ -41,10 +41,10 @@ def test_single_streak_cannot_triple_count_into_play(tmp_path, monkeypatch):
         match_id="test_triple_count",
     )
 
-    assert verdict["engine_version"] == 7
+    assert verdict["engine_version"] == 8
     assert verdict["action"] == "SKIP"
     assert verdict["recommended_team"] is None
-    assert verdict["pillars_aligned"] < 3
+    assert verdict["pillars_aligned"] < 2
 
 
 def test_insufficient_opponent_history_is_skipped(tmp_path, monkeypatch):
@@ -236,5 +236,51 @@ def test_empirical_rule_backtest_returns_structured_rows(tmp_path):
     assert h2h_row["Wins"] == 1
     assert h2h_row["Total"] == 1
     assert h2h_row["Win %"] == 100.0
+
+
+def test_value_lean_unlocks_on_two_independent_pillars_with_win_pct(tmp_path, monkeypatch):
+    """Two genuine independent pillars (Form + Pattern, 63%+) unlock VALUE_LEAN with real Win% stats."""
+    log_path = tmp_path / "toss_results_log.json"
+    locked_path = tmp_path / "toss_predictions_locked.json"
+
+    # Both teams have >= 5 matches, Beta has 4/5 recent (80% overall) + 3W momentum, Alpha has 2W-3L (40%, 1L)
+    records = [
+        {"team_a": "Beta", "team_b": "X1", "actual_winner": "Beta"},
+        {"team_a": "Beta", "team_b": "X2", "actual_winner": "Beta"},
+        {"team_a": "Beta", "team_b": "X3", "actual_winner": "Beta"},
+        {"team_a": "Beta", "team_b": "X4", "actual_winner": "X4"},
+        {"team_a": "Beta", "team_b": "X5", "actual_winner": "Beta"},
+        {"team_a": "Alpha", "team_b": "Y1", "actual_winner": "Y1"},
+        {"team_a": "Alpha", "team_b": "Y2", "actual_winner": "Alpha"},
+        {"team_a": "Alpha", "team_b": "Y3", "actual_winner": "Y3"},
+        {"team_a": "Alpha", "team_b": "Y4", "actual_winner": "Alpha"},
+        {"team_a": "Alpha", "team_b": "Y5", "actual_winner": "Y5"},
+    ]
+    log_path.write_text(json.dumps(records), encoding="utf-8")
+    locked_path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(pattern_engine, "LOG_FILE", str(log_path))
+    monkeypatch.setattr(toss_load_provider, "LOG_FILE", str(log_path))
+    monkeypatch.setattr(toss_load_provider, "LOCKED_PREDICTIONS_FILE", str(locked_path))
+
+    verdict = toss_load_provider.compute_multi_source_toss_load(
+        team_a="Alpha",
+        team_b="Beta",
+        odds_a=98,
+        odds_b=80,
+        tournament="Test T20",
+        match_time="12:00 PM IST",
+        match_id="test_value_lean_2_pillars",
+    )
+
+    assert verdict["engine_version"] == 8
+    assert verdict["action"] == "PLAY"
+    assert verdict["verdict_tier"] == "VALUE_LEAN"
+    assert verdict["recommended_team"] == "Beta"
+    assert 63 <= verdict["confidence_pct"] < 70
+    assert verdict["team_b_win_pct"] == 80.0
+    assert verdict["team_a_win_pct"] == 40.0
+    assert "80%" in verdict["fav_win_pct_summary"]
+
 
 

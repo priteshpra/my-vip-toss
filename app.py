@@ -652,6 +652,12 @@ for m in all_matches:
         m["active_pillars_list"] = l_pred.get("active_pillars_list", [])
         m["punter_rationale"] = l_pred.get("punter_rationale", "")
         m["risk_level"] = l_pred.get("risk_level", "LOW RISK")
+        m["verdict_tier"] = l_pred.get("verdict_tier", "SUPER_LOCK")
+        m["fav_win_pct_summary"] = l_pred.get("fav_win_pct_summary", "")
+        m["rule_win_pct"] = l_pred.get("rule_win_pct")
+        m["team_a_record"] = l_pred.get("team_a_record", "")
+        m["team_b_record"] = l_pred.get("team_b_record", "")
+        m["h2h_summary"] = l_pred.get("h2h_summary", "")
 is_gh_connected = st.session_state.get("live_gh_connected", punter_data.get("connected", False))
 creds = get_stored_credentials()
 
@@ -930,8 +936,8 @@ with vip_tabs[0]:
 
     st.markdown("""
     <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>High-Conviction Engine (v7):</b> Independent Pillars + External Anchor + Pattern Confirmed <span style="color:#94a3b8; font-weight:600;">(Toss is 50-50 random — probability edge only, never 100% guaranteed)</span></span>
-        <span style="font-size: 12px; color: #cbd5e1; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 10px; border-radius: 6px;">🎯 Daily Quota: Top 3-4 Golden Plays Only</span>
+        <span style="font-size: 13.5px; font-weight: 700; color: #10b981;">🛡️ <b>Dual-Tier Engine (v8):</b> 💎 Top Pick (3+ Pillars · 70%+) & ⚡ Value Lean (2+ Pillars · 63–69% · Half Stake) <span style="color:#94a3b8; font-weight:600;">(With Real Historical Win %)</span></span>
+        <span style="font-size: 12px; color: #cbd5e1; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); padding: 4px 10px; border-radius: 6px;">🎯 Daily Quota: Top 3-4 Picks Max</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -983,14 +989,14 @@ with vip_tabs[0]:
         if m not in super_satik_matches
     ]
 
-    opt_satik = f"💎 Top Golden Picks ({len(super_satik_matches)})"
+    opt_satik = f"🎯 Playable Picks ({len(super_satik_matches)})"
     opt_all = f"🌟 All Matches ({total_matches})"
     opt_skip = f"🟡 Skipped (50-50) ({len(pass_matches)})"
     verdict_options = [opt_satik, opt_all, opt_skip]
 
     cur_v_pref = st.session_state.get("select_punter_filter_v2")
     if cur_v_pref:
-        if any(k in str(cur_v_pref) for k in ["Golden", "Top", "VIP", "Lock", "100%", "सटीक", "70%", "Satik", "74%"]):
+        if any(k in str(cur_v_pref) for k in ["Playable", "Value", "Golden", "Top", "VIP", "Lock", "100%", "सटीक", "70%", "Satik", "74%"]):
             matched_v_opt = opt_satik if len(super_satik_matches) > 0 else opt_all
         elif any(k in str(cur_v_pref) for k in ["Skip", "50-50", "Pass", "पास"]):
             matched_v_opt = opt_skip
@@ -1008,7 +1014,7 @@ with vip_tabs[0]:
         )
 
     # Apply Verdict Filter
-    if any(k in filter_type for k in ["Golden", "Top", "VIP", "Lock", "100%", "सटीक", "70%", "Satik", "74%"]):
+    if any(k in filter_type for k in ["Playable", "Value", "Golden", "Top", "VIP", "Lock", "100%", "सटीक", "70%", "Satik", "74%"]):
         filtered_list = super_satik_matches
     elif any(k in filter_type for k in ["Skip", "50-50", "Pass", "पास"]):
         filtered_list = pass_matches
@@ -1028,7 +1034,7 @@ with vip_tabs[0]:
         st.markdown(f"""
         <div class="kpi-card">
             <div class="kpi-val" style="color: #10b981;">{len(super_satik_matches)}</div>
-            <div class="kpi-lbl">💎 Top Golden Picks</div>
+            <div class="kpi-lbl">🎯 Playable Picks (Top + Value)</div>
         </div>
         """, unsafe_allow_html=True)
     with k3:
@@ -1100,7 +1106,7 @@ with vip_tabs[0]:
                 "Match": f"{m['team_a_name']} vs {m['team_b_name']}",
                 "Tournament": m.get("tournament_name"),
                 "📊 CREX Bhav": crex_bhav_str,
-                "📊 Toss Load": m.get("market_load_text", f"{conf}% Load"),
+                "📈 Real Win %": m.get("fav_win_pct_summary") or m.get("market_load_text", f"{conf}% Load"),
                 "🎯 Predicted Toss Winner": verdict_str
             })
 
@@ -1398,11 +1404,11 @@ with vip_tabs[0]:
                                     📊 {load_text}
                                 </span>
                                 <span style="background: #091e2b; border: 1px solid #38bdf8; color: #bae6fd; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
-                                    🌐 {clues_text}
+                                    📈 {m.get('fav_win_pct_summary') or clues_text}
                                 </span>
                             </div>
                             <div class="verdict-reason" style="color: #ffffff; font-size: 14.5px; font-weight: 600; margin-top: 4px;">
-                                💡 <b>VIP Analysis:</b> {rat}
+                                💡 <b>Top Pick Analysis (Flat Stake 2.5%):</b> {rat}
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
@@ -1414,19 +1420,19 @@ with vip_tabs[0]:
                                     ⚡ VALUE LEAN: <span style="color: #ffffff; text-decoration: underline;">{pick.upper()}</span>
                                 </span>
                                 <span class="verdict-badge" style="background: #0284c7; color: #ffffff; font-weight: 900; font-size: 13px; padding: 4px 12px; border-radius: 20px;">
-                                    ⚡ {consensus_badge} · {conf}% LOAD
+                                    ⚡ {consensus_badge} · HALF STAKE
                                 </span>
                             </div>
                             <div style="display: flex; gap: 8px; margin: 8px 0 6px 0; flex-wrap: wrap;">
                                 <span style="background: #082f49; border: 1px solid #0284c7; color: #bae6fd; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800;">
                                     📊 {load_text}
                                 </span>
-                                <span style="background: #0f172a; border: 1px solid #334155; color: #cbd5e1; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
-                                    🌐 {clues_text}
+                                <span style="background: #0f172a; border: 1px solid #38bdf8; color: #e0f2fe; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700;">
+                                    📈 {m.get('fav_win_pct_summary') or clues_text}
                                 </span>
                             </div>
                             <div class="verdict-reason" style="color: #e0f2fe; font-size: 14px; font-weight: 600; margin-top: 4px;">
-                                💡 <b>Value Analysis:</b> {rat}
+                                💡 <b>Value Lean (Half Stake 1–1.25%):</b> {rat}
                             </div>
                         </div>
                         """, unsafe_allow_html=True)

@@ -257,6 +257,14 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
             m["pillars_total"] = v.get("pillars_total", 5)
             m["pillars_aligned"] = v.get("pillars_aligned", 0)
             m["active_pillars_list"] = v.get("active_pillars_list", [])
+            m["verdict_tier"] = v.get("verdict_tier", "PASS")
+            m["team_a_win_pct"] = v.get("team_a_win_pct", 50.0)
+            m["team_b_win_pct"] = v.get("team_b_win_pct", 50.0)
+            m["team_a_record"] = v.get("team_a_record", "0/0 (N/A)")
+            m["team_b_record"] = v.get("team_b_record", "0/0 (N/A)")
+            m["h2h_summary"] = v.get("h2h_summary", "H2H 0-0")
+            m["rule_win_pct"] = v.get("rule_win_pct")
+            m["fav_win_pct_summary"] = v.get("fav_win_pct_summary", "")
             if not m.get("match_date"):
                 m["match_date"] = format_ist(now_ist(), "%Y-%m-%d")
         return cached_list
@@ -618,6 +626,14 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
             "pillars_total": vip_verdict.get("pillars_total", 5),
             "pillars_aligned": vip_verdict.get("pillars_aligned", 0),
             "active_pillars_list": vip_verdict.get("active_pillars_list", []),
+            "verdict_tier": vip_verdict.get("verdict_tier", "PASS"),
+            "team_a_win_pct": vip_verdict.get("team_a_win_pct", 50.0),
+            "team_b_win_pct": vip_verdict.get("team_b_win_pct", 50.0),
+            "team_a_record": vip_verdict.get("team_a_record", "0/0 (N/A)"),
+            "team_b_record": vip_verdict.get("team_b_record", "0/0 (N/A)"),
+            "h2h_summary": vip_verdict.get("h2h_summary", "H2H 0-0"),
+            "rule_win_pct": vip_verdict.get("rule_win_pct"),
+            "fav_win_pct_summary": vip_verdict.get("fav_win_pct_summary", ""),
             "is_live": item.get("isLive", 1),
             "status": "UPCOMING" if item.get("status") == 1 else "LIVE",
             "source": "GamingHelper Online"
@@ -731,6 +747,14 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
                     "pillars_total": v.get("pillars_total", 5),
                     "pillars_aligned": v.get("pillars_aligned", 0),
                     "active_pillars_list": v.get("active_pillars_list", []),
+                    "verdict_tier": v.get("verdict_tier", "PASS"),
+                    "team_a_win_pct": v.get("team_a_win_pct", 50.0),
+                    "team_b_win_pct": v.get("team_b_win_pct", 50.0),
+                    "team_a_record": v.get("team_a_record", "0/0 (N/A)"),
+                    "team_b_record": v.get("team_b_record", "0/0 (N/A)"),
+                    "h2h_summary": v.get("h2h_summary", "H2H 0-0"),
+                    "rule_win_pct": v.get("rule_win_pct"),
+                    "fav_win_pct_summary": v.get("fav_win_pct_summary", ""),
                     "is_live": 1,
                     "status": "UPCOMING",
                     "source": "CREX Live Feed"
@@ -769,10 +793,14 @@ def get_active_punter_matches(*args, **kwargs) -> Dict[str, Any]:
                 ),
                 reverse=True
             )
-            # Top 3-4 remain confirmed VIP Golden Picks
+            # Top 3-4 remain actionable PLAY picks (preserving SUPER_LOCK vs VALUE_LEAN tier)
             for p in plays[:4]:
-                p["consensus_badge"] = f"💎 TOP GOLDEN PICK ({p.get('confidence_pct')}%)"
-                p["stake_rating"] = "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)"
+                if p.get("confidence_pct", 50) >= 70 or p.get("verdict_tier") == "SUPER_LOCK":
+                    p["consensus_badge"] = f"💎 TOP GOLDEN PICK ({p.get('confidence_pct')}%)"
+                    p["stake_rating"] = "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)"
+                else:
+                    p["consensus_badge"] = f"⚡ VALUE LEAN ({p.get('confidence_pct')}%)"
+                    p["stake_rating"] = "⚡ VALUE LEAN (HALF STAKE · 2+ PILLARS)"
             # Any qualifying beyond Top 4 are capped to SKIP to preserve bankroll
             for p in plays[4:]:
                 p["action_type"] = "SKIP"

@@ -100,8 +100,8 @@ def save_locked_prediction(
             existing = locked[f"{d_clean}:{pkey}"]
 
         if existing and existing.get("action") == "PLAY" and existing.get("recommended_team"):
-            if existing.get("engine_version", 0) >= 7 and (verdict.get("action") != "PLAY" or not verdict.get("recommended_team")):
-                # Preserve the original PLAY call only if locked under current v7 independent-pillar engine
+            if existing.get("engine_version", 0) >= 8 and (verdict.get("action") != "PLAY" or not verdict.get("recommended_team")):
+                # Preserve the original PLAY call only if locked under current v8 engine
                 return
 
         if m_id_str:
@@ -128,7 +128,7 @@ def get_locked_prediction(
     m_id_str = str(match_id or "").strip()
     if m_id_str and m_id_str in locked:
         cand = locked[m_id_str]
-        if isinstance(cand, dict) and (cand.get("engine_version") == 7 or cand.get("action") == "SKIP"):
+        if isinstance(cand, dict) and (cand.get("engine_version") == 8 or cand.get("action") == "SKIP"):
             return cand
         return None
 
@@ -138,7 +138,7 @@ def get_locked_prediction(
         dkey = f"{d_clean}:{pkey}"
         if dkey in locked:
             cand = locked[dkey]
-            if isinstance(cand, dict) and (cand.get("engine_version") == 7 or cand.get("action") == "SKIP"):
+            if isinstance(cand, dict) and (cand.get("engine_version") == 8 or cand.get("action") == "SKIP"):
                 return cand
             return None
 
@@ -241,21 +241,21 @@ def compute_multi_source_toss_load(
         "sixes", "hong kong sixes", "exhibition", "charity"
     ]) or any(k in (t_a or "").lower() or k in (t_b or "").lower() for k in ["sixes", "6s"])
 
-    # Step 1: Check Immutable Lock Vault First (Re-evaluate if previously locked as SKIP, or with legacy engine < v7)
+    # Step 1: Check Immutable Lock Vault First (Re-evaluate if previously locked as SKIP, or with legacy engine < v8)
     locked_verdict = get_locked_prediction(m_id_str, t_a, t_b)
     if locked_verdict:
         if locked_verdict.get("action") == "SKIP" or not locked_verdict.get("recommended_team") or is_exhibition:
             locked_verdict = None
-        elif locked_verdict.get("engine_version") != 7:
+        elif locked_verdict.get("engine_version") != 8:
             locked_verdict = None
         elif locked_verdict.get("confidence_pct", 50) > 80 or "crex" in str(locked_verdict.get("consensus_badge", "")).lower() or locked_verdict.get("pillars_total") != 5:
             locked_verdict = None
 
     if locked_verdict:
-        # Strict 70%+ High-Conviction Gating & Minimum 3 of 5 Independent Pillars
+        # Strict 63%+ Playable Gating & Minimum 2 of 5 Independent Pillars
         pat_name = locked_verdict.get("pattern_rule_name", "NEUTRAL")
         is_pat_valid = pat_name not in ["NEUTRAL", "BALANCED_ROTATION", "EXHIBITION", ""]
-        if (locked_verdict.get("confidence_pct", 50) < 70 or locked_verdict.get("pillars_aligned", 0) < 3 or not is_pat_valid) and locked_verdict.get("action") == "PLAY":
+        if (locked_verdict.get("confidence_pct", 50) < 63 or locked_verdict.get("pillars_aligned", 0) < 2 or not is_pat_valid) and locked_verdict.get("action") == "PLAY":
             locked_verdict["action"] = "SKIP"
             locked_verdict["recommended_team"] = None
             locked_verdict["verdict_tier"] = "PASS"
@@ -460,7 +460,12 @@ def compute_multi_source_toss_load(
 
     # SUPER PILLAR 4: Venue Conditions & MCC 1.3 Coin Calling Law (requires verified history on BOTH teams)
     is_neutral_venue = any(k in (tournament or "").lower() for k in ["world cup", "champions", "asia cup", "tri-series", "t10"])
-    is_d_n = any(k in (match_time or "").lower() for k in ["pm", "night", "18:", "19:", "20:", "17:"])
+    t_low = (match_time or "").lower()
+    is_d_n = (
+        "night" in t_low
+        or any(h in t_low for h in ["17:", "18:", "19:", "20:", "21:", "22:", "23:"])
+        or bool(re.search(r'\b0?[5-9]:\d{2}\s*pm\b|\b1[01]:\d{2}\s*pm\b', t_low))
+    )
 
     # Only award Venue/Calling Law when there is an actual D/N dew + clear edge OR verified H2H home advantage (no free Team B default)
     caller_edge_b = (not is_neutral_venue and both_teams_sufficient and is_d_n and b_wins >= 4 and a_wins <= 2)
@@ -551,19 +556,85 @@ def compute_multi_source_toss_load(
         and confidence >= 70
     )
 
+    is_value_lean = (
+        not is_iron_clad_lock
+        and len(active_pillars) >= 2
+        and net_pillars >= 2
+        and len(conflicting_pillars) == 0
+        and (both_teams_sufficient or tot_h2h >= 2)
+        and is_pattern_confirmed
+        and confidence >= 63
+    )
+
+    # Real empirical win% metrics for transparent decision-making
+    pct_a_real = round((a_w / float(tot_matches_a)) * 100.0, 1) if tot_matches_a > 0 else 50.0
+    pct_b_real = round((b_w / float(tot_matches_b)) * 100.0, 1) if tot_matches_b > 0 else 50.0
+    rec_a = f"{a_w}/{tot_matches_a} ({pct_a_real:.0f}%)" if tot_matches_a > 0 else "0/0 (N/A)"
+    rec_b = f"{b_w}/{tot_matches_b} ({pct_b_real:.0f}%)" if tot_matches_b > 0 else "0/0 (N/A)"
+
+    rule_win_pct: Optional[float] = None
+    if LOG_FILE == DEFAULT_LOG_FILE:
+        try:
+            from core.engine.historical_archive import run_empirical_rule_backtest
+            bt_rows = run_empirical_rule_backtest().get("rules", [])
+            r_raw = pat.get("rule_name", "NEUTRAL")
+            bt_key = None
+            if r_raw == "H2H_DOMINANCE":
+                bt_key = "H2H_DOMINANCE"
+            elif r_raw == "ZIG_ZAG_ALTERNATION":
+                bt_key = "ZIG_ZAG_ALTERNATION"
+            elif r_raw == "WINNING_MOMENTUM":
+                bt_key = "WINNING_MOMENTUM (2-3W)"
+            elif r_raw == "STREAK_EXHAUSTION":
+                bt_key = "WIN_STREAK_SNAP (4W+)" if (s_a >= 4 or s_b >= 4) else "STREAK_EXHAUSTION (3L)"
+            if bt_key:
+                match_row = next((r for r in bt_rows if r.get("Rule") == bt_key), None)
+                if match_row:
+                    rule_win_pct = float(match_row.get("Win %", 50.0))
+        except Exception:
+            rule_win_pct = None
+
+    fav_pct_val = pct_a_real if favored == t_a else pct_b_real
+    und_pct_val = pct_b_real if favored == t_a else pct_a_real
+    fav_rec_str = rec_a if favored == t_a else rec_b
+    und_rec_str = rec_b if favored == t_a else rec_a
+    h2h_str = f"H2H {h2h_a}-{h2h_b}" if tot_h2h > 0 else "H2H 0-0"
+    rule_bt_txt = f" · Rule Hist: {rule_win_pct:.1f}%" if rule_win_pct is not None else ""
+    win_pct_summary = f"{favored}: {fav_rec_str} vs {underdog}: {und_rec_str} ({h2h_str}{rule_bt_txt})"
+
     if is_iron_clad_lock:
         action = "PLAY"
         verdict_tier = "SUPER_LOCK"
-        rating = "💎 HIGH-CONVICTION PICK (INDEPENDENT PILLARS + ANCHOR)"
+        rating = "💎 HIGH-CONVICTION PICK (3+ PILLARS + ANCHOR)"
         badge = f"💎 TOP GOLDEN PICK ({confidence}%)"
-        risk_level = f"MODERATE RISK ({len(active_pillars)}/5 PILLARS + ANCHOR · COIN TOSS)"
+        risk_level = f"FLAT STAKE ({len(active_pillars)}/5 PILLARS + ANCHOR · COIN TOSS)"
         pillar_bullets = " · ".join(active_pillars)
         pat_name = pat.get("rule_name", "PATTERN").replace("_", " ").title()
-        rationale = f"💎 HIGH-CONVICTION PICK ({confidence}% est.): {pillar_bullets} · Pattern: {pat_name}. Toss random event hai (100% guarantee nahi); disciplined flat stake (2.5% max) ke saath {favored} back karein."
-        source_summary = f"Multi-Source Confluence ({len(active_pillars)}/5 Aligned · {confidence}%)"
+        rationale = (
+            f"💎 TOP PICK ({confidence}% Score): {pillar_bullets} · Pattern: {pat_name}. "
+            f"📈 Real Win%: {win_pct_summary}. Toss random event hai (100% guarantee nahi); disciplined flat stake (2.5% max) se {favored} play karein."
+        )
+        source_summary = f"Multi-Source Confluence ({len(active_pillars)}/5 · {confidence}%)"
         rec_team = favored
         und_team = underdog
-        market_load_str = f"📊 Confluence: {len(active_pillars)}/5 Pillars + Anchor on {favored}"
+        market_load_str = f"📊 {len(active_pillars)}/5 Pillars + Anchor | Win%: {fav_pct_val:.0f}% vs {und_pct_val:.0f}%"
+    elif is_value_lean:
+        action = "PLAY"
+        verdict_tier = "VALUE_LEAN"
+        confidence = min(69, confidence)
+        rating = "⚡ VALUE LEAN (HALF STAKE · 2+ PILLARS)"
+        badge = f"⚡ VALUE LEAN ({confidence}%)"
+        risk_level = f"HALF STAKE ({len(active_pillars)}/5 PILLARS · ~50-53% HIST WIN)"
+        pillar_bullets = " · ".join(active_pillars)
+        pat_name = pat.get("rule_name", "PATTERN").replace("_", " ").title()
+        rationale = (
+            f"⚡ VALUE LEAN ({confidence}% Score): {pillar_bullets} · Pattern: {pat_name}. "
+            f"📈 Real Win%: {win_pct_summary}. 2-Pillar Value spot hai (3+ Pillar se kam conviction) — Half Stake (1–1.25% max) ke saath {favored} play karein."
+        )
+        source_summary = f"Value Lean ({len(active_pillars)}/5 Aligned · {confidence}%)"
+        rec_team = favored
+        und_team = underdog
+        market_load_str = f"📊 {len(active_pillars)}/5 Pillars (Value) | Win%: {fav_pct_val:.0f}% vs {und_pct_val:.0f}%"
     else:
         action = "SKIP"
         verdict_tier = "PASS"
@@ -575,19 +646,17 @@ def compute_multi_source_toss_load(
         reasons_list = []
         if not both_teams_sufficient and tot_h2h < 2:
             reasons_list.append(f"Insufficient team toss history ({t_a}: {tot_a}, {t_b}: {tot_b} matches; min 3 each required)")
-        if len(active_pillars) < 3:
-            reasons_list.append(f"Only {len(active_pillars)}/5 independent pillars aligned (min 3 required)")
+        if len(active_pillars) < 2:
+            reasons_list.append(f"Only {len(active_pillars)}/5 independent pillars aligned (min 2 for Value Lean, 3 for Top Pick)")
         if not is_pattern_confirmed:
             reasons_list.append("Pattern Engine not confirmed (Neutral/Balanced rotation)")
-        if not has_external_anchor:
-            reasons_list.append("No external anchor (missing bookie rate divergence, Telegram syndicate, or H2H edge)")
         if len(conflicting_pillars) > 0:
             reasons_list.append(f"{len(conflicting_pillars)} conflicting opponent pillars")
-        if confidence < 70:
-            reasons_list.append(f"Confidence score {confidence}% (min 70% required)")
+        if confidence < 63:
+            reasons_list.append(f"Confidence score {confidence}% (min 63% required)")
 
         diag_txt = " · ".join(reasons_list) if reasons_list else "Both teams in 50-50 neutral coin-flip zone"
-        rationale = f"⛔ STRICT PASS (50-50 COIN FLIP): {diag_txt}. Independent multi-source criteria not met — capital safe rakhne ke liye pass karein."
+        rationale = f"⛔ STRICT PASS (50-50 COIN FLIP): {diag_txt}. Win%: {rec_a} vs {rec_b} ({h2h_str}). Capital safe rakhne ke liye pass karein."
         source_summary = f"Flat / Coin-Flip Zone ({confidence}%)"
         rec_team = None
         und_team = None
@@ -610,7 +679,14 @@ def compute_multi_source_toss_load(
         "pillars_total": 5,
         "pillars_aligned": len(active_pillars),
         "active_pillars_list": active_pillars,
-        "engine_version": 7,
+        "team_a_win_pct": pct_a_real,
+        "team_b_win_pct": pct_b_real,
+        "team_a_record": rec_a,
+        "team_b_record": rec_b,
+        "h2h_summary": h2h_str,
+        "rule_win_pct": rule_win_pct,
+        "fav_win_pct_summary": win_pct_summary,
+        "engine_version": 8,
         # Dedicated Pattern Fields for UI Display
         "pattern_badge": pat.get("pattern_badge", "⚖️ Neutral Rotation"),
         "pattern_rule_name": pat.get("rule_name", "NEUTRAL"),
