@@ -489,6 +489,76 @@ def test_merge_backup_toss_results_restores_manual_updates(tmp_path, monkeypatch
     assert aus_eng["outcome"] == "SKIPPED"
 
 
+def test_cloud_store_persists_manual_results_across_local_wipe(tmp_path, monkeypatch):
+    """Manual Toss Done saved to Cloud DB survives a total local JSON reset/reboot."""
+    from core.database import cloud_store
+    from core.engine import toss_results_manager as trm
+
+    cloud_db_url = f"sqlite:///{(tmp_path / 'cloud_test.db').as_posix()}"
+    res_file = tmp_path / "toss_results_log.json"
+    res_file.write_text("[]", encoding="utf-8")
+
+    monkeypatch.setenv("DATABASE_URL", cloud_db_url)
+    monkeypatch.setattr(cloud_store, "_ENGINE_CACHE", {})
+    monkeypatch.setattr(cloud_store, "_SCHEMA_READY", set())
+    monkeypatch.setattr(trm, "RESULTS_FILE", str(res_file))
+    monkeypatch.setattr(trm, "DEFAULT_RESULTS_FILE", str(res_file))
+    monkeypatch.setattr(trm, "_TOSS_RESULTS_CACHE", {"mtime": 0, "cloud_ts": 0.0, "data": []})
+
+    # 1. User marks match manually -> saved to both local JSON and Cloud DB
+    trm.save_toss_result(
+        match_id="41350",
+        match_name="Team Alpha vs Team Beta",
+        tournament="Test Cup",
+        toss_time_ist="07:00 PM IST",
+        match_date="2026-11-27",
+        team_a="Team Alpha",
+        team_b="Team Beta",
+        recommended_team=None,
+        stake_rating="🟡 SKIP / 50-50 COIN FLIP",
+        actual_winner="Team Alpha",
+        toss_decision="Bat",
+        is_manual=True,
+    )
+
+    # 2. Simulate server reboot / code push wiping local JSON back to stale Pending
+    res_file.write_text(
+        json.dumps([
+            {
+                "match_id": "41350",
+                "match_name": "Team Alpha vs Team Beta",
+                "tournament": "Test Cup",
+                "toss_time_ist": "07:00 PM IST",
+                "match_date": "2026-11-27",
+                "team_a": "Team Alpha",
+                "team_b": "Team Beta",
+                "recommended_team": None,
+                "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
+                "actual_winner": "Pending Confirmation",
+                "toss_decision": "Pending",
+                "outcome": "SKIPPED",
+                "outcome_label": "🟡 SKIPPED (50-50 NEUTRAL)",
+                "is_manual": False,
+            }
+        ]),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(trm, "_TOSS_RESULTS_CACHE", {"mtime": 0, "cloud_ts": 0.0, "data": []})
+
+    # 3. Reload after reboot -> Cloud DB MUST win over stale local Pending!
+    reloaded = trm.load_toss_results()
+    assert len(reloaded) == 1
+    assert reloaded[0]["actual_winner"] == "Team Alpha"
+    assert reloaded[0]["toss_decision"] == "Bat"
+    assert reloaded[0]["is_manual"] is True
+
+    stat = cloud_store.get_cloud_db_status()
+    assert stat["enabled"] is True
+    assert stat["connected"] is True
+    assert stat["results_count"] == 1
+
+
+
 
 
 

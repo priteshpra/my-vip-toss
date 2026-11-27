@@ -21,11 +21,18 @@ from core.engine.pattern_engine import (
     STATE_MODIFIERS,
 )
 from core.engine.historical_archive import load_merged_toss_records
+from core.database.cloud_store import (
+    cloud_load_all_locks,
+    cloud_upsert_locks,
+    is_cloud_db_enabled,
+)
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
 LOCKED_PREDICTIONS_FILE = os.path.join(DATA_DIR, "toss_predictions_locked.json")
+DEFAULT_LOCKED_PREDICTIONS_FILE = LOCKED_PREDICTIONS_FILE
 LOG_FILE = os.path.join(DATA_DIR, "toss_results_log.json")
 DEFAULT_LOG_FILE = LOG_FILE
+_CLOUD_LOCKS_CACHE: Dict[str, Any] = {"ts": 0.0, "data": None}
 
 
 def _normalize_name(name: str) -> str:
@@ -73,14 +80,38 @@ def match_teams_fuzzy(t1: str, t2: str) -> bool:
 
 
 def load_locked_predictions() -> Dict[str, Any]:
-    """Load persistent locked predictions from disk to guarantee zero flipping across refreshes."""
+    """Load persistent locked predictions from Cloud DB (when active) + local JSON."""
+    local_locked: Dict[str, Any] = {}
     if os.path.exists(LOCKED_PREDICTIONS_FILE):
         try:
             with open(LOCKED_PREDICTIONS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                if isinstance(data, dict):
+                    local_locked = data
         except Exception:
-            pass
-    return {}
+            local_locked = {}
+
+    if LOCKED_PREDICTIONS_FILE == DEFAULT_LOCKED_PREDICTIONS_FILE and is_cloud_db_enabled():
+        now_ts = time.time()
+        if (now_ts - float(_CLOUD_LOCKS_CACHE.get("ts", 0.0))) < 15.0 and isinstance(_CLOUD_LOCKS_CACHE.get("data"), dict):
+            return dict(_CLOUD_LOCKS_CACHE["data"])
+        cloud_locks = cloud_load_all_locks()
+        if cloud_locks is not None:
+            merged = dict(local_locked)
+            to_push: Dict[str, Any] = {}
+            for k, lv in local_locked.items():
+                if k not in cloud_locks and isinstance(lv, dict):
+                    to_push[k] = lv
+            for k, cv in cloud_locks.items():
+                if isinstance(cv, dict):
+                    merged[k] = cv
+            if to_push:
+                cloud_upsert_locks(to_push)
+            _CLOUD_LOCKS_CACHE["ts"] = now_ts
+            _CLOUD_LOCKS_CACHE["data"] = merged
+            return dict(merged)
+
+    return local_locked
 
 
 def save_locked_prediction(
@@ -115,12 +146,19 @@ def save_locked_prediction(
                 # Preserve the original PLAY call only if locked under current v8 engine
                 return
 
+        cloud_updates: Dict[str, Any] = {}
         if m_id_str:
             locked[m_id_str] = verdict
+            cloud_updates[m_id_str] = verdict
         if d_clean and pkey:
-            locked[f"{d_clean}:{pkey}"] = verdict
+            dkey = f"{d_clean}:{pkey}"
+            locked[dkey] = verdict
+            cloud_updates[dkey] = verdict
         with open(LOCKED_PREDICTIONS_FILE, "w", encoding="utf-8") as f:
             json.dump(locked, f, indent=2)
+        if LOCKED_PREDICTIONS_FILE == DEFAULT_LOCKED_PREDICTIONS_FILE and is_cloud_db_enabled() and cloud_updates:
+            cloud_upsert_locks(cloud_updates)
+            _CLOUD_LOCKS_CACHE["ts"] = 0.0
     except Exception:
         pass
 

@@ -46,6 +46,10 @@ sync_live_toss_results_from_crex = getattr(_trm, "sync_live_toss_results_from_cr
 sync_live_toss_results_from_cricbuzz = getattr(_trm, "sync_live_toss_results_from_cricbuzz", lambda: 0)
 merge_backup_toss_results = getattr(_trm, "merge_backup_toss_results", lambda recs: 0)
 sync_results_file_to_github = getattr(_trm, "sync_results_file_to_github", lambda **kwargs: {"success": False, "error": "Unavailable"})
+try:
+    from core.database.cloud_store import get_cloud_db_status
+except Exception:
+    get_cloud_db_status = lambda: {"enabled": False, "connected": False, "backend": "Local JSON (Ephemeral)", "results_count": 0, "locks_count": 0, "error": ""}
 
 def _fallback_is_winner_unresolved(val: Any) -> bool:
     s = str(val or "").strip().lower()
@@ -1622,11 +1626,23 @@ with vip_tabs[1]:
         except Exception as e_bt:
             st.warning(f"Backtest unavailable: {e_bt}")
 
-    with st.expander("💾 Backup & Restore / Cloud Save (Server Restart Safety)", expanded=False):
-        st.caption("Streamlit Cloud par server reboot hone par temporary files reset ho jati hain. Apne manual Toss Done updates ko JSON backup me save/restore karein ya `GITHUB_TOKEN` se GitHub par permanent save karein.")
+    completed_results = load_toss_results()
+
+    _db_stat = get_cloud_db_status()
+    if _db_stat.get("connected"):
+        st.success(f"🟢 **Cloud Database Connected ({_db_stat.get('backend')})** — {_db_stat.get('results_count', 0)} results & {_db_stat.get('locks_count', 0)} locks permanently auto-saved (Server reboot / code push safe!)")
+    elif _db_stat.get("enabled"):
+        st.error(f"🔴 **Cloud DB Connection Error:** `{_db_stat.get('error', 'Check DATABASE_URL')}` — Temporary JSON fallback active; fix `DATABASE_URL` in Streamlit Secrets.")
+
+    with st.expander("💾 Cloud DB Setup & Backup / Restore (Server Restart Safety)", expanded=not _db_stat.get("connected")):
+        if not _db_stat.get("connected"):
+            st.warning(
+                "**Permanent Auto-Save (Zero-Jhanjhat Setup):** Abhi results temporary local JSON me save ho rahe hain (Streamlit reboot/push par reset ho sakte hain). "
+                "Ek baar **Neon.tech** ya **Supabase** se free PostgreSQL URL lekar Streamlit App -> **Settings -> Secrets** me `DATABASE_URL = \"postgresql://...\"` add kar dein — uske baad har manual Toss Done hamesha ke liye DB me save rahega!"
+            )
         col_bk1, col_bk2, col_bk3 = st.columns(3)
         with col_bk1:
-            _cur_results_json = json.dumps(load_toss_results(), indent=2, ensure_ascii=False)
+            _cur_results_json = json.dumps(completed_results, indent=2, ensure_ascii=False)
             st.download_button(
                 label="📥 Download Results Backup",
                 data=_cur_results_json,
@@ -1668,10 +1684,10 @@ with vip_tabs[1]:
                             st.success(_gh_res.get("message", "✅ Saved to GitHub!"))
                         else:
                             st.error(_gh_res.get("error", "GitHub save failed."))
+            elif _db_stat.get("connected"):
+                st.success("✅ Auto-Save ON: Har manual update seedha Cloud DB me save hota hai.")
             else:
-                st.info("☁️ Permanent Cloud Save ke liye Streamlit Secrets me `GITHUB_TOKEN` add karein; tab tak Download/Restore Backup use karein.")
-
-    completed_results = load_toss_results()
+                st.info("💡 Free Cloud DB (`DATABASE_URL`) ya `GITHUB_TOKEN` Streamlit Secrets me add karein.")
 
     if not completed_results:
         st.markdown("""

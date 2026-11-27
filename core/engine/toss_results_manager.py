@@ -10,6 +10,7 @@ Persistently tracks completed tosses, outcomes, and pass/fail statistics:
 import os
 import re
 import json
+import time
 import base64
 import ssl
 import urllib.request
@@ -18,12 +19,20 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
 from core.timezone import now_ist, format_ist
+from core.database.cloud_store import (
+    cloud_delete_result,
+    cloud_load_all_results,
+    cloud_upsert_many_results,
+    cloud_upsert_result,
+    is_cloud_db_enabled,
+)
 
 _SSL_CTX = ssl.create_default_context()
 _SSL_CTX.check_hostname = False
 _SSL_CTX.verify_mode = ssl.CERT_NONE
 
 RESULTS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "toss_results_log.json")
+DEFAULT_RESULTS_FILE = RESULTS_FILE
 
 __all__ = [
     "load_toss_results",
@@ -92,26 +101,103 @@ def _is_valid_v8_play(rec: Optional[Dict[str, Any]]) -> bool:
     return "VALUE LEAN" in rating or "HIGH-CONVICTION" in rating
 
 
-_TOSS_RESULTS_CACHE = {"mtime": 0, "data": []}
+_TOSS_RESULTS_CACHE = {"mtime": 0, "cloud_ts": 0.0, "data": []}
+
+
+def _cloud_sync_active() -> bool:
+    """Use Cloud PostgreSQL only for the real default results file (keep tests isolated)."""
+    return RESULTS_FILE == DEFAULT_RESULTS_FILE and is_cloud_db_enabled()
+
+
+def _norm_pair_sig(rec: Dict[str, Any]) -> str:
+    d = str(rec.get("match_date") or "").split("T")[0].strip()
+    ta = re.sub(r"[^a-z0-9]", "", str(rec.get("team_a") or "").lower())
+    tb = re.sub(r"[^a-z0-9]", "", str(rec.get("team_b") or "").lower())
+    if not d or not ta or not tb:
+        return ""
+    p1, p2 = (ta, tb) if ta <= tb else (tb, ta)
+    return f"{d}:{p1}__{p2}"
+
 
 def load_toss_results() -> List[Dict[str, Any]]:
-    """Load all recorded completed toss results with in-memory mtime cache. Strictly real matches only, sorted latest first."""
+    """Load all recorded completed toss results (Cloud DB + local JSON sync), sorted latest first."""
     global _TOSS_RESULTS_CACHE
+
+    local_rows: List[Dict[str, Any]] = []
+    local_mtime = 0.0
     if os.path.exists(RESULTS_FILE):
         try:
-            mtime = os.path.getmtime(RESULTS_FILE)
-            if _TOSS_RESULTS_CACHE["mtime"] == mtime and _TOSS_RESULTS_CACHE["data"]:
-                return list(_TOSS_RESULTS_CACHE["data"])
+            local_mtime = os.path.getmtime(RESULTS_FILE)
             with open(RESULTS_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if isinstance(data, list):
-                    # Filter out any legacy dummy seed matches if they existed
-                    filtered = [r for r in data if not str(r.get("match_id", "")).startswith("seed_0")]
-                    filtered.sort(key=_parse_toss_time_key, reverse=True)
-                    _TOSS_RESULTS_CACHE = {"mtime": mtime, "data": filtered}
-                    return list(filtered)
+                raw_local = json.load(f)
+                if isinstance(raw_local, list):
+                    local_rows = [r for r in raw_local if not str(r.get("match_id", "")).startswith("seed_0")]
         except Exception:
-            pass
+            local_rows = []
+
+    if _cloud_sync_active():
+        now_ts = time.time()
+        if (now_ts - float(_TOSS_RESULTS_CACHE.get("cloud_ts", 0.0))) < 15.0 and _TOSS_RESULTS_CACHE.get("data"):
+            return list(_TOSS_RESULTS_CACHE["data"])
+
+        cloud_rows = cloud_load_all_results()
+        if cloud_rows is not None:
+            cloud_filtered = [r for r in cloud_rows if not str(r.get("match_id", "")).startswith("seed_0")]
+            by_id = {str(r.get("match_id", "")).strip(): i for i, r in enumerate(cloud_filtered) if r.get("match_id")}
+            by_pair = {_norm_pair_sig(r): i for i, r in enumerate(cloud_filtered) if _norm_pair_sig(r)}
+
+            to_push: List[Dict[str, Any]] = []
+            for lr in local_rows:
+                lid = str(lr.get("match_id", "")).strip()
+                lp = _norm_pair_sig(lr)
+                c_idx = by_id.get(lid) if lid in by_id else by_pair.get(lp)
+                if c_idx is None:
+                    cloud_filtered.append(lr)
+                    if lid:
+                        by_id[lid] = len(cloud_filtered) - 1
+                    if lp:
+                        by_pair[lp] = len(cloud_filtered) - 1
+                    to_push.append(lr)
+                else:
+                    cr = cloud_filtered[c_idx]
+                    # Only upgrade a pending Cloud row if local JSON actually has a resolved winner
+                    if is_winner_unresolved(cr.get("actual_winner")) and not is_winner_unresolved(lr.get("actual_winner")):
+                        cloud_filtered[c_idx] = lr
+                        to_push.append(lr)
+
+            if to_push:
+                cloud_upsert_many_results(to_push)
+
+            cloud_filtered.sort(key=_parse_toss_time_key, reverse=True)
+
+            # Keep local JSON mirror in sync for historical_archive / Win% consumers only when content differs
+            cloud_sig = [
+                (str(r.get("match_id", "")), r.get("actual_winner"), r.get("outcome"), bool(r.get("is_manual", False)))
+                for r in cloud_filtered
+            ]
+            local_sorted = sorted(local_rows, key=_parse_toss_time_key, reverse=True)
+            local_sig = [
+                (str(r.get("match_id", "")), r.get("actual_winner"), r.get("outcome"), bool(r.get("is_manual", False)))
+                for r in local_sorted
+            ]
+            if cloud_sig != local_sig:
+                try:
+                    os.makedirs(os.path.dirname(RESULTS_FILE), exist_ok=True)
+                    with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+                        json.dump(cloud_filtered, f, indent=2, ensure_ascii=False)
+                    local_mtime = os.path.getmtime(RESULTS_FILE)
+                except Exception:
+                    pass
+
+            _TOSS_RESULTS_CACHE = {"mtime": local_mtime, "cloud_ts": time.time(), "data": cloud_filtered}
+            return list(cloud_filtered)
+
+    if local_rows:
+        if _TOSS_RESULTS_CACHE["mtime"] == local_mtime and _TOSS_RESULTS_CACHE["data"]:
+            return list(_TOSS_RESULTS_CACHE["data"])
+        local_rows.sort(key=_parse_toss_time_key, reverse=True)
+        _TOSS_RESULTS_CACHE = {"mtime": local_mtime, "cloud_ts": 0.0, "data": local_rows}
+        return list(local_rows)
     return []
 
 
@@ -277,6 +363,10 @@ def save_toss_result(
     with open(RESULTS_FILE, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
     _TOSS_RESULTS_CACHE["mtime"] = 0
+    _TOSS_RESULTS_CACHE["cloud_ts"] = 0.0
+
+    if _cloud_sync_active():
+        cloud_upsert_result(record)
 
     return record
 
@@ -291,6 +381,9 @@ def delete_toss_result(match_id: str) -> bool:
         with open(RESULTS_FILE, "w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)
         _TOSS_RESULTS_CACHE["mtime"] = 0
+        _TOSS_RESULTS_CACHE["cloud_ts"] = 0.0
+        if _cloud_sync_active():
+            cloud_delete_result(str(match_id))
         return True
     return False
 
@@ -1183,6 +1276,9 @@ def merge_backup_toss_results(backup_records: List[Dict[str, Any]]) -> int:
         with open(RESULTS_FILE, "w", encoding="utf-8") as f:
             json.dump(existing, f, indent=2, ensure_ascii=False)
         _TOSS_RESULTS_CACHE["mtime"] = 0
+        _TOSS_RESULTS_CACHE["cloud_ts"] = 0.0
+        if _cloud_sync_active():
+            cloud_upsert_many_results(existing)
 
     return changed
 
