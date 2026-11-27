@@ -10,8 +10,10 @@ Persistently tracks completed tosses, outcomes, and pass/fail statistics:
 import os
 import re
 import json
+import base64
 import ssl
 import urllib.request
+import urllib.error
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 
@@ -32,6 +34,8 @@ __all__ = [
     "auto_update_toss_results_from_telegram",
     "sync_live_toss_results_from_crex",
     "sync_live_toss_results_from_cricbuzz",
+    "merge_backup_toss_results",
+    "sync_results_file_to_github",
     "is_winner_unresolved",
     "parse_toss_datetime",
 ]
@@ -73,6 +77,19 @@ def is_winner_unresolved(val: Any) -> bool:
         or "neutral" in s
         or s in ["none", "tbd", "-", "null", "undefined"]
     )
+
+
+def _is_valid_v8_play(rec: Optional[Dict[str, Any]]) -> bool:
+    """Return True only for an explicit v8 PLAY verdict with a recommended team."""
+    if not isinstance(rec, dict) or not rec.get("recommended_team"):
+        return False
+    action = rec.get("action_type") or rec.get("action")
+    if action != "PLAY":
+        return False
+    if rec.get("engine_version") == 8:
+        return True
+    rating = str(rec.get("stake_rating", ""))
+    return "VALUE LEAN" in rating or "HIGH-CONVICTION" in rating
 
 
 _TOSS_RESULTS_CACHE = {"mtime": 0, "data": []}
@@ -135,7 +152,7 @@ def save_toss_result(
                             (match_teams_fuzzy(team_a, cm_t2) and match_teams_fuzzy(team_b, cm_t1))
                         )
                         if (m_id_str and cm_id == m_id_str) or pair_match:
-                            if cm.get("action_type") == "PLAY" and cm.get("recommended_team"):
+                            if _is_valid_v8_play(cm):
                                 recommended_team = cm.get("recommended_team")
                                 stake_rating = cm.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK")
                                 break
@@ -433,12 +450,12 @@ def sync_completed_tosses_from_gaming_helper(run_resolvers: bool = True) -> List
                         ) and (not cm_date or not m_date or cm_date == m_date)
 
                         if id_matches or pair_matches:
-                            if cm.get("action_type") == "PLAY" and cm.get("recommended_team"):
+                            if _is_valid_v8_play(cm):
                                 rec_team = cm.get("recommended_team")
                                 rating = cm.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
                             else:
                                 rec_team = None
-                                rating = cm.get("stake_rating", "🟡 SKIP / 50-50 COIN FLIP")
+                                rating = "🟡 SKIP / 50-50 COIN FLIP"
                             found_verdict = True
                             break
             except Exception:
@@ -448,7 +465,7 @@ def sync_completed_tosses_from_gaming_helper(run_resolvers: bool = True) -> List
         if not found_verdict:
             l_pred = get_locked_prediction(m_id, t1, t2, match_date=m_date)
             if l_pred:
-                if l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
+                if _is_valid_v8_play(l_pred):
                     rec_team = l_pred.get("recommended_team")
                     rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
                 else:
@@ -614,8 +631,8 @@ def sync_live_toss_results_from_cricbuzz() -> int:
                 )
                 if matched:
                     actual_win = l_ta if match_teams_fuzzy(winner_raw, l_ta) else (l_tb if match_teams_fuzzy(winner_raw, l_tb) else winner_raw)
-                    rec = m.get("recommended_team")
-                    rating = m.get("stake_rating", "🟡 SKIP / 50-50 COIN FLIP")
+                    rec = m.get("recommended_team") if _is_valid_v8_play(m) else None
+                    rating = m.get("stake_rating", "🟡 SKIP / 50-50 COIN FLIP") if rec else "🟡 SKIP / 50-50 COIN FLIP"
                     save_toss_result(
                         match_id=m_id,
                         match_name=f"{l_ta} vs {l_tb}",
@@ -1014,11 +1031,14 @@ def sync_live_toss_results_from_crex() -> int:
                         cm_t1 = cm.get("team_a_name") or cm.get("team_one_name") or ""
                         cm_t2 = cm.get("team_b_name") or cm.get("team_two_name") or ""
                         if is_match_pair(t1, t2, cm_t1, cm_t2):
-                            if cm.get("action_type") == "PLAY" and cm.get("recommended_team"):
+                            matched_id = cm.get("id") or matched_id
+                            if _is_valid_v8_play(cm):
                                 rec_team = cm.get("recommended_team")
                                 rating = cm.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)")
-                                matched_id = cm.get("id") or matched_id
-                                break
+                            else:
+                                rec_team = None
+                                rating = "🟡 SKIP / 50-50 COIN FLIP"
+                            break
 
                 if not matched_id:
                     for lid, lp in locked_map.items():
@@ -1072,6 +1092,145 @@ def sync_live_toss_results_from_crex() -> int:
             pass
 
     return resolved_count
+
+
+def merge_backup_toss_results(backup_records: List[Dict[str, Any]]) -> int:
+    """Merge uploaded backup toss result records into RESULTS_FILE cleanly.
+
+    Prefers resolved / manual entries over Pending Confirmation without duplicating matches.
+    Returns count of records added or updated.
+    """
+    global _TOSS_RESULTS_CACHE
+    if not isinstance(backup_records, list) or not backup_records:
+        return 0
+
+    from core.providers.toss_load_provider import match_teams_fuzzy
+    existing = load_toss_results()
+    changed = 0
+
+    for raw in backup_records:
+        if not isinstance(raw, dict):
+            continue
+        m_id = str(raw.get("match_id", "")).strip()
+        ta = str(raw.get("team_a", "")).strip()
+        tb = str(raw.get("team_b", "")).strip()
+        m_date = str(raw.get("match_date") or "").split("T")[0].strip()
+        if not m_id and not (ta and tb):
+            continue
+
+        b_win = raw.get("actual_winner")
+        b_resolved = not is_winner_unresolved(b_win)
+        b_manual = bool(raw.get("is_manual", False))
+
+        # Find matching existing row by match_id, match_name, or same-date fuzzy team pair
+        match_idx = None
+        for idx, cur in enumerate(existing):
+            c_id = str(cur.get("match_id", "")).strip()
+            c_date = str(cur.get("match_date") or "").split("T")[0].strip()
+            c_ta = str(cur.get("team_a", "")).strip()
+            c_tb = str(cur.get("team_b", "")).strip()
+            same_pair = bool(
+                c_date and m_date and c_date == m_date and ta and tb and c_ta and c_tb and (
+                    (match_teams_fuzzy(ta, c_ta) and match_teams_fuzzy(tb, c_tb))
+                    or (match_teams_fuzzy(ta, c_tb) and match_teams_fuzzy(tb, c_ta))
+                )
+            )
+            if (m_id and c_id == m_id) or (raw.get("match_name") and cur.get("match_name") == raw.get("match_name")) or same_pair:
+                match_idx = idx
+                break
+
+        if match_idx is None:
+            existing.append(dict(raw))
+            changed += 1
+        else:
+            cur = existing[match_idx]
+            c_resolved = not is_winner_unresolved(cur.get("actual_winner"))
+            c_manual = bool(cur.get("is_manual", False))
+            # Upgrade pending row to resolved backup, or manual backup over non-manual row
+            if (b_resolved and not c_resolved) or (b_resolved and b_manual and not c_manual):
+                merged = dict(cur)
+                merged["actual_winner"] = b_win
+                if raw.get("toss_decision"):
+                    merged["toss_decision"] = raw.get("toss_decision")
+                if raw.get("outcome"):
+                    merged["outcome"] = raw.get("outcome")
+                if raw.get("outcome_label"):
+                    merged["outcome_label"] = raw.get("outcome_label")
+                merged["is_manual"] = b_manual
+                if raw.get("recorded_at"):
+                    merged["recorded_at"] = raw.get("recorded_at")
+                # Keep PASS/FAIL/SKIPPED coherent; honor explicit manual SKIP from backup, never upgrade SKIP -> PLAY from stale backup
+                if b_manual and (not raw.get("recommended_team") or raw.get("outcome") == "SKIPPED"):
+                    merged["recommended_team"] = None
+                    merged["stake_rating"] = raw.get("stake_rating", "🟡 FORCE SKIP / 50-50 MANUAL FIX")
+                rec_t = merged.get("recommended_team")
+                if not rec_t or str(rec_t).strip().lower() in ("none", "skip"):
+                    merged["recommended_team"] = None
+                    merged["outcome"] = "SKIPPED"
+                    merged["outcome_label"] = "🟡 SKIPPED (50-50 NEUTRAL)"
+                elif not is_winner_unresolved(merged.get("actual_winner")):
+                    w_str = str(merged["actual_winner"])
+                    rec_low = str(rec_t).strip().lower()
+                    won = rec_low in w_str.lower() or w_str.lower() in rec_low or match_teams_fuzzy(str(rec_t), w_str)
+                    merged["outcome"] = "PASS" if won else "FAIL"
+                    merged["outcome_label"] = "✅ PASS (WON)" if won else "❌ FAIL (MISSED)"
+                existing[match_idx] = merged
+                changed += 1
+
+    if changed > 0:
+        existing.sort(key=_parse_toss_time_key, reverse=True)
+        os.makedirs(os.path.dirname(RESULTS_FILE), exist_ok=True)
+        with open(RESULTS_FILE, "w", encoding="utf-8") as f:
+            json.dump(existing, f, indent=2, ensure_ascii=False)
+        _TOSS_RESULTS_CACHE["mtime"] = 0
+
+    return changed
+
+
+def sync_results_file_to_github(
+    github_token: Optional[str] = None,
+    repo: str = "priteshpra/my-vip-toss",
+    branch: str = "main",
+) -> Dict[str, Any]:
+    """Commit data/toss_results_log.json to GitHub via Contents API so manual edits survive Streamlit Cloud reboots."""
+    token = (github_token or os.environ.get("GITHUB_TOKEN") or "").strip()
+    if not token:
+        return {"success": False, "error": "GITHUB_TOKEN not configured."}
+    if not os.path.exists(RESULTS_FILE):
+        return {"success": False, "error": "toss_results_log.json not found locally."}
+
+    api_url = f"https://api.github.com/repos/{repo}/contents/data/toss_results_log.json"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "TossIQ-VIP-App",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        req_get = urllib.request.Request(f"{api_url}?ref={branch}", headers=headers, method="GET")
+        with urllib.request.urlopen(req_get, timeout=15, context=_SSL_CTX) as resp:
+            cur_meta = json.loads(resp.read().decode("utf-8"))
+        sha = cur_meta.get("sha")
+    except Exception as e_get:
+        return {"success": False, "error": f"GitHub read failed: {e_get}"}
+
+    try:
+        with open(RESULTS_FILE, "rb") as f:
+            raw_bytes = f.read()
+        payload = json.dumps({
+            "message": f"chore: save toss results log ({format_ist(now_ist(), '%Y-%m-%d %H:%M IST')})",
+            "content": base64.b64encode(raw_bytes).decode("ascii"),
+            "sha": sha,
+            "branch": branch,
+        }).encode("utf-8")
+        req_put = urllib.request.Request(api_url, data=payload, headers=headers, method="PUT")
+        with urllib.request.urlopen(req_put, timeout=20, context=_SSL_CTX) as resp:
+            res_json = json.loads(resp.read().decode("utf-8"))
+        commit_sha = (res_json.get("commit") or {}).get("sha", "")[:7]
+        return {"success": True, "message": f"✅ GitHub par permanent save ho gaya! (Commit: {commit_sha})"}
+    except Exception as e_put:
+        return {"success": False, "error": f"GitHub save failed: {e_put}"}
 
 
 def get_toss_accuracy_kpis(target_results: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:

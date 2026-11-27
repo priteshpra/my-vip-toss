@@ -37,6 +37,25 @@ DEFAULT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTU5MTQsImlhdCI6MT
 DEFAULT_CHALLENGE = "bb459408392e499b78e8749856b484ae5de88ed8ae0257a06598fb93f917b577"
 
 
+def _is_match_post_toss(match_date_str: str, toss_time_str: str) -> bool:
+    """Return True if scheduled IST toss time has already elapsed (with 2-min pre-toss freeze buffer)."""
+    try:
+        d_str = str(match_date_str or "").split("T")[0].strip()
+        if not d_str:
+            return False
+        cur = now_ist()
+        today_d = format_ist(cur, "%Y-%m-%d")
+        if d_str < today_d:
+            return True
+        t_str = str(toss_time_str or "").replace(" IST", "").strip()
+        if not t_str:
+            return False
+        toss_dt = datetime.strptime(f"{d_str} {t_str}", "%Y-%m-%d %I:%M %p").replace(tzinfo=cur.tzinfo)
+        return cur >= (toss_dt - timedelta(minutes=2))
+    except Exception:
+        return False
+
+
 def get_stored_credentials() -> Dict[str, Any]:
     """Retrieve saved phone, password, and active session token."""
     phone = None
@@ -226,6 +245,8 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
             team_b = m.get("team_b_name") or m.get("team_two_name") or "Team B"
             m["team_a_name"] = team_a
             m["team_b_name"] = team_b
+            m_date = str(m.get("match_date") or "").split("T")[0].strip() or format_ist(now_ist(), "%Y-%m-%d")
+            toss_t = m.get("toss_time_str") or m.get("time_str") or ""
             v = compute_multi_source_toss_load(
                 team_a=team_a,
                 team_b=team_b,
@@ -233,8 +254,10 @@ def fetch_gaming_helper_live_bets(force_refresh: bool = False) -> Dict[str, Any]
                 odds_b=m.get("odds_b", 80),
                 tournament=m.get("tournament_name", ""),
                 match_time=m.get("time_str", ""),
-                match_id=mid
+                match_id=mid,
+                is_post_toss=_is_match_post_toss(m_date, toss_t)
             )
+            m["engine_version"] = v.get("engine_version", 8)
             m["action_type"] = v["action"]
             m["action"] = v["action"]
             m["recommended_team"] = v["recommended_team"]
@@ -569,6 +592,10 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
 
         mid = str(item.get("id") or item.get("encrypted_id"))
 
+        # Extract match date early so post-toss matches cannot flip SKIP -> PLAY on restart/live-odds shift
+        m_date_val = str(item.get("match_date")).split("T")[0].strip() if item.get("match_date") else format_ist(now_ist(), "%Y-%m-%d")
+        is_post_toss = _is_match_post_toss(m_date_val, toss_time_str or time_str)
+
         # VIP Multi-Source Toss Load & Consensus Engine Verdict (Locked per match ID)
         vip_verdict = compute_multi_source_toss_load(
             team_a=team_a,
@@ -577,19 +604,18 @@ def parse_gaming_helper_matches(payload: Any) -> List[Dict[str, Any]]:
             odds_b=odds_b,
             tournament=tournament,
             match_time=time_str,
-            match_id=mid
+            match_id=mid,
+            is_post_toss=is_post_toss
         )
 
         # Team logos
         logo_a = item.get("team_one_logo")
         logo_b = item.get("team_two_logo")
 
-        # Extract match date
-        m_date_val = str(item.get("match_date")).split("T")[0].strip() if item.get("match_date") else format_ist(now_ist(), "%Y-%m-%d")
-
         normalized.append({
             "id": mid,
             "match_date": m_date_val,
+            "engine_version": vip_verdict.get("engine_version", 8),
             "team_a_name": team_a,
             "team_a_short": "".join([w[0].upper() for w in team_a.split()[:3]]) or "T1",
             "team_a_logo": f"https://gaminglive.gaminghelperonline.com/uploads/team_logo/{logo_a}" if logo_a else None,

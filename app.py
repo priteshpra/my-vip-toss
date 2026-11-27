@@ -44,6 +44,8 @@ sync_completed_tosses_from_gaming_helper = _trm.sync_completed_tosses_from_gamin
 auto_update_toss_results_from_telegram = getattr(_trm, "auto_update_toss_results_from_telegram", lambda: 0)
 sync_live_toss_results_from_crex = getattr(_trm, "sync_live_toss_results_from_crex", lambda: 0)
 sync_live_toss_results_from_cricbuzz = getattr(_trm, "sync_live_toss_results_from_cricbuzz", lambda: 0)
+merge_backup_toss_results = getattr(_trm, "merge_backup_toss_results", lambda recs: 0)
+sync_results_file_to_github = getattr(_trm, "sync_results_file_to_github", lambda **kwargs: {"success": False, "error": "Unavailable"})
 
 def _fallback_is_winner_unresolved(val: Any) -> bool:
     s = str(val or "").strip().lower()
@@ -1619,6 +1621,55 @@ with vip_tabs[1]:
                 st.info("No rule samples available yet. Click 'Sync 2024–26 Archive' above.")
         except Exception as e_bt:
             st.warning(f"Backtest unavailable: {e_bt}")
+
+    with st.expander("💾 Backup & Restore / Cloud Save (Server Restart Safety)", expanded=False):
+        st.caption("Streamlit Cloud par server reboot hone par temporary files reset ho jati hain. Apne manual Toss Done updates ko JSON backup me save/restore karein ya `GITHUB_TOKEN` se GitHub par permanent save karein.")
+        col_bk1, col_bk2, col_bk3 = st.columns(3)
+        with col_bk1:
+            _cur_results_json = json.dumps(load_toss_results(), indent=2, ensure_ascii=False)
+            st.download_button(
+                label="📥 Download Results Backup",
+                data=_cur_results_json,
+                file_name=f"toss_results_backup_{today_iso}.json",
+                mime="application/json",
+                use_container_width=True,
+                key="btn_download_toss_backup"
+            )
+        with col_bk2:
+            _up_bk = st.file_uploader(
+                "Upload Backup JSON",
+                type=["json"],
+                label_visibility="collapsed",
+                key="uploader_toss_backup"
+            )
+            if _up_bk is not None:
+                if st.button("📤 Restore Uploaded Backup", key="btn_restore_toss_backup", use_container_width=True):
+                    try:
+                        _bk_data = json.loads(_up_bk.getvalue().decode("utf-8"))
+                        _restored_n = merge_backup_toss_results(_bk_data)
+                        st.session_state.pop("_punter_data_ts", None)
+                        st.success(f"✅ {_restored_n} matches backup se restore/merge ho gaye!")
+                        st.rerun()
+                    except Exception as _e_bk:
+                        st.error(f"Backup restore failed: {_e_bk}")
+        with col_bk3:
+            _gh_tok = ""
+            try:
+                _gh_tok = st.secrets.get("GITHUB_TOKEN", "")
+            except Exception:
+                _gh_tok = ""
+            if not _gh_tok:
+                _gh_tok = os.environ.get("GITHUB_TOKEN", "")
+            if _gh_tok:
+                if st.button("☁️ Save to GitHub (Permanent)", key="btn_save_github_backup", use_container_width=True):
+                    with st.spinner("Saving toss results to GitHub..."):
+                        _gh_res = sync_results_file_to_github(github_token=_gh_tok)
+                        if _gh_res.get("success"):
+                            st.success(_gh_res.get("message", "✅ Saved to GitHub!"))
+                        else:
+                            st.error(_gh_res.get("error", "GitHub save failed."))
+            else:
+                st.info("☁️ Permanent Cloud Save ke liye Streamlit Secrets me `GITHUB_TOKEN` add karein; tab tak Download/Restore Backup use karein.")
 
     completed_results = load_toss_results()
 

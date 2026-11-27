@@ -229,7 +229,8 @@ def compute_multi_source_toss_load(
     odds_b: int = 80,
     tournament: str = "",
     match_time: str = "",
-    match_id: str = ""
+    match_id: str = "",
+    is_post_toss: bool = False
 ) -> Dict[str, Any]:
     """
     VIP Multi-Platform Toss Consensus & Pattern Convergence Engine (v7).
@@ -252,12 +253,22 @@ def compute_multi_source_toss_load(
         "sixes", "hong kong sixes", "exhibition", "charity"
     ]) or any(k in (t_a or "").lower() or k in (t_b or "").lower() for k in ["sixes", "6s"])
 
-    # Step 1: Check Immutable Lock Vault First (Re-evaluate if previously locked as SKIP, or with legacy engine < v8)
+    # Step 1: Check Immutable Lock Vault First (Re-evaluate if pre-toss SKIP or legacy engine < v8; NEVER flip SKIP->PLAY post-toss)
     locked_verdict = get_locked_prediction(m_id_str, t_a, t_b)
     if locked_verdict:
-        if locked_verdict.get("action") == "SKIP" or not locked_verdict.get("recommended_team") or is_exhibition:
+        is_v8_play = (
+            locked_verdict.get("engine_version") == 8
+            and locked_verdict.get("action") == "PLAY"
+            and bool(locked_verdict.get("recommended_team"))
+        )
+        is_v8_locked_skip = (
+            locked_verdict.get("engine_version") == 8
+            and locked_verdict.get("action") == "SKIP"
+            and is_post_toss
+        )
+        if is_exhibition:
             locked_verdict = None
-        elif locked_verdict.get("engine_version") != 8:
+        elif not is_v8_play and not is_v8_locked_skip:
             locked_verdict = None
         elif locked_verdict.get("confidence_pct", 50) > 80 or "crex" in str(locked_verdict.get("consensus_badge", "")).lower() or locked_verdict.get("pillars_total") != 5:
             locked_verdict = None
@@ -613,7 +624,7 @@ def compute_multi_source_toss_load(
     rule_bt_txt = f" · Rule Hist: {rule_win_pct:.1f}%" if rule_win_pct is not None else ""
     win_pct_summary = f"{favored}: {fav_rec_str} vs {underdog}: {und_rec_str} ({h2h_str}{rule_bt_txt})"
 
-    if is_iron_clad_lock:
+    if is_iron_clad_lock and not is_post_toss:
         action = "PLAY"
         verdict_tier = "SUPER_LOCK"
         rating = "💎 HIGH-CONVICTION PICK (3+ PILLARS + ANCHOR)"
@@ -629,7 +640,7 @@ def compute_multi_source_toss_load(
         rec_team = favored
         und_team = underdog
         market_load_str = f"📊 {len(active_pillars)}/5 Pillars + Anchor | Win%: {fav_pct_val:.0f}% vs {und_pct_val:.0f}%"
-    elif is_value_lean:
+    elif is_value_lean and not is_post_toss:
         action = "PLAY"
         verdict_tier = "VALUE_LEAN"
         confidence = min(69, confidence)
@@ -655,6 +666,8 @@ def compute_multi_source_toss_load(
 
         # Build precise diagnostic reason for rejection
         reasons_list = []
+        if is_post_toss:
+            reasons_list.append("Scheduled toss time already elapsed (post-toss lock protection)")
         if not both_teams_sufficient and tot_h2h < 2:
             reasons_list.append(f"Insufficient team toss history ({t_a}: {tot_a}, {t_b}: {tot_b} matches; min 3 each required)")
         if len(active_pillars) < 2:

@@ -379,6 +379,117 @@ def test_save_toss_result_ignores_stale_non_v8_locked_play(tmp_path, monkeypatch
     assert rec["outcome"] == "SKIPPED"
 
 
+def test_post_toss_never_flips_skip_to_play(tmp_path, monkeypatch):
+    """Post-toss / in-play live odds or server restart must NEVER flip a SKIP match into PLAY."""
+    log_path = tmp_path / "historical_toss_archive.json"
+    locked_path = tmp_path / "toss_predictions_locked.json"
+
+    records = [
+        {"match_date": "2026-10-01", "team_a": "Alpha XI", "team_b": "Gamma XI", "actual_winner": "Alpha XI"},
+        {"match_date": "2026-10-03", "team_a": "Alpha XI", "team_b": "Delta XI", "actual_winner": "Alpha XI"},
+        {"match_date": "2026-10-05", "team_a": "Alpha XI", "team_b": "Epsilon XI", "actual_winner": "Alpha XI"},
+        {"match_date": "2026-10-02", "team_a": "Beta XI", "team_b": "Gamma XI", "actual_winner": "Gamma XI"},
+        {"match_date": "2026-10-04", "team_a": "Beta XI", "team_b": "Delta XI", "actual_winner": "Delta XI"},
+        {"match_date": "2026-10-06", "team_a": "Beta XI", "team_b": "Epsilon XI", "actual_winner": "Epsilon XI"},
+        {"match_date": "2026-09-20", "team_a": "Alpha XI", "team_b": "Beta XI", "actual_winner": "Alpha XI"},
+        {"match_date": "2026-09-25", "team_a": "Alpha XI", "team_b": "Beta XI", "actual_winner": "Alpha XI"},
+    ]
+    locked_path.write_text("{}", encoding="utf-8")
+    log_path.write_text(json.dumps(records), encoding="utf-8")
+    monkeypatch.setattr(pattern_engine, "LOG_FILE", str(log_path))
+    monkeypatch.setattr(toss_load_provider, "LOG_FILE", str(log_path))
+    monkeypatch.setattr(toss_load_provider, "LOCKED_PREDICTIONS_FILE", str(locked_path))
+    monkeypatch.setattr(toss_load_provider, "get_memoized_tg_feed", lambda: [])
+
+    # Even with skewed in-play market odds (98 vs 20), is_post_toss=True forces SKIP
+    verdict = toss_load_provider.compute_multi_source_toss_load(
+        team_a="Alpha XI",
+        team_b="Beta XI",
+        odds_a=98,
+        odds_b=20,
+        tournament="Day/Night T20 Series",
+        match_time="07:00 PM IST",
+        match_id="test_post_toss_999",
+        is_post_toss=True,
+    )
+    assert verdict["action"] == "SKIP"
+    assert verdict["recommended_team"] is None
+    assert "post-toss" in verdict["punter_rationale"].lower()
+
+
+def test_merge_backup_toss_results_restores_manual_updates(tmp_path, monkeypatch):
+    """Restoring a backup JSON replaces Pending Confirmation with resolved manual updates without duplicates."""
+    from core.engine import toss_results_manager as trm
+
+    res_file = tmp_path / "toss_results_log.json"
+    initial = [
+        {
+            "match_id": "41309",
+            "match_name": "Australia vs England",
+            "tournament": "England tour of Australia 2026",
+            "toss_time_ist": "01:10 PM IST",
+            "match_date": "2026-11-27",
+            "team_a": "Australia",
+            "team_b": "England",
+            "recommended_team": None,
+            "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
+            "actual_winner": "Pending Confirmation",
+            "toss_decision": "Pending",
+            "outcome": "SKIPPED",
+            "outcome_label": "🟡 SKIPPED (50-50 NEUTRAL)",
+            "is_manual": False,
+        }
+    ]
+    res_file.write_text(json.dumps(initial), encoding="utf-8")
+    monkeypatch.setattr(trm, "RESULTS_FILE", str(res_file))
+    monkeypatch.setattr(trm, "_TOSS_RESULTS_CACHE", {"mtime": 0, "data": []})
+
+    backup = [
+        {
+            "match_id": "41309",
+            "match_name": "Australia vs England",
+            "tournament": "England tour of Australia 2026",
+            "toss_time_ist": "01:10 PM IST",
+            "match_date": "2026-11-27",
+            "team_a": "Australia",
+            "team_b": "England",
+            "recommended_team": "England",  # backup had a pick, or could be None; test winner merge cleanly
+            "actual_winner": "England",
+            "toss_decision": "Bowl",
+            "is_manual": True,
+        },
+        {
+            "match_id": "41315",
+            "match_name": "India vs New Zealand",
+            "tournament": "T20 Series",
+            "toss_time_ist": "07:00 PM IST",
+            "match_date": "2026-11-27",
+            "team_a": "India",
+            "team_b": "New Zealand",
+            "recommended_team": None,
+            "stake_rating": "🟡 SKIP / 50-50 COIN FLIP",
+            "actual_winner": "India",
+            "toss_decision": "Bat",
+            "outcome": "SKIPPED",
+            "outcome_label": "🟡 SKIPPED (50-50 NEUTRAL)",
+            "is_manual": True,
+        },
+    ]
+
+    changed = trm.merge_backup_toss_results(backup)
+    loaded = trm.load_toss_results()
+    assert changed == 2
+    assert len(loaded) == 2
+    aus_eng = next(r for r in loaded if r["match_id"] == "41309")
+    assert aus_eng["actual_winner"] == "England"
+    assert aus_eng["toss_decision"] == "Bowl"
+    assert aus_eng["is_manual"] is True
+    # Since existing canonical entry 41309 was SKIP (recommended_team=None), outcome remains SKIPPED!
+    assert aus_eng["recommended_team"] is None
+    assert aus_eng["outcome"] == "SKIPPED"
+
+
+
 
 
 
