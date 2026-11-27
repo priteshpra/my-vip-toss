@@ -629,6 +629,8 @@ if (
     "_punter_data_cache" not in st.session_state
     or (_now_ts - float(st.session_state.get("_punter_data_ts", 0))) > 90
 ):
+    # Ensure Cloud DB manual/live updates are synced into local log BEFORE computing toss predictions
+    load_toss_results()
     punter_data = get_active_punter_matches(force_refresh=False)
     st.session_state["_punter_data_cache"] = punter_data
     st.session_state["_punter_data_ts"] = _now_ts
@@ -797,20 +799,30 @@ with vip_tabs[0]:
     tomorrow_iso = format_ist(cur_ist + timedelta(days=1), "%Y-%m-%d")
 
     all_done_list = load_toss_results()
+    _resolved_ids = set()
+    _resolved_by_date: Dict[str, List[tuple]] = {}
+    for _dr in all_done_list:
+        _act_w = str(_dr.get("actual_winner") or "")
+        if _act_w and "pending" not in _act_w.lower():
+            _did = str(_dr.get("match_id") or "").strip()
+            if _did:
+                _resolved_ids.add(_did)
+            _ddate = str(_dr.get("match_date") or "").split("T")[0].strip()
+            if _ddate:
+                _resolved_by_date.setdefault(_ddate, []).append(
+                    (str(_dr.get("team_a", "")), str(_dr.get("team_b", "")))
+                )
+
     def _is_toss_completed(m):
-        mid = str(m.get("id"))
+        mid = str(m.get("id") or "").strip()
+        if mid and mid in _resolved_ids:
+            return True
         ta = m.get("team_a_name", "")
         tb = m.get("team_b_name", "")
         m_date = str(m.get("match_date") or "").split("T")[0].strip() or today_iso
-        for r in all_done_list:
-            if str(r.get("match_id")) == mid:
-                act_w = str(r.get("actual_winner") or "")
-                if act_w and "pending" not in act_w.lower():
-                    return True
-            if str(r.get("match_date") or "").strip() == m_date and ((match_teams_fuzzy(ta, str(r.get("team_a", ""))) and match_teams_fuzzy(tb, str(r.get("team_b", "")))) or (match_teams_fuzzy(tb, str(r.get("team_a", ""))) and match_teams_fuzzy(ta, str(r.get("team_b", ""))))):
-                act_w = str(r.get("actual_winner") or "")
-                if act_w and "pending" not in act_w.lower():
-                    return True
+        for _rta, _rtb in _resolved_by_date.get(m_date, ()):
+            if (match_teams_fuzzy(ta, _rta) and match_teams_fuzzy(tb, _rtb)) or (match_teams_fuzzy(tb, _rta) and match_teams_fuzzy(ta, _rtb)):
+                return True
         t_clean = (m.get("toss_time_str") or m.get("time_str") or "").replace(" IST", "").strip()
         try:
             t_dt = datetime.strptime(f"{m_date} {t_clean}", "%Y-%m-%d %I:%M %p").replace(tzinfo=cur_ist.tzinfo)

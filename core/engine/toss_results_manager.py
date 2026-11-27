@@ -137,7 +137,7 @@ def load_toss_results() -> List[Dict[str, Any]]:
 
     if _cloud_sync_active():
         now_ts = time.time()
-        if (now_ts - float(_TOSS_RESULTS_CACHE.get("cloud_ts", 0.0))) < 15.0 and _TOSS_RESULTS_CACHE.get("data"):
+        if (now_ts - float(_TOSS_RESULTS_CACHE.get("cloud_ts", 0.0))) < 60.0 and _TOSS_RESULTS_CACHE.get("data"):
             return list(_TOSS_RESULTS_CACHE["data"])
 
         cloud_rows = cloud_load_all_results()

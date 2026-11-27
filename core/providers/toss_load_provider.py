@@ -93,7 +93,7 @@ def load_locked_predictions() -> Dict[str, Any]:
 
     if LOCKED_PREDICTIONS_FILE == DEFAULT_LOCKED_PREDICTIONS_FILE and is_cloud_db_enabled():
         now_ts = time.time()
-        if (now_ts - float(_CLOUD_LOCKS_CACHE.get("ts", 0.0))) < 15.0 and isinstance(_CLOUD_LOCKS_CACHE.get("data"), dict):
+        if (now_ts - float(_CLOUD_LOCKS_CACHE.get("ts", 0.0))) < 60.0 and isinstance(_CLOUD_LOCKS_CACHE.get("data"), dict):
             return dict(_CLOUD_LOCKS_CACHE["data"])
         cloud_locks = cloud_load_all_locks()
         if cloud_locks is not None:
@@ -146,6 +146,17 @@ def save_locked_prediction(
                 # Preserve the original PLAY call only if locked under current v8 engine
                 return
 
+        # Skip redundant disk & Cloud DB writes if the locked record is already identical
+        if isinstance(existing, dict) and (
+            existing.get("engine_version") == verdict.get("engine_version")
+            and existing.get("action") == verdict.get("action")
+            and existing.get("recommended_team") == verdict.get("recommended_team")
+            and existing.get("confidence_pct") == verdict.get("confidence_pct")
+            and existing.get("fav_win_pct_summary") == verdict.get("fav_win_pct_summary")
+        ):
+            if not (d_clean and pkey and f"{d_clean}:{pkey}" not in locked):
+                return
+
         cloud_updates: Dict[str, Any] = {}
         if m_id_str:
             locked[m_id_str] = verdict
@@ -158,7 +169,8 @@ def save_locked_prediction(
             json.dump(locked, f, indent=2)
         if LOCKED_PREDICTIONS_FILE == DEFAULT_LOCKED_PREDICTIONS_FILE and is_cloud_db_enabled() and cloud_updates:
             cloud_upsert_locks(cloud_updates)
-            _CLOUD_LOCKS_CACHE["ts"] = 0.0
+            _CLOUD_LOCKS_CACHE["data"] = dict(locked)
+            _CLOUD_LOCKS_CACHE["ts"] = time.time()
     except Exception:
         pass
 

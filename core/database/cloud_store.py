@@ -50,6 +50,7 @@ TOSS_LOCKS_TABLE = Table(
 _ENGINE_CACHE: Dict[str, Any] = {}
 _SCHEMA_READY: set = set()
 _LAST_CLOUD_ERROR: str = ""
+_STATUS_CACHE: Dict[str, Any] = {"url": "", "ts": 0.0, "val": None}
 
 
 def _detect_pg_dialect() -> str:
@@ -230,6 +231,7 @@ def cloud_upsert_many_results(records: List[Dict[str, Any]]) -> int:
                     conn.execute(TOSS_RESULTS_TABLE.insert().values(**row))
                     existing_ids.add(mid)
                 count += 1
+        _STATUS_CACHE["ts"] = 0.0
         return count
     except Exception as exc:
         _LAST_CLOUD_ERROR = str(exc)
@@ -255,6 +257,7 @@ def cloud_delete_result(match_id: str) -> bool:
             res = conn.execute(
                 delete(TOSS_RESULTS_TABLE).where(TOSS_RESULTS_TABLE.c.match_id == mid)
             )
+            _STATUS_CACHE["ts"] = 0.0
             return bool(res.rowcount and res.rowcount > 0)
     except Exception as exc:
         _LAST_CLOUD_ERROR = str(exc)
@@ -318,6 +321,7 @@ def cloud_upsert_locks(entries: Dict[str, Any]) -> int:
                     )
                     existing_keys.add(lkey)
                 count += 1
+        _STATUS_CACHE["ts"] = 0.0
         return count
     except Exception as exc:
         _LAST_CLOUD_ERROR = str(exc)
@@ -325,7 +329,7 @@ def cloud_upsert_locks(entries: Dict[str, Any]) -> int:
 
 
 def get_cloud_db_status() -> Dict[str, Any]:
-    """Return Cloud DB connection status and row counts for UI diagnostics."""
+    """Return Cloud DB connection status and row counts for UI diagnostics (60s TTL cache)."""
     url = get_cloud_database_url()
     if not url:
         return {
@@ -336,13 +340,21 @@ def get_cloud_db_status() -> Dict[str, Any]:
             "locks_count": 0,
             "error": "",
         }
+    now_ts = time.time()
+    if (
+        _STATUS_CACHE.get("url") == url
+        and _STATUS_CACHE.get("val") is not None
+        and (now_ts - float(_STATUS_CACHE.get("ts", 0.0))) < 60.0
+    ):
+        return dict(_STATUS_CACHE["val"])
+
     backend = "SQLite" if url.startswith("sqlite") else "PostgreSQL"
     try:
         engine = _get_engine()
         with engine.connect() as conn:
             res_cnt = conn.execute(select(func.count()).select_from(TOSS_RESULTS_TABLE)).scalar() or 0
             lck_cnt = conn.execute(select(func.count()).select_from(TOSS_LOCKS_TABLE)).scalar() or 0
-        return {
+        val = {
             "enabled": True,
             "connected": True,
             "backend": backend,
@@ -350,6 +362,8 @@ def get_cloud_db_status() -> Dict[str, Any]:
             "locks_count": int(lck_cnt),
             "error": "",
         }
+        _STATUS_CACHE.update({"url": url, "ts": now_ts, "val": val})
+        return dict(val)
     except Exception as exc:
         return {
             "enabled": True,
