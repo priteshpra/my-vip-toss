@@ -13,8 +13,13 @@ import os
 import re
 import json
 import time
+from functools import lru_cache
 from typing import Dict, Any, List, Optional, Tuple
-from core.engine.pattern_engine import match_teams as match_teams_strict
+from core.engine.pattern_engine import (
+    match_teams as match_teams_strict,
+    _parse_team_cached,
+    STATE_MODIFIERS,
+)
 from core.engine.historical_archive import load_merged_toss_records
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data")
@@ -36,12 +41,21 @@ def _make_pair_key(team_a: str, team_b: str) -> str:
     return f"pair:{pair[0]}__{pair[1]}"
 
 
+@lru_cache(maxsize=16384)
 def match_teams_fuzzy(t1: str, t2: str) -> bool:
-    """Check if two team names refer to the same team using strict category-aware matching."""
+    """Check if two team names refer to the same team using strict tier/gender/state isolation."""
     if not t1 or not t2:
         return False
     if match_teams_strict(t1, t2):
         return True
+
+    s1, _, w1, _, u19_1, u23_1, a1 = _parse_team_cached(t1)
+    s2, _, w2, _, u19_2, u23_2, a2 = _parse_team_cached(t2)
+    # Never bleed across Women/Men, U19, U23, A-team, or State modifiers
+    if w1 != w2 or u19_1 != u19_2 or u23_1 != u23_2 or a1 != a2:
+        return False
+    if s1.intersection(STATE_MODIFIERS) != s2.intersection(STATE_MODIFIERS):
+        return False
 
     # Alphanumeric equality / containment
     c1 = re.sub(r'[^a-z0-9]', '', (t1 or "").lower())
@@ -53,10 +67,7 @@ def match_teams_fuzzy(t1: str, t2: str) -> bool:
     norm1 = c1.replace("gurkha", "gorkha").replace("royalsmen", "royals")
     norm2 = c2.replace("gurkha", "gorkha").replace("royalsmen", "royals")
     if norm1 == norm2 or (len(norm1) >= 6 and norm1 in norm2) or (len(norm2) >= 6 and norm2 in norm1):
-        w1 = any(x in (t1 or "").lower() for x in ["women", "womens", "wmn"])
-        w2 = any(x in (t2 or "").lower() for x in ["women", "womens", "wmn"])
-        if w1 == w2:
-            return True
+        return True
 
     return False
 

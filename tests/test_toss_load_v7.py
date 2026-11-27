@@ -283,4 +283,15 @@ def test_value_lean_unlocks_on_two_independent_pillars_with_win_pct(tmp_path, mo
     assert "80%" in verdict["fav_win_pct_summary"]
 
 
+def test_fuzzy_match_blocks_a_team_u19_and_state_leakage():
+    """Senior teams must never pollute A-team, U19, Women, or State team Win% records."""
+    assert toss_load_provider.match_teams_fuzzy("Pakistan", "Pakistan A") is False
+    assert toss_load_provider.match_teams_fuzzy("Bangladesh", "Bangladesh A") is False
+    assert toss_load_provider.match_teams_fuzzy("India", "India Women") is False
+    assert toss_load_provider.match_teams_fuzzy("India", "India Under-19") is False
+    assert toss_load_provider.match_teams_fuzzy("Australia", "South Australia") is False
+    assert toss_load_provider.match_teams_fuzzy("Kathmandu Gurkhas", "Kathmandu Gorkhas") is True
+
+
+
 
