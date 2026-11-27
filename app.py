@@ -1569,7 +1569,7 @@ with vip_tabs[0]:
 # TAB 2: TOSS DONE & PASS/FAIL ACCURACY AUDIT TRACKER
 # ==============================================================================
 with vip_tabs[1]:
-    col_head_t2, col_btn_t2, col_arch_t2 = st.columns([2.1, 1.1, 1.1])
+    col_head_t2, col_btn_t2 = st.columns([2.5, 1.2])
     with col_head_t2:
         st.header("📜 Toss Results & Audit History")
     with col_btn_t2:
@@ -1601,15 +1601,6 @@ with vip_tabs[1]:
                 else:
                     st.info("ℹ️ Live sources checked (Telegram/Cricbuzz/CREX). Local club/regional matches not listed on public feeds can be marked 1-click below.")
                 st.rerun()
-    with col_arch_t2:
-        if st.button("📚 Sync 2024–26 Archive", key="btn_cricsheet_archive_tab2", use_container_width=True):
-            with st.spinner("Downloading 2024–2026 Cricsheet toss history (IPL, BBL, WBBL, T20I, ODI)..."):
-                try:
-                    from core.engine.historical_archive import sync_historical_archive_from_cricsheet
-                    arch_res = sync_historical_archive_from_cricsheet(min_date="2024-01-01")
-                    st.success(f"✅ Archive synced: {arch_res['total_records']} total matches (+{arch_res['added_records']} new) across {arch_res['synced_leagues']} leagues!")
-                except Exception as e_arch:
-                    st.warning(f"⚠️ Archive sync error: {e_arch}")
 
     with st.expander("📊 Empirical Rule Backtest (2024–2026 Real Archive)", expanded=False):
         try:
