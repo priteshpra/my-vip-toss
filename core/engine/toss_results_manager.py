@@ -128,14 +128,16 @@ def save_toss_result(
                         cm_t1 = cm.get("team_a_name") or cm.get("team_one_name") or ""
                         cm_t2 = cm.get("team_b_name") or cm.get("team_two_name") or ""
                         cm_id = str(cm.get("id", "")).strip()
-                        pair_match = (
+                        cm_date = str(cm.get("match_date") or "").split("T")[0].strip()
+                        same_date = (not cm_date or not match_date or cm_date == str(match_date)[:10])
+                        pair_match = same_date and (
                             (match_teams_fuzzy(team_a, cm_t1) and match_teams_fuzzy(team_b, cm_t2)) or
                             (match_teams_fuzzy(team_a, cm_t2) and match_teams_fuzzy(team_b, cm_t1))
                         )
                         if (m_id_str and cm_id == m_id_str) or pair_match:
                             if cm.get("action_type") == "PLAY" and cm.get("recommended_team"):
                                 recommended_team = cm.get("recommended_team")
-                                stake_rating = cm.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                                stake_rating = cm.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK")
                                 break
             except Exception:
                 pass
@@ -146,17 +148,17 @@ def save_toss_result(
                 l_map = load_locked_predictions()
                 if m_id_str and m_id_str in l_map:
                     l_pred = l_map[m_id_str]
-                    if l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
+                    if l_pred.get("engine_version") == 8 and l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
                         recommended_team = l_pred.get("recommended_team")
-                        stake_rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                        stake_rating = l_pred.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK")
                 elif team_a and team_b:
                     pkey = _make_pair_key(team_a, team_b)
                     dkey = f"{match_date}:{pkey}"
                     if dkey in l_map:
                         l_pred = l_map[dkey]
-                        if l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
+                        if l_pred.get("engine_version") == 8 and l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
                             recommended_team = l_pred.get("recommended_team")
-                            stake_rating = l_pred.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                            stake_rating = l_pred.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK")
             except Exception:
                 pass
 
@@ -454,15 +456,11 @@ def sync_completed_tosses_from_gaming_helper(run_resolvers: bool = True) -> List
                     rating = "🟡 SKIP / 50-50 COIN FLIP"
                 found_verdict = True
 
-        # Priority 3: Compute calibrated multi-factor model if match was not previously evaluated
+        # Never fabricate a post-match PLAY call after betting closes:
+        # if not pre-locked as PLAY in Tab 1 / locked vault, record strictly as SKIPPED.
         if not found_verdict:
-            vip = compute_multi_source_toss_load(t1, t2, odds_a, odds_b, tour, _format_time_24_to_ist(match_raw), match_id=m_id)
-            if vip.get("action") == "PLAY" and vip.get("recommended_team"):
-                rec_team = vip.get("recommended_team")
-                rating = vip.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
-            else:
-                rec_team = None
-                rating = "🟡 SKIP / 50-50 COIN FLIP"
+            rec_team = None
+            rating = "🟡 SKIP / 50-50 COIN FLIP"
 
         # STRICT TIME GATE: Do NOT record a match from close-bet if its toss time is in the future!
         # GamingHelper closes betting 10-15 min before toss, but the toss hasn't happened yet!
@@ -664,8 +662,8 @@ def sync_live_toss_results_from_cricbuzz() -> int:
                 )
                 if matched:
                     actual_win = l_ta if match_teams_fuzzy(winner_raw, l_ta) else (l_tb if match_teams_fuzzy(winner_raw, l_tb) else winner_raw)
-                    rec = lp.get("recommended_team")
-                    rating = lp.get("stake_rating", "💎 VIP HIGH LOAD PLAY")
+                    rec = lp.get("recommended_team") if (lp.get("engine_version") == 8 and lp.get("action") == "PLAY") else None
+                    rating = lp.get("stake_rating", "🟡 SKIP / 50-50 COIN FLIP") if rec else "🟡 SKIP / 50-50 COIN FLIP"
                     save_toss_result(
                         match_id=str(lid),
                         match_name=f"{l_ta} vs {l_tb}",
@@ -723,10 +721,10 @@ def auto_update_toss_results_from_telegram() -> int:
         rec = r.get("recommended_team")
         rating = r.get("stake_rating", "NORMAL")
 
-        # Restore recommendation if locked map has PLAY
+        # Restore recommendation ONLY if locked under current v8 engine as PLAY
         if not rec and m_id in locked_map:
             l_pred = locked_map[m_id]
-            if l_pred.get("action") == "PLAY":
+            if l_pred.get("engine_version") == 8 and l_pred.get("action") == "PLAY" and l_pred.get("recommended_team"):
                 rec = l_pred.get("recommended_team")
                 rating = l_pred.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)")
 
@@ -1010,6 +1008,9 @@ def sync_live_toss_results_from_crex() -> int:
 
                 if not rec_team and live_cache:
                     for cm in live_cache:
+                        cm_date = str(cm.get("match_date") or "").split("T")[0].strip()
+                        if cm_date and cm_date != f_date:
+                            continue
                         cm_t1 = cm.get("team_a_name") or cm.get("team_one_name") or ""
                         cm_t2 = cm.get("team_b_name") or cm.get("team_two_name") or ""
                         if is_match_pair(t1, t2, cm_t1, cm_t2):
@@ -1028,7 +1029,7 @@ def sync_live_toss_results_from_crex() -> int:
                             continue
                         if is_match_pair(t1, t2, lp.get("team_a", ""), lp.get("team_b", "")):
                             matched_id = lid
-                            if lp.get("action") == "PLAY":
+                            if lp.get("engine_version") == 8 and lp.get("action") == "PLAY" and lp.get("recommended_team"):
                                 rec_team = lp.get("recommended_team")
                                 rating = lp.get("stake_rating", "💎 HIGH-CONVICTION GOLDEN PICK (TOP 3-4)")
                             break

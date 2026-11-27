@@ -1874,7 +1874,7 @@ with vip_tabs[1]:
                 sel_fix_idx = match_titles.index(selected_fix_str)
                 target_r = completed_results[sel_fix_idx]
 
-                col_u1, col_u2, col_u3, col_u4 = st.columns([2, 2, 1.4, 1.4])
+                col_u1, col_u2, col_u2b, col_u3, col_u4 = st.columns([1.8, 1.6, 1.6, 1.1, 1.1])
                 with col_u1:
                     new_fix_winner = st.selectbox(
                         "🏆 True Toss Winner",
@@ -1889,11 +1889,28 @@ with vip_tabs[1]:
                         index=0 if "bowl" in str(target_r.get("toss_decision", "")).lower() else 1,
                         key="global_fix_dec"
                     )
+                with col_u2b:
+                    cur_rec_lbl = f"Keep ({target_r.get('recommended_team') or 'SKIP'})"
+                    new_fix_rec = st.selectbox(
+                        "Pre-Match Call",
+                        [cur_rec_lbl, "Force SKIP (50-50)", target_r.get("team_a"), target_r.get("team_b")],
+                        index=0,
+                        key="global_fix_rec"
+                    )
                 with col_u3:
                     st.write("")
                     st.write("")
                     if st.button("💾 Save Result", key="btn_global_save_fix", type="primary", use_container_width=True):
                         dec_str = "Bowl" if "Bowl" in new_fix_dec else "Bat"
+                        if new_fix_rec == "Force SKIP (50-50)":
+                            upd_rec = None
+                            upd_rating = "🟡 SKIP / 50-50 COIN FLIP"
+                        elif new_fix_rec == cur_rec_lbl:
+                            upd_rec = target_r.get("recommended_team")
+                            upd_rating = target_r.get("stake_rating", "NORMAL")
+                        else:
+                            upd_rec = new_fix_rec
+                            upd_rating = target_r.get("stake_rating") or "⚡ VALUE LEAN"
                         saved_fixed = save_toss_result(
                             match_id=target_r.get("match_id"),
                             match_name=target_r.get("match_name"),
@@ -1902,8 +1919,8 @@ with vip_tabs[1]:
                             match_date=target_r.get("match_date"),
                             team_a=target_r.get("team_a"),
                             team_b=target_r.get("team_b"),
-                            recommended_team=target_r.get("recommended_team"),
-                            stake_rating=target_r.get("stake_rating", "NORMAL"),
+                            recommended_team=upd_rec,
+                            stake_rating=upd_rating,
                             actual_winner=new_fix_winner,
                             toss_decision=dec_str,
                             is_manual=True

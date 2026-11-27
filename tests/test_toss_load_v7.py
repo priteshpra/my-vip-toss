@@ -342,6 +342,44 @@ def test_save_toss_result_resolves_pending_by_same_date_and_pair(tmp_path, monke
     assert saved["actual_winner"] == "Mustafa Fragrance Strikers"
 
 
+def test_save_toss_result_ignores_stale_non_v8_locked_play(tmp_path, monkeypatch):
+    """Stale non-v8 PLAY locks must never flip a SKIPPED match into PLAY inside Tab 2."""
+    from core.engine import toss_results_manager as trm
+
+    res_file = tmp_path / "toss_results_log.json"
+    locked_file = tmp_path / "toss_predictions_locked.json"
+    cache_file = tmp_path / "gaming_helper_matches.json"
+    res_file.write_text("[]", encoding="utf-8")
+    cache_file.write_text("[]", encoding="utf-8")
+    locked_file.write_text(
+        json.dumps({"41281": {"action": "PLAY", "recommended_team": "Ireland A", "engine_version": 6}}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(trm, "RESULTS_FILE", str(res_file))
+    monkeypatch.setattr(trm, "_TOSS_RESULTS_CACHE", {"mtime": 0, "data": []})
+    monkeypatch.setattr(toss_load_provider, "LOCKED_PREDICTIONS_FILE", str(locked_file))
+
+    rec = trm.save_toss_result(
+        match_id="41281",
+        match_name="Zimbabwe A vs Ireland A",
+        tournament="Ireland A tour of Zimbabwe 2026",
+        toss_time_ist="01:00 PM IST",
+        match_date="2026-11-27",
+        team_a="Zimbabwe A",
+        team_b="Ireland A",
+        recommended_team=None,
+        stake_rating="🟡 SKIP / 50-50 COIN FLIP",
+        actual_winner="Zimbabwe A",
+        toss_decision="Bowl",
+        is_manual=False,
+    )
+
+    assert rec["recommended_team"] is None
+    assert rec["outcome"] == "SKIPPED"
+
+
+
 
 
 
